@@ -6,7 +6,19 @@
 - この `AGENTS.md` には「`ticket_guy_b_team` 自体の開発中に遵守するべき AI エージェントの行動原則」だけが書かれている
 - 「`ticket_guy_b_team` が実現する AI エージェントのワークフロー」と「`ticket_guy_b_team` 自体の開発中に遵守するべき AI エージェントの行動原則」は異なる
 
-# AI エージェント行動原則
+# 基本的な AI エージェント行動原則
+
+## OpenAI Docs
+
+Always use the OpenAI developer documentation MCP server if you need to work with the OpenAI API, ChatGPT Apps SDK, Codex, or other OpenAI developer docs, without me having to explicitly ask.
+
+## 禁止事項
+
+- `AGENTS.md` を AI エージェントが編集すること
+- `doc/spec.md` を AI エージェントが編集すること
+- 未承認の仕様から直接実装を始めること
+
+# 実装作業についての AI エージェント行動原則
 
 ## 作業前
 
@@ -28,8 +40,6 @@
 
 ## 禁止事項
 
-- `AGENTS.md` を AI エージェントが編集すること
-- `doc/spec.md` を AI エージェントが編集すること
 - 未承認の仕様から直接実装を始めること
 
 # 開発環境
