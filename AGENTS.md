@@ -1,7 +1,7 @@
 # 前提
 
 - このリポジトリでは `ticket_guy_b_team` を開発する
-- アプリケーションの仕様は `doc/spec.md` に書いてある
+- アプリケーションの仕様は `doc/*.md` に書いてある
 - 人間向けの説明は `README.md` に書いてある
 - この `AGENTS.md` には「`ticket_guy_b_team` 自体の開発中に遵守するべき AI エージェントの行動原則」だけが書かれている
 - 「`ticket_guy_b_team` が実現する AI エージェントのワークフロー」と「`ticket_guy_b_team` 自体の開発中に遵守するべき AI エージェントの行動原則」は異なる
@@ -15,15 +15,16 @@ Always use the OpenAI developer documentation MCP server if you need to work wit
 ## 禁止事項
 
 - `AGENTS.md` を AI エージェントが編集すること
-- `doc/spec.md` を AI エージェントが編集すること
+- `doc/*.md` を AI エージェントが編集すること
 - 未承認の仕様から直接実装を始めること
 
 # 実装作業についての AI エージェント行動原則
 
 ## 作業前
 
-- まず `doc/spec.md` を読むこと
-- 作業内容が `spec.md` と矛盾していないか確認すること
+- まず `doc/spec_overview.md` を読むこと
+- `doc/*.md` のうち、関係するものを読むこと
+- 作業内容が `doc/*.md` と矛盾していないか確認すること
 - 要求が曖昧な場合は、作業に進まず、人間に情報を要求すること
 
 ## 作業中
@@ -36,7 +37,7 @@ Always use the OpenAI developer documentation MCP server if you need to work wit
 
 - 作業完了と判断した根拠を報告すること
 - 未知の失敗や制約があれば必ず報告すること
-- 作業によって `doc/spec.md` と実装とで差異が発生した場合、その内容を報告すること
+- 作業によって `doc/*.md` と実装とで差異が発生した場合、その内容を報告すること
 
 ## 禁止事項
 
