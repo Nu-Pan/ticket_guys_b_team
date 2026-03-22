@@ -1,3 +1,25 @@
 #!/usr/bin/env bash
 
-# TODO
+set -euo pipefail
+
+# スクリプト位置からリポジトリルートを解決する。
+script_dir="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
+repo_root="$(cd -- "${script_dir}/.." && pwd)"
+python_executable="${repo_root}/.venv/bin/python"
+entrypoint="${repo_root}/src/main.py"
+
+# 仮想環境経由のみで起動する。
+if [[ ! -x "${python_executable}" ]]; then
+  printf '%s\n' "ERROR: virtual environment python was not found: ${python_executable}" >&2
+  printf '%s\n' "Next: create the .venv environment before running tgbt" >&2
+  exit 1
+fi
+
+# エントリポイント欠損時は即座に異常終了する。
+if [[ ! -f "${entrypoint}" ]]; then
+  printf '%s\n' "ERROR: CLI entrypoint was not found: ${entrypoint}" >&2
+  printf '%s\n' "Next: restore src/main.py before running tgbt" >&2
+  exit 1
+fi
+
+exec "${python_executable}" "${entrypoint}" "$@"
