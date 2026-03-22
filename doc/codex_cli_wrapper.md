@@ -120,14 +120,6 @@ class CodexCliWrapper(Protocol):
 * `reasoning_effort`
 * `stub_record_path | None` (`codex_cli_mode=stub` のとき必須)
 
-必要に応じて以下を持ってよい。
-
-* `input_files`
-* `timeout_sec`
-* `extra_args`
-* `env_allowlist`
-* `metadata`
-
 ---
 
 ## 8. `CodexCliResult` の必須概念
@@ -146,13 +138,6 @@ class CodexCliWrapper(Protocol):
 * `replayed_from | None`
 * `generated_artifacts`
 * `stop_reason`
-
-必要に応じて以下を持ってよい。
-
-* `raw_command`
-* `duration_ms`
-* `warnings`
-* `truncated_fields`
 
 ---
 

@@ -172,15 +172,10 @@ artifacts/tickets/<ticket_id>.md
 Ticket file の YAML front matter は最低限以下を含む。
 
 * `ticket_id`
-* `ticket_type`
 * `status`
 * `plan_id`
 * `created_at`
 * `updated_at`
-
-`ticket_type` は MVP では以下のみを許可する。
-
-* `worker`
 
 `status` は以下のいずれかでなければならない。
 
@@ -195,12 +190,8 @@ Ticket file の YAML front matter は最低限以下を含む。
 必要に応じて以下を追加してよい。
 
 * `depends_on`
-* `artifacts`
-* `run_history`
-* `default_codex_cli_mode`
-* `blocking_reason`
 
-依存関係の正規表現は本文の `Dependencies` セクションまたは明示的な YAML 項目のどちらか一方に統一することが望ましい。
+依存関係の表現は本文の `Dependencies` セクションまたは明示的な YAML 項目のどちらか一方に統一することが望ましい。
 
 ### 6.4 本文構造
 
@@ -243,12 +234,10 @@ worker Ticket では、少なくとも以下を記載できることが望まし
 ```md
 ---
 ticket_id: worker-001
-ticket_type: worker
 status: todo
 plan_id: plan-20260321-001
 created_at: 2026-03-21T10:10:00+09:00
 updated_at: 2026-03-21T10:10:00+09:00
-default_codex_cli_mode: live
 ---
 
 # Title

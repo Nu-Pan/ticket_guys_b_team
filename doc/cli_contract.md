@@ -264,7 +264,6 @@ tgbt run worker-001 --codex-cli-mode stub --stub-record artifacts/codex/worker-0
 ### 8.3 前提条件
 
 * Ticket が存在すること
-* Ticket が worker であること
 * 対応 Plan が `approved` であること
 * 依存 Ticket がすべて required state を満たしていること
 * Ticket 状態が `todo` であること
@@ -300,7 +299,6 @@ Next: open the ticket file and log
 ### 8.6 失敗条件
 
 * Ticket file が存在しない
-* Ticket が worker でない
 * Plan が `approved` でない
 * 依存未解決
 * `stub` なのに `--stub-record` が無い
