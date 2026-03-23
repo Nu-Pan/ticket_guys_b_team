@@ -2,24 +2,49 @@
 
 ## 1. 文書の目的
 
-本書は `ticket_guys_b_team` における状態遷移仕様を定義する。
-対象は以下の 2 系統である。
+本書は `ticket_guys_b_team` における主要オブジェクトの状態遷移を定義する。
+
+対象は以下とする。
 
 * Plan の状態遷移
 * Ticket の状態遷移
+* Ticket 依存と開始条件
+* `run` における反復オーケストレーションと状態変化の関係
 
-本書は状態遷移の定義に集中し、CLI 契約、ファイル形式、製品背景説明、Codex CLI wrapper の詳細実装は扱わない。
+本書は状態値と遷移規則に集中し、CLI の入出力形式やファイル schema の詳細は別文書へ委譲する。
 
 ---
 
-## 2. 設計原則
+## 2. 共通原則
 
-* 状態遷移は明示的でなければならない
-* 状態ごとの実行可否条件を機械的に判定できなければならない
-* 未承認 Plan や未解決依存のまま実行を開始してはならない
-* 状態遷移の結果は常に永続化され、ログで追跡可能でなければならない
-* 失敗時も途中状態と停止理由を可能な限り保存しなければならない
-* live / stub の違いで業務上の状態意味を変えてはならない
+### 2.1 現在状態の正本
+
+現在状態の正本は front matter とする。
+
+* Plan の現在状態は Plan file の front matter を正本とする
+* Ticket の現在状態は Ticket file の front matter を正本とする
+* execution log と session record は監査証跡であり、状態の正本ではない
+
+front matter と監査証跡が矛盾した場合、現在状態の解釈は front matter を優先する。
+
+### 2.2 `run` は反復処理である
+
+`run --plan-id ...` は単一 Ticket 実行コマンドではない。
+
+1 回の `run` は、以下を必要に応じて反復するオーケストレーションである。
+
+1. Plan と既存 Ticket 群を見て、新規 Ticket が必要か判断する
+2. 必要なら新規 Ticket を作成する
+3. 実行可能な `todo` Ticket を実行する
+4. 実行結果を Ticket に要約として書き戻す
+5. 実行結果を踏まえてフォローアップ Ticket を作成する
+6. フォローアップ作成済みの Ticket を `closed` にする
+
+### 2.3 `approve` 状態は持たない
+
+MVP では Plan の独立した `approved` 状態を持たない。
+
+Plan を実行に移す意思決定は `run` 開始で表現する。
 
 ---
 
@@ -27,69 +52,67 @@
 
 ### 3.1 状態一覧
 
-Plan は以下の状態を持つ。
+Plan の状態は以下とする。
 
 * `draft`
-* `approved`
+* `running`
+* `closed`
 
-### 3.2 状態の意味
+### 3.2 各状態の意味
 
 #### `draft`
 
-計画草案の状態。
+人間がレビュー・修正している状態。
 
-* 新規生成直後の既定状態である
-* 既存計画を編集した直後の状態である
-* 人間レビュー前提の未承認状態である
-* この状態から Ticket 実行を開始してはならない
+* `tgbt plan` による作成直後は `draft`
+* 既存 Plan を更新した場合も `draft`
+* `draft` の Plan はまだ active run を持たない
 
-#### `approved`
+#### `running`
 
-後続フェーズ進行が許可された状態。
+Plan に対する `run` オーケストレーションが進行中、または進行途中で再開可能な状態。
 
-* Ticket 生成または更新の許可状態である
-* Ticket 実行の唯一の許可状態である
-* 再編集された場合は `draft` へ戻る
+* Ticket 生成と Ticket 実行がこの状態で行われる
+* 一部 Ticket が `todo` / `running` / `done` でもよい
+
+#### `closed`
+
+Plan に対して新規 Ticket が不要であり、active Ticket 群がすべて閉じた最終状態。
+
+* `todo` / `running` / `done` Ticket を残してはならない
+* 再度変更したい場合は `tgbt plan --plan-id ...` で `draft` へ戻す
 
 ### 3.3 許可される遷移
 
-* `draft -> approved`
-* `approved -> draft`
+* `draft -> running`
+* `running -> closed`
+* `running -> draft`
+* `closed -> draft`
 
-### 3.4 遷移ルール
+### 3.4 遷移規則
 
-#### `draft -> approved`
+#### `draft -> running`
 
-承認操作によって遷移する。
+`run --plan-id ...` 開始時に遷移してよい。
 
-前提条件:
+条件:
 
-* 必須項目が存在すること
-* 未確定事項について、次フェーズへ進める範囲と進められない範囲が明示されていること
-* 検証戦略が空でないこと
+* Plan file が存在すること
+* 必須 front matter が妥当であること
+* stub 実行時は stub manifest が妥当であること
 
-失敗時:
+#### `running -> closed`
 
-* 状態は `draft` に留まる
-* 不足理由を表示する
+以下をすべて満たしたときに遷移してよい。
 
-#### `approved -> draft`
+* AI が「新規 Ticket 作成不要」と判断していること
+* 対象 Plan に属する active Ticket が `closed` のみであること
 
-再編集操作によって遷移する。
+#### `running -> draft` / `closed -> draft`
 
-前提条件:
+`plan --plan-id ...` によって Plan 本文が更新されたときに遷移してよい。
 
-* 承認済み Plan に変更が加えられたこと
-
-意味:
-
-* 承認済み内容の固定が破られたため、再レビューが必要になる
-
-### 3.5 禁止ルール
-
-* `approved` でない Plan から Ticket 生成または更新を行ってはならない
-* `approved` でない Plan から Ticket 実行を開始してはならない
-* 承認条件未達のまま `approved` に遷移してはならない
+この遷移では、対象 Plan に属する active Ticket 集合を破棄し、以後の `run` で新しい Ticket 集合を作り直す。
 
 ---
 
@@ -97,120 +120,146 @@ Plan は以下の状態を持つ。
 
 ### 4.1 状態一覧
 
-Ticket は以下の状態を持つ。
+Ticket の状態は以下とする。
 
 * `todo`
 * `running`
-* `blocked`
 * `done`
-* `failed`
+* `closed`
 
-### 4.2 状態の意味
+### 4.2 各状態の意味
 
 #### `todo`
 
-未着手状態。
+未実行状態。
 
-* 作成済みだがまだ開始していない
-* 依存が未解決でもよい
-* 開始可否の判定前である
+* AI により作成済み
+* まだ実行されていない
+* 依存が満たされれば実行候補になれる
 
 #### `running`
 
 実行中状態。
 
-* wrapper または付随する自動受け入れゲートが進行している
-* 失敗時は `failed` または `blocked` へ遷移する
-* 成功時は `done` へ遷移する
-
-#### `blocked`
-
-停止理由が解消されるまで前進できない状態。
-
-* 依存未解決
-* 人間判断待ち
-* 自動受け入れゲートでは結論が出せない
-* 外部要因により再試行待ち
-
-再実行または手動更新により `todo` へ戻してよい。
+* その Ticket に対する agent 実行が進行中である
+* 同一 Ticket を重複実行してはならない
 
 #### `done`
 
-完了状態。
+その Ticket に対する agent 実行が終了し、実行結果サマリーが Ticket に反映された状態。
 
-* 自動受け入れゲートを満たした
-* 期待された成果物が揃っている
-* 後続依存の解決条件として参照できる
+重要なのは、`done` は「agent 実行が終わった」ことを表し、成功・失敗の区別自体は別 metadata で表すことだという点である。
 
-#### `failed`
+#### `closed`
 
-失敗状態。
+その Ticket の実行結果に対して、必要なフォローアップ Ticket 作成まで完了した最終状態。
 
-* 実行や検証が失敗した
-* 再試行には修正が必要である
-* 必要に応じて手動更新により `todo` へ戻してよい
+* フォローアップ不要なら `done` 直後に `closed` へ進んでよい
+* フォローアップが必要なら、作成後に `closed` へ進む
 
 ### 4.3 許可される遷移
 
 * `todo -> running`
-* `todo -> blocked`
 * `running -> done`
-* `running -> blocked`
-* `running -> failed`
-* `blocked -> todo`
-* `failed -> todo`
+* `done -> closed`
+
+MVP では `blocked` / `failed` を Ticket 状態値として持たない。
+失敗情報は状態ではなく execution outcome と run log に表す。
 
 ### 4.4 開始条件
 
 Ticket を `running` にしてよいのは、以下をすべて満たすときのみである。
 
-* 対応する Plan が `approved` であること
+* 対応する Plan が `running` であること
 * Ticket が `todo` であること
 * `depends_on` に列挙されたすべての依存 Ticket が `required_state` を満たしていること
 
-### 4.5 完了条件
+### 4.5 `done` の条件
 
 Ticket を `done` にしてよいのは、少なくとも以下を満たすときのみである。
 
-* wrapper 実行が終了していること
-* 自動受け入れゲートが成功であること
+* Ticket に対する wrapper 呼び出しが終了していること
+* 実行結果サマリーが Ticket file に書き戻されていること
 * 実行ログが保存されていること
 * session record が必要な場合は保存されていること
 
-### 4.6 `blocked` の使い分け
+### 4.6 `closed` の条件
 
-`blocked` は、今すぐ自動では前進できないが、失敗として閉じるのも不適切な場合に使う。
+Ticket を `closed` にしてよいのは、少なくとも以下を満たすときのみである。
 
-例:
-
-* 依存 Ticket が `done` になっていない
-* 判定不能な結果が出て人間判断待ちになった
-* `stub` 実行に必要な record が指定されていない
-* 外部コマンドの一時的不調で再試行待ちにしたい
-
-### 4.7 `failed` の使い分け
-
-`failed` は、現行入力・現行実装のままでは通らないことが明確な場合に使う。
-
-例:
-
-* テスト失敗
-* 静的検査失敗
-* wrapper が異常終了した
-* 期待成果物が生成されなかった
+* Ticket が `done` であること
+* その実行結果に対するフォローアップ Ticket 作成の有無が確定していること
+* 必要な follow-up Ticket が作成済みであること、または不要であることが明示されていること
 
 ---
 
-## 5. live / stub 共通原則
+## 5. Ticket 依存の解釈
 
-* `codex_cli_mode` が `live` でも `stub` でも、Ticket の業務状態値は同じでなければならない
+### 5.1 依存の source
+
+依存グラフは Ticket に記載された依存情報を正本として解決する。
+
+Plan から直接依存グラフを推論してはならない。
+
+### 5.2 `required_state`
+
+各依存は `ticket_id` と `required_state` の組で表現する。
+
+MVP では、依存先の既定 `required_state` を `closed` とすることを推奨する。
+
+理由は、`done` 直後の Ticket はまだフォローアップ作成が終わっていない可能性があり、下流 Ticket の開始条件としては不十分なことがあるためである。
+
+---
+
+## 6. `run` と状態更新の関係
+
+### 6.1 Ticket 生成フェーズ
+
+`run` 中の Ticket 生成フェーズでは、AI は対象 Plan と既存 Ticket 群を参照し、必要に応じて新規 Ticket を作成する。
+
+このとき新規 Ticket の初期状態は `todo` とする。
+
+### 6.2 Ticket 実行フェーズ
+
+`run` 中の Ticket 実行フェーズでは、依存解決済みの `todo` Ticket を選び、`running` に遷移させて実行する。
+
+MVP では直列実行を既定としてよい。
+
+### 6.3 実行結果反映フェーズ
+
+Ticket の agent 実行が終了したら、実行結果サマリーを Ticket に追記し、`done` に遷移させる。
+
+成功・失敗・追加対応要否などは状態値ではなく metadata で表す。
+
+### 6.4 フォローアップ整理フェーズ
+
+`done` Ticket に対して follow-up Ticket 作成有無を判定し、必要なものを作成した後、その Ticket を `closed` に遷移させる。
+
+---
+
+## 7. 失敗時の扱い
+
+### 7.1 Ticket 実行前の失敗
+
+stub manifest 不備、wrapper 起動前の validation error、ファイル書き込み失敗など、Ticket 実行前に失敗した場合は、その Ticket を `todo` のまま残してよい。
+
+### 7.2 Ticket 実行後の失敗
+
+agent 実行が終了し、その結果が失敗であっても、結果サマリーを書き戻せたなら Ticket は `done` に遷移してよい。
+
+その後、必要に応じて follow-up Ticket を作成し、元 Ticket を `closed` に遷移させる。
+
+### 7.3 stale `running`
+
+プロセスクラッシュ等により stale な `running` Ticket が残る可能性はある。
+
+MVP では自動復旧を必須とせず、front matter を手動で `todo` へ戻す、または実行ログを見て `done` へ補正する運用を許容する。
+
+---
+
+## 8. live / stub 共通原則
+
+* `codex_cli_mode` が `live` でも `stub` でも、Plan / Ticket の業務状態値は同じでなければならない
 * `stub` だから状態判定を緩めてはならない
-* `live` と `stub` の差は、外部呼び出しの有無と session record の生成経路に限定する
+* live と stub の差は、外部呼び出しの有無と session record の取得方法に限定する
 
----
-
-## 6. 実行コマンドと状態確認
-
-MVP では、状態確認専用の `status` / `state` サブコマンドは導入しない。
-状態の正本はファイル上の front matter および実行ログである。
-CLI は状態を変更したあと、更新したファイルのパスを返せばよい。
