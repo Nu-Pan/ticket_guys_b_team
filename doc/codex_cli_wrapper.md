@@ -141,12 +141,13 @@ class CodexCliWrapper(Protocol):
 * `reasoning_effort`
 * `stub_record_path | None` (`codex_cli_mode=stub` のとき必須)
 
-### 7.1 `call_purpose` の例
+### 7.1 `call_purpose` の値
+
+MVP では以下のみを使用する。
 
 * `ticket_planning`
 * `ticket_execution`
 * `followup_planning`
-* `other`
 
 `ticket_id` は Ticket に直接紐づかない呼び出しでは `None` を許容する。
 

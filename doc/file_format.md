@@ -176,13 +176,6 @@ Plan file の YAML front matter は最低限以下を含む。
 * `settled_at`
 * `closure_reason`
 
-`closure_reason` の例:
-
-* `converged`
-* `blocked`
-* `failed`
-* `superseded`
-
 ### 5.4 本文構造
 
 Plan file 本文は以下のセクションをこの順序で含む。
@@ -331,20 +324,20 @@ worker Ticket では、少なくとも以下を記載できることが望まし
 ```md
 # Artifacts
 - artifacts/logs/plan-20260321-001-run-0003.jsonl
-- artifacts/codex/worker-0001-run-0003-call-0002-ticket_execution.json
+- artifacts/codex/worker-0002-run-0003-call-0002-ticket_execution.json
 ```
 
 ### 6.8 例
 
 ```md
 ---
-ticket_id: worker-0001
+ticket_id: worker-0002
 plan_id: plan-20260321-001
 plan_revision: 1
 status: todo
 ticket_kind: implementation
 depends_on:
-  - ticket_id: worker-0000
+  - ticket_id: worker-0001
     required_state: settled
 created_at: 2026-03-21T10:30:00+09:00
 updated_at: 2026-03-21T10:30:00+09:00
@@ -357,7 +350,7 @@ CLI に `run --plan-id` を追加する
 Plan 実行の起点となるコマンドを実装する。
 
 # Dependencies
-- worker-0000 must be settled
+- worker-0001 must be settled
 
 # Execution Instructions
 ...
@@ -474,12 +467,13 @@ session record は 1 回の wrapper 呼び出しの request / response を保存
 * `result`
 * `saved_at`
 
-### 8.4 `call_purpose` の例
+### 8.4 `call_purpose` の値
+
+MVP では以下のみを使用する。
 
 * `ticket_planning`
 * `ticket_execution`
 * `followup_planning`
-* `other`
 
 ### 8.5 `request` に含めることが望ましい項目
 
