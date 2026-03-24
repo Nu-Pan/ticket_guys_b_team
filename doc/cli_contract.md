@@ -169,6 +169,7 @@ Status: draft
 * 更新時も `draft`
 * `running` または `settled` の Plan を更新した場合も `draft` に戻す
 * 既存 Plan を更新した場合、`plan_revision` は 1 増加する
+* 既存 Plan を更新して active Ticket 集合を破棄または退避する処理は、repository 全体の active run lock が存在しないときにのみ行ってよい
 
 ### 6.5 Ticket 破棄規則
 
@@ -189,6 +190,7 @@ execution log と session record は監査証跡として保持してよい。
 * 出力先へ書き込めない
 * 入力が空である
 * 対象 `plan_id` が見つからない
+* repository 全体の active run lock が存在する
 * front matter 更新に失敗した
 * active Ticket 破棄処理に失敗した
 * `plan_revision` 更新に失敗した
@@ -254,7 +256,7 @@ Log: artifacts/logs/plan-20260321-001-run-0003.jsonl
 * Plan file が存在すること
 * Plan front matter が妥当であること
 * Plan status が `draft` または `running` であること
-* 同一 Plan に対する active run lock が存在しないこと
+* repository 全体に対する active run lock が存在しないこと
 * `stub` のときは strict replay の前提が満たされていること
 
 strict replay の前提とは、少なくとも以下を指す。
@@ -268,16 +270,18 @@ strict replay の前提とは、少なくとも以下を指す。
 
 `run` は少なくとも以下を反復する。
 
-1. run lock を取得する
+1. repository 全体の run lock を取得する
 2. Plan を `running` にする
 3. Plan と既存 Ticket 群を見て、新規 Ticket が必要か判断する
 4. 必要なら新規 Ticket を 0 件以上作成する
-5. 依存解決済みの `todo` Ticket のうち最小 `ticket_id` を選んで実行する
-6. 実行結果サマリーを Ticket に反映し、その Ticket を `done` にする
-7. `done` Ticket の follow-up 要否を整理する
-8. 必要な follow-up Ticket を作成した後、元 Ticket を `settled` にする
-9. 新規 Ticket 作成不要かつ active Ticket がすべて `settled` なら Plan を `settled` にして終了する
-10. run lock を解放する
+5. active Ticket 集合の依存グラフを検証する
+6. 依存解決済みの `todo` Ticket があれば、そのうち最小 `ticket_id` を選んで実行する
+7. 実行結果サマリー、実行ログ、必要な session record を保存できた場合のみ、その Ticket を `done` にする
+8. `done` Ticket の follow-up 要否を整理する
+9. 必要な follow-up Ticket を作成した後、元 Ticket を `settled` にする
+10. 新規 Ticket 作成不要かつ active Ticket がすべて `settled` なら Plan を `settled` にして終了する
+11. runnable な `todo` Ticket が 0 件で、かつ `todo` / `running` / `done` の active Ticket が残る場合は run を失敗させる
+12. run lock を解放する
 
 ### 7.6 Ticket 生成契約
 
@@ -286,6 +290,7 @@ strict replay の前提とは、少なくとも以下を指す。
 * Ticket id は `worker-0001` のような単調増加採番とし、巻き戻さない
 * 依存グラフは Ticket の `depends_on` 記述を正本として解決する
 * 新規 Ticket は Plan の現在 `plan_revision` を引き継ぐ
+* 依存先 Ticket の不存在、`required_state` 不正、循環依存は run 失敗として扱う
 
 ### 7.7 Ticket 実行契約
 
@@ -293,7 +298,8 @@ strict replay の前提とは、少なくとも以下を指す。
 * 対象 Ticket の依存が満たされたときのみ実行してよい
 * Ticket 実行は常に直列である
 * runnable な `todo` Ticket が複数ある場合は、最小 `ticket_id` を選ぶ
-* agent 実行が終了したら、成功・失敗を問わず、結果サマリーを書き戻せた Ticket は `done` に遷移してよい
+* agent 実行が終了しても、結果サマリー、実行ログ、必要な session record の保存が完了するまでは `done` に遷移してはならない
+* runnable な `todo` Ticket が 0 件で、かつ `todo` / `running` / `done` の active Ticket が残る場合は run を失敗させる
 * その後、follow-up Ticket 整理が済んだら `settled` に遷移する
 
 ### 7.8 stub 契約
@@ -325,17 +331,20 @@ artifacts/codex/<scope>-<run_id>-<codex_call_id>-<call_purpose>.json
 * front matter が壊れている
 * active Ticket 群の読み取りに失敗した
 * Ticket file の生成または更新に失敗した
-* run lock 取得に失敗した
+* repository 全体の run lock 取得に失敗した
 * `stub` 時に source record が存在しない
 * source record schema が不正である
 * strict replay request 検証に失敗した
 * wrapper 実行前 validation に失敗した
+* 依存先 Ticket の不存在、`required_state` 不正、循環依存が検出された
+* runnable な `todo` Ticket が 0 件で、かつ `todo` / `running` / `done` の active Ticket が残っている
 * 実行ログ保存に失敗した
 
 ### 7.10 失敗時の状態更新
 
 * Ticket 実行前に失敗した場合、その Ticket は `todo` のままでよい
-* Ticket 実行が終了し、結果サマリーを書き戻せた場合、その Ticket は `done` にしてよい
+* Ticket 実行が終了しても、結果サマリー、実行ログ、必要な session record をすべて保存できるまでは、その Ticket を `done` にしてはならない
+* Ticket 実行後に `done` 条件を満たす前で失敗した場合、その Ticket は `running` のまま残ってよい
 * top-level `run` が途中失敗した場合、Plan は `running` のまま残してよい
 * run lock は可能な限り解放しなければならない
 

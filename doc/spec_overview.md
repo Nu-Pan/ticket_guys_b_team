@@ -81,7 +81,7 @@
 * Execution log JSONL format
 * Codex session record file format
 * 採番正本 (`counters.json`) の形式
-* run lock file の形式
+* repository 全体の run lock file の形式
 * ディレクトリ構造と命名規則
 
 ### 4.4 CLI 契約
@@ -179,6 +179,7 @@ MVP では、Plan 更新・Ticket 生成・Ticket 実行・実行結果の要約
 * execution log と session record は監査証跡であり、状態の正本ではない
 
 front matter と監査証跡が衝突した場合、現在状態の解釈は front matter を優先する。
+top-level `run` は repository 全体の run lock によって直列化される。
 
 ---
 

@@ -55,7 +55,7 @@ artifacts/
 * `artifacts/logs/`: 実行ログ JSONL
 * `artifacts/codex/`: Codex CLI wrapper の session record
 * `artifacts/system/counters.json`: 採番の正本
-* `artifacts/system/locks/`: 同時 run 禁止のための lock file
+* `artifacts/system/locks/`: repository 全体の同時 run 禁止のための lock file
 
 ---
 
@@ -299,6 +299,7 @@ depends_on:
 ```
 
 `required_state` は MVP では `settled` を推奨する。
+また、値は Ticket 状態値として許可された値でなければならない。
 
 ### 6.5 本文構造
 
@@ -556,6 +557,7 @@ artifacts/system/counters.json
 
 * 採番はこの file を正本として行うこと
 * Ticket file の削除や退避で採番を巻き戻してはならない
+* repository 全体の run lock により、この file の更新は top-level `run` 間で直列化されること
 * strict replay では、この file を過去 run 開始前の状態へ戻すことで同じ `run_id` / `codex_call_id` 系列を再現できること
 
 ---
@@ -565,12 +567,12 @@ artifacts/system/counters.json
 ### 10.1 保存先
 
 ```text
-artifacts/system/locks/<plan_id>.lock.json
+artifacts/system/locks/run.lock.json
 ```
 
 ### 10.2 目的
 
-同一 Plan に対する同時 top-level `run` を禁止するための lock artifact である。
+repository 全体に対する同時 top-level `run` を禁止するための lock artifact である。
 
 ### 10.3 必須フィールド
 
@@ -602,4 +604,5 @@ artifacts/system/locks/<plan_id>.lock.json
 
 * `run` 開始時に lock を取得し、終了時に解放すること
 * 既存 lock が有効と判断される場合、新しい `run` は失敗しなければならない
+* `plan` コマンドが既存 Plan を更新して active Ticket 集合を破棄または退避する場合も、この lock を観測して競合を避けなければならない
 * stale lock の手動削除運用を許容してよい
