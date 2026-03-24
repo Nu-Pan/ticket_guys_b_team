@@ -66,6 +66,7 @@
 * Plan の状態遷移
 * Ticket の状態遷移
 * Ticket 依存の扱い
+* `required_state` の制約 (`settled` のみ)
 * `run` の反復モデルにおける遷移原則
 * front matter を正本とする状態管理ルール
 * `settled` の意味

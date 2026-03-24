@@ -290,7 +290,7 @@ strict replay の前提とは、少なくとも以下を指す。
 * Ticket id は `worker-0001` のような単調増加採番とし、巻き戻さない
 * 依存グラフは Ticket の `depends_on` 記述を正本として解決する
 * 新規 Ticket は Plan の現在 `plan_revision` を引き継ぐ
-* 依存先 Ticket の不存在、`required_state` 不正、循環依存は run 失敗として扱う
+* 依存先 Ticket の不存在、`required_state` が `settled` 以外、循環依存は run 失敗として扱う
 
 ### 7.7 Ticket 実行契約
 
@@ -336,7 +336,7 @@ artifacts/codex/<scope>-<run_id>-<codex_call_id>-<call_purpose>.json
 * source record schema が不正である
 * strict replay request 検証に失敗した
 * wrapper 実行前 validation に失敗した
-* 依存先 Ticket の不存在、`required_state` 不正、循環依存が検出された
+* 依存先 Ticket の不存在、`required_state` が `settled` 以外、循環依存が検出された
 * runnable な `todo` Ticket が 0 件で、かつ `todo` / `running` / `done` の active Ticket が残っている
 * 実行ログ保存に失敗した
 

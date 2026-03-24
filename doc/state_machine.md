@@ -223,16 +223,18 @@ Plan から直接依存グラフを推論してはならない。
 
 各依存は `ticket_id` と `required_state` の組で表現する。
 
-MVP では、依存先の既定 `required_state` を `settled` とすることを推奨する。
+MVP では、`required_state` として **`settled` のみを許可する**。
 
-理由は、`done` 直後の Ticket はまだフォローアップ作成が終わっていない可能性があり、下流 Ticket の開始条件としては不十分なことがあるためである。
+理由は、本仕様の run が Ticket を直列実行し、`done` 到達後ただちに follow-up 整理を行って `settled` に進めるためである。
+
+このため `todo` / `running` / `done` を依存条件として許可すると、仕様上は妥当でも実行時には観測不能または到達不能な依存を作れてしまう。
 
 ### 5.3 依存グラフの妥当性
 
 active Ticket 集合に対する依存グラフは、少なくとも以下を満たさなければならない。
 
 * `depends_on` に列挙された各 `ticket_id` が解決可能であること
-* `required_state` が Ticket 状態値として許可された値であること
+* `required_state` が `settled` であること
 * 循環依存が存在しないこと
 
 これらを満たさない場合、`run` は依存不整合として失敗しなければならない。

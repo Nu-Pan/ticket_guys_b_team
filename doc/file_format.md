@@ -298,8 +298,8 @@ depends_on:
     required_state: settled
 ```
 
-`required_state` は MVP では `settled` を推奨する。
-また、値は Ticket 状態値として許可された値でなければならない。
+`required_state` は MVP では **`settled` のみ許可**する。
+`todo` / `running` / `done` は不正値として validation で拒否しなければならない。
 
 ### 6.5 本文構造
 
