@@ -28,12 +28,14 @@
 
 本仕様の現在の中核概念は以下である。
 
-* **Plan**: 人間がレビューしながら磨く仕様書兼実行方針
-* **Ticket**: Plan の実行中に AI が必要に応じて作成する作業単位
+* **Plan**: 人間がレビューしながら磨く仕様書兼実行方針。`plan_id` に加えて `plan_revision` を持つ
+* **Ticket**: Plan 実行中に AI が必要に応じて作成する作業単位。各 Ticket は特定の `plan_revision` に属する
 * **Run**: 1 つの Plan に対して、Ticket 生成と Ticket 実行を反復するオーケストレーション
 * **Codex CLI Wrapper**: `codex exec` 呼び出しを live / stub で抽象化する境界
 
 重要な点は、MVP では独立した `approve` コマンドを持たないこと、そして `tgbt run --plan-id ...` が Plan の実行開始と Ticket オーケストレーションをまとめて担うことである。
+
+また、本仕様では run と wrapper 呼び出しを **直列実行のみ** とし、並列 Ticket 実行は採用しない。
 
 ---
 
@@ -53,6 +55,7 @@
 * 人間と AI の役割分担
 * 初期バージョンで重視する価値
 * live / stub 導入の意義
+* 直列実行のみを採る理由
 
 ### 4.2 状態遷移仕様
 
@@ -65,6 +68,7 @@
 * Ticket 依存の扱い
 * `run` の反復モデルにおける遷移原則
 * front matter を正本とする状態管理ルール
+* `settled` の意味
 
 ### 4.3 ファイル形式仕様
 
@@ -76,7 +80,8 @@
 * Ticket file format
 * Execution log JSONL format
 * Codex session record file format
-* Stub manifest file format
+* 採番正本 (`counters.json`) の形式
+* run lock file の形式
 * ディレクトリ構造と命名規則
 
 ### 4.4 CLI 契約
@@ -91,6 +96,7 @@
 * 各コマンドの入力、出力、前提条件、失敗条件
 * `codex_cli_mode` の扱い
 * `run` の反復オーケストレーション契約
+* strict replay と直列実行の契約
 
 ### 4.5 Codex CLI Wrapper 仕様
 
@@ -101,7 +107,7 @@
 * `codex exec` 呼び出しの抽象化
 * live / stub モードの定義
 * live 記録の保存と再利用
-* 1 wrapper 呼び出しにつき 1 replay source を与える規約
+* strict replay における request 完全一致検証
 * 共通 request / result モデル
 * オーケストレーション層との接続規約
 
@@ -156,6 +162,8 @@ MVP では、以下を意図的に削る。
 * `status` / `state` のような状態集約サブコマンド
 * review / integration / root といった補助 Ticket 型
 * 自動受け入れゲートの厳密仕様
+* 並列 Ticket 実行
+* stub manifest による任意 record 割り当て
 
 MVP では、Plan 更新・Ticket 生成・Ticket 実行・実行結果の要約保存・フォローアップ Ticket 生成の流れを最優先で固める。
 
@@ -167,6 +175,7 @@ MVP では、Plan 更新・Ticket 生成・Ticket 実行・実行結果の要約
 
 * Plan の現在状態は Plan file の front matter を正本とする
 * Ticket の現在状態は Ticket file の front matter を正本とする
+* `artifacts/system/counters.json` は採番の正本とする
 * execution log と session record は監査証跡であり、状態の正本ではない
 
 front matter と監査証跡が衝突した場合、現在状態の解釈は front matter を優先する。
@@ -175,10 +184,9 @@ front matter と監査証跡が衝突した場合、現在状態の解釈は fro
 
 ## 9. live / stub の読み分け
 
-live / stub の差異は `codex_cli_mode` と、top-level `run` が各 wrapper 呼び出しへ stub source をどう配るかに限定する。
+live / stub の差異は `codex_cli_mode` と、top-level `run` が各 wrapper 呼び出しに対してどの session record を参照するかに限定する。
 
 * `live`: 実際に `codex exec` を起動する
-* `stub`: top-level `run` に与えた stub manifest に従い、各 wrapper 呼び出しへ単一 session record を割り当てて replay する
+* `stub`: canonical path に存在する過去の session record を strict replay する
 
-`stub` は「近い応答を返すモード」ではなく、明示指定した record 群の replay モードとして扱う。
-
+`stub` は「近い応答を返すモード」ではなく、**実行開始前の状態を復元したうえで、同一の run / call 系列を再生するモード**として扱う。

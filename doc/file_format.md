@@ -10,7 +10,8 @@
 * Ticket file
 * Execution log file
 * Codex session record file
-* Stub manifest file
+* Counter state file
+* Run lock file
 
 本書はファイル形式と保存規約に集中し、CLI 契約や詳細な状態遷移は扱わない。
 
@@ -25,6 +26,7 @@
 * 実行失敗時も可能な限りファイルを保存する
 * live 実行の記録は stub 実行にそのまま転用可能でなければならない
 * 現在状態の正本は Markdown front matter とする
+* `artifacts/system/counters.json` は採番の正本とする
 * execution log と session record は監査証跡であり、状態の正本ではない
 
 front matter と監査証跡が衝突した場合、現在状態の解釈は front matter を優先する。
@@ -41,7 +43,9 @@ artifacts/
   tickets/
   logs/
   codex/
-  stub_manifests/
+  system/
+    counters.json
+    locks/
 ```
 
 各ディレクトリの役割は以下の通りとする。
@@ -50,7 +54,8 @@ artifacts/
 * `artifacts/tickets/`: Ticket file
 * `artifacts/logs/`: 実行ログ JSONL
 * `artifacts/codex/`: Codex CLI wrapper の session record
-* `artifacts/stub_manifests/`: top-level run 用 stub manifest
+* `artifacts/system/counters.json`: 採番の正本
+* `artifacts/system/locks/`: 同時 run 禁止のための lock file
 
 ---
 
@@ -74,6 +79,7 @@ artifacts/
 ### 4.4 識別子
 
 * `plan_id` は一意でなければならない
+* `plan_revision` は同一 `plan_id` の中で単調増加しなければならない
 * `ticket_id` は一意でなければならない
 * `run_id` は 1 回の top-level `run` ごとに一意でなければならない
 * `codex_call_id` は 1 回の wrapper 呼び出しごとに一意でなければならない
@@ -87,6 +93,16 @@ artifacts/
 ```text
 plan-YYYYMMDD-NNN
 ```
+
+#### `plan_revision`
+
+同一 `plan_id` に対して、1 から始まる単調増加整数を推奨する。
+
+要件:
+
+* Plan 更新時に増加する
+* 過去 revision を再利用してはならない
+* 既存 Ticket の破棄や退避で巻き戻してはならない
 
 #### `ticket_id`
 
@@ -140,6 +156,7 @@ artifacts/plans/<plan_id>.md
 Plan file の YAML front matter は最低限以下を含む。
 
 * `plan_id`
+* `plan_revision`
 * `title`
 * `status`
 * `created_at`
@@ -149,14 +166,22 @@ Plan file の YAML front matter は最低限以下を含む。
 
 * `draft`
 * `running`
-* `closed`
+* `settled`
 
 ### 5.3 推奨メタデータ
 
 必要に応じて以下を追加してよい。
 
 * `last_run_id`
-* `closed_at`
+* `settled_at`
+* `closure_reason`
+
+`closure_reason` の例:
+
+* `converged`
+* `blocked`
+* `failed`
+* `superseded`
 
 ### 5.4 本文構造
 
@@ -176,6 +201,7 @@ Plan file 本文は以下のセクションをこの順序で含む。
 ```md
 ---
 plan_id: plan-20260321-001
+plan_revision: 1
 title: CLI 初期実装
 status: draft
 created_at: 2026-03-21T10:00:00+09:00
@@ -225,6 +251,7 @@ Ticket file の YAML front matter は最低限以下を含む。
 
 * `ticket_id`
 * `plan_id`
+* `plan_revision`
 * `status`
 * `created_at`
 * `updated_at`
@@ -234,7 +261,7 @@ Ticket file の YAML front matter は最低限以下を含む。
 * `todo`
 * `running`
 * `done`
-* `closed`
+* `settled`
 
 ### 6.3 推奨メタデータ
 
@@ -243,7 +270,7 @@ Ticket file の YAML front matter は最低限以下を含む。
 * `ticket_kind`
 * `depends_on`
 * `execution_outcome`
-* `closed_at`
+* `settled_at`
 
 `ticket_kind` の例:
 
@@ -268,10 +295,10 @@ Ticket file の YAML front matter は最低限以下を含む。
 ```yaml
 depends_on:
   - ticket_id: worker-0001
-    required_state: closed
+    required_state: settled
 ```
 
-`required_state` は MVP では `closed` を推奨する。
+`required_state` は MVP では `settled` を推奨する。
 
 ### 6.5 本文構造
 
@@ -303,7 +330,7 @@ worker Ticket では、少なくとも以下を記載できることが望まし
 ```md
 # Artifacts
 - artifacts/logs/plan-20260321-001-run-0003.jsonl
-- artifacts/codex/worker-0001-run-0003-call-0002-ticket-execution.json
+- artifacts/codex/worker-0001-run-0003-call-0002-ticket_execution.json
 ```
 
 ### 6.8 例
@@ -312,11 +339,12 @@ worker Ticket では、少なくとも以下を記載できることが望まし
 ---
 ticket_id: worker-0001
 plan_id: plan-20260321-001
+plan_revision: 1
 status: todo
 ticket_kind: implementation
 depends_on:
   - ticket_id: worker-0000
-    required_state: closed
+    required_state: settled
 created_at: 2026-03-21T10:30:00+09:00
 updated_at: 2026-03-21T10:30:00+09:00
 ---
@@ -328,7 +356,7 @@ CLI に `run --plan-id` を追加する
 Plan 実行の起点となるコマンドを実装する。
 
 # Dependencies
-- worker-0000 must be closed
+- worker-0000 must be settled
 
 # Execution Instructions
 ...
@@ -368,6 +396,7 @@ execution log は JSON Lines とし、1 行が 1 event を表す。
 * `timestamp`
 * `event_type`
 * `plan_id`
+* `plan_revision`
 * `run_id`
 
 ### 7.4 推奨フィールド
@@ -389,15 +418,15 @@ execution log は JSON Lines とし、1 行が 1 event を表す。
 * `tickets_created`
 * `ticket_execution_started`
 * `ticket_execution_finished`
-* `ticket_closed`
+* `ticket_settled`
 * `run_finished`
 * `run_failed`
 
 ### 7.6 例
 
 ```json
-{"timestamp":"2026-03-21T11:00:00+09:00","event_type":"run_started","plan_id":"plan-20260321-001","run_id":"run-0003"}
-{"timestamp":"2026-03-21T11:00:10+09:00","event_type":"ticket_execution_started","plan_id":"plan-20260321-001","run_id":"run-0003","ticket_id":"worker-0001","codex_call_id":"call-0002","call_purpose":"ticket_execution"}
+{"timestamp":"2026-03-21T11:00:00+09:00","event_type":"run_started","plan_id":"plan-20260321-001","plan_revision":1,"run_id":"run-0003"}
+{"timestamp":"2026-03-21T11:00:10+09:00","event_type":"ticket_execution_started","plan_id":"plan-20260321-001","plan_revision":1,"run_id":"run-0003","ticket_id":"worker-0001","codex_call_id":"call-0002","call_purpose":"ticket_execution"}
 ```
 
 ---
@@ -412,16 +441,16 @@ execution log は JSON Lines とし、1 行が 1 event を表す。
 artifacts/codex/<scope>-<run_id>-<codex_call_id>-<call_purpose>.json
 ```
 
-`<scope>` は以下のいずれかを推奨する。
+`<scope>` は **決定的に** 以下とする。
 
-* `<ticket_id>`
-* `<plan_id>`
+* `ticket_id != null` のとき `<scope> = <ticket_id>`
+* `ticket_id == null` のとき `<scope> = <plan_id>`
 
 例:
 
 ```text
-artifacts/codex/plan-20260321-001-run-0003-call-0001-ticket-planning.json
-artifacts/codex/worker-0001-run-0003-call-0002-ticket-execution.json
+artifacts/codex/plan-20260321-001-run-0003-call-0001-ticket_planning.json
+artifacts/codex/worker-0001-run-0003-call-0002-ticket_execution.json
 ```
 
 ### 8.2 目的
@@ -434,6 +463,7 @@ session record は 1 回の wrapper 呼び出しの request / response を保存
 
 * `schema_version`
 * `plan_id`
+* `plan_revision`
 * `ticket_id` (`ticket` に紐づかない call では `null` 可)
 * `run_id`
 * `codex_call_id`
@@ -450,90 +480,126 @@ session record は 1 回の wrapper 呼び出しの request / response を保存
 * `followup_planning`
 * `other`
 
-### 8.5 `result` に含めることが望ましい項目
+### 8.5 `request` に含めることが望ましい項目
 
+* `plan_id`
+* `plan_revision`
+* `ticket_id`
+* `run_id`
+* `codex_call_id`
+* `call_purpose`
+* `codex_cli_mode`
+* `cwd`
+* `prompt_text`
+* `model`
+* `reasoning_effort`
+
+### 8.6 `result` に含めることが望ましい項目
+
+* `plan_id`
+* `plan_revision`
+* `ticket_id`
+* `run_id`
+* `codex_call_id`
+* `call_purpose`
+* `codex_cli_mode`
 * `returncode`
 * `stdout`
 * `stderr`
 * `last_message_text`
 * `generated_artifacts`
 * `stop_reason`
+* `session_record_path`
 * `replayed_from`
 
-### 8.6 要件
+### 8.7 要件
 
 * live 実行の session record は、そのまま stub source として利用できること
 * stub 実行時に元 record を破壊してはならないこと
+* strict replay では、source record の `request` と current request のうち `codex_cli_mode` と `stub_record_path` を除く全フィールドが一致しなければならないこと
 
 ---
 
-## 9. Stub Manifest File Format
+## 9. Counter State File Format
 
 ### 9.1 保存先
 
-推奨保存先:
-
 ```text
-artifacts/stub_manifests/<plan_id>-<run_id>.json
+artifacts/system/counters.json
 ```
 
 ### 9.2 目的
 
-top-level `run --codex-cli-mode stub` は、内部で複数回の wrapper 呼び出しを行いうる。
-
-そのため、CLI には単一 `--stub-record` ではなく、複数 record の割り当てを表す stub manifest を与える。
+`ticket_id` / `run_id` / `codex_call_id` の単調増加採番を保証するための正本である。
 
 ### 9.3 必須フィールド
 
-stub manifest は最低限以下を含む。
+最低限以下を含むこと。
 
-* `schema_version`
-* `plan_id`
-* `entries`
+* `next_ticket_seq`
+* `next_run_seq`
+* `next_codex_call_seq`
+* `updated_at`
 
-### 9.4 `entries` の形式
-
-`entries` は実行順に消費される配列とし、各要素は最低限以下を含む。
-
-* `sequence_no`
-* `call_purpose`
-* `record_path`
-
-必要に応じて以下を追加してよい。
-
-* `ticket_id`
-
-### 9.5 消費規則
-
-* orchestration 層は wrapper 呼び出しのたびに次の `entry` を 1 件消費する
-* `call_purpose` は現在の wrapper 呼び出し目的と整合していなければならない
-* `ticket_id` が指定されている場合、対象 Ticket と一致しなければならない
-* `entries` が不足したら run は失敗とする
-
-### 9.6 例
+### 9.4 例
 
 ```json
 {
-  "schema_version": "1",
-  "plan_id": "plan-20260321-001",
-  "entries": [
-    {
-      "sequence_no": 1,
-      "call_purpose": "ticket_planning",
-      "record_path": "artifacts/codex/plan-20260321-001-run-0003-call-0001-ticket-planning.json"
-    },
-    {
-      "sequence_no": 2,
-      "call_purpose": "ticket_execution",
-      "ticket_id": "worker-0001",
-      "record_path": "artifacts/codex/worker-0001-run-0003-call-0002-ticket-execution.json"
-    },
-    {
-      "sequence_no": 3,
-      "call_purpose": "followup_planning",
-      "record_path": "artifacts/codex/plan-20260321-001-run-0003-call-0003-followup-planning.json"
-    }
-  ]
+  "next_ticket_seq": 12,
+  "next_run_seq": 4,
+  "next_codex_call_seq": 27,
+  "updated_at": "2026-03-21T11:10:00+09:00"
 }
 ```
 
+### 9.5 要件
+
+* 採番はこの file を正本として行うこと
+* Ticket file の削除や退避で採番を巻き戻してはならない
+* strict replay では、この file を過去 run 開始前の状態へ戻すことで同じ `run_id` / `codex_call_id` 系列を再現できること
+
+---
+
+## 10. Run Lock File Format
+
+### 10.1 保存先
+
+```text
+artifacts/system/locks/<plan_id>.lock.json
+```
+
+### 10.2 目的
+
+同一 Plan に対する同時 top-level `run` を禁止するための lock artifact である。
+
+### 10.3 必須フィールド
+
+最低限以下を含むこと。
+
+* `plan_id`
+* `run_id`
+* `acquired_at`
+
+### 10.4 推奨フィールド
+
+必要に応じて以下を追加してよい。
+
+* `pid`
+* `hostname`
+* `command_line`
+
+### 10.5 例
+
+```json
+{
+  "plan_id": "plan-20260321-001",
+  "run_id": "run-0003",
+  "acquired_at": "2026-03-21T11:00:00+09:00"
+}
+```
+
+### 10.6 要件
+
+* `run` 開始時に lock を取得し、終了時に解放すること
+* 既存 lock が有効と判断される場合、新しい `run` は失敗しなければならない
+* stale lock の手動削除運用を許容してよい
