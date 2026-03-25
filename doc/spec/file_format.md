@@ -11,7 +11,7 @@
 * Execution log file
 * Codex session record file
 * Counter state file
-* Run lock file
+* Repository lock file
 
 本書はファイル形式と保存規約に集中し、CLI 契約や詳細な状態遷移は扱わない。
 
@@ -46,6 +46,7 @@ artifacts/
   system/
     counters.json
     locks/
+      repository.lock.json
 ```
 
 各ディレクトリの役割は以下の通りとする。
@@ -55,7 +56,7 @@ artifacts/
 * `artifacts/logs/`: 実行ログ JSONL
 * `artifacts/codex/`: Codex CLI wrapper の session record
 * `artifacts/system/counters.json`: 採番の正本
-* `artifacts/system/locks/`: repository 全体の同時 run 禁止のための lock file
+* `artifacts/system/locks/`: repository 全体の state mutation を禁止する lock artifact
 
 ---
 
@@ -404,6 +405,7 @@ execution log は JSON Lines とし、1 行が 1 event を表す。
 * `session_record_path`
 * `replayed_from`
 * `message`
+* `limit_name`
 
 ### 7.5 `event_type` の例
 
@@ -415,6 +417,7 @@ execution log は JSON Lines とし、1 行が 1 event を表す。
 * `ticket_settled`
 * `run_finished`
 * `run_failed`
+* `run_limit_exceeded`
 
 ### 7.6 例
 
@@ -489,6 +492,10 @@ MVP では以下のみを使用する。
 * `model`
 * `reasoning_effort`
 
+ここで `request` は **保存用 canonical request** とする。
+すなわち、strict replay 比較に使われる正規化・redaction 後の値を保存する。
+raw request を lossless に保存することは要件としない。
+
 ### 8.6 `result` に含めることが望ましい項目
 
 * `plan_id`
@@ -502,16 +509,21 @@ MVP では以下のみを使用する。
 * `stdout`
 * `stderr`
 * `last_message_text`
+* `business_output`
 * `generated_artifacts`
 * `stop_reason`
 * `session_record_path`
 * `replayed_from`
+* `redaction_report`
+
+`business_output` は、`call_purpose` ごとの業務レベル出力契約に従って parse / validate 済みの構造化 payload を保持する。
 
 ### 8.7 要件
 
 * live 実行の session record は、そのまま stub source として利用できること
 * stub 実行時に元 record を破壊してはならないこと
-* strict replay では、source record の `request` と current request のうち `codex_cli_mode` と `stub_record_path` を除く全フィールドが一致しなければならないこと
+* strict replay では、source record の `request` と current request を **同じ正規化・redaction 関数**に通した結果が、`codex_cli_mode` と `stub_record_path` を除いて一致しなければならないこと
+* `last_message_text` は、3 つの call purpose については redaction 後 `business_output` の canonical JSON serialization であることが望ましい
 
 ---
 
@@ -550,36 +562,43 @@ artifacts/system/counters.json
 ### 9.5 要件
 
 * 採番はこの file を正本として行うこと
-* Ticket file の削除や退避で採番を巻き戻してはならない
-* repository 全体の run lock により、この file の更新は top-level `run` 間で直列化されること
+* `next_*` は **unsigned 64-bit 整数範囲**で扱わなければならない
+* 実装は少なくとも `1 .. 18446744073709551615` の範囲を扱えなければならない
+* 途中クラッシュや後続失敗による欠番を許容する
+* 一度 `next_*` を進めて永続化したら、その番号は消費済みとみなし、巻き戻してはならない
+* `ticket_id` は対応する Ticket file 作成を試みる直前に採番してよい
+* `run_id` は repository lock 取得後、最初の run-scoped artifact を作る前に採番しなければならない
+* `codex_call_id` は wrapper 実行を試みる直前に採番してよい
+* repository lock により、この file の更新は state-mutating `tgbt` 間で直列化されること
 * strict replay では、この file を過去 run 開始前の状態へ戻すことで同じ `run_id` / `codex_call_id` 系列を再現できること
 
 ---
 
-## 10. Run Lock File Format
+## 10. Repository Lock File Format
 
 ### 10.1 保存先
 
 ```text
-artifacts/system/locks/run.lock.json
+artifacts/system/locks/repository.lock.json
 ```
 
 ### 10.2 目的
 
-repository 全体に対する同時 top-level `run` を禁止するための lock artifact である。
+repository 全体に対する同時 state mutation を禁止するための lock artifact である。
 
 ### 10.3 必須フィールド
 
 最低限以下を含むこと。
 
-* `plan_id`
-* `run_id`
+* `command_name`
 * `acquired_at`
 
 ### 10.4 推奨フィールド
 
 必要に応じて以下を追加してよい。
 
+* `plan_id`
+* `run_id`
 * `pid`
 * `hostname`
 * `command_line`
@@ -588,6 +607,7 @@ repository 全体に対する同時 top-level `run` を禁止するための loc
 
 ```json
 {
+  "command_name": "run",
   "plan_id": "plan-20260321-001",
   "run_id": "run-0003",
   "acquired_at": "2026-03-21T11:00:00+09:00"
@@ -596,7 +616,11 @@ repository 全体に対する同時 top-level `run` を禁止するための loc
 
 ### 10.6 要件
 
+* lock 取得は、最終 lock path に対する **原子的な non-overwrite create** で行わなければならない
+* 「存在確認してから作る」方式は禁止する
+* 実装は `O_CREAT|O_EXCL` 相当、または同等の排他意味論を持つ OS primitive を使用しなければならない
+* 既存 lock が存在する場合、新しい state-mutating `tgbt` は失敗しなければならない
 * `run` 開始時に lock を取得し、終了時に解放すること
-* 既存 lock が有効と判断される場合、新しい `run` は失敗しなければならない
-* `plan` コマンドが既存 Plan を更新して active Ticket 集合を破棄または退避する場合も、この lock を観測して競合を避けなければならない
+* 既存 Plan を更新する `plan --plan-id ...` も、破棄・退避・front matter 更新を行う前に lock を取得しなければならない
+* MVP では stale lock の自動判定・自動回収は行わない
 * stale lock の手動削除運用を許容してよい
