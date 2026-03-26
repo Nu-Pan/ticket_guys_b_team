@@ -24,6 +24,7 @@
 - CLI の追加・変更: `doc/spec/cli_contract.md`
 - 状態遷移や run の流れに関わる変更: `doc/spec/state_machine.md`
 - front matter、保存先、採番、artifact の形式に関わる変更: `doc/spec/file_format.md`
+- front matter の安全な書き換え、atomic write-replace、transaction、recovery に関わる変更: `doc/spec/state_write_protocol.md`
 - `codex exec` 呼び出し、live / stub、strict replay に関わる変更: `doc/spec/codex_cli_wrapper.md`
 - どの設計判断が MVP の意図に沿うか迷う: `doc/spec/product_vision.md`
 

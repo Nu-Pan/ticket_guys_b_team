@@ -44,6 +44,7 @@
 - CLI の期待挙動を確認したい: `doc/spec/cli_contract.md`
 - 状態遷移や停止条件を確認したい: `doc/spec/state_machine.md`
 - front matter や保存形式を確認したい: `doc/spec/file_format.md`
+- front matter の安全な書き換えや rollback-first recovery を確認したい: `doc/spec/state_write_protocol.md`
 - live / stub や strict replay を確認したい: `doc/spec/codex_cli_wrapper.md`
 - 背景思想や MVP の意図を確認したい: `doc/spec/product_vision.md`
 

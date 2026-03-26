@@ -18,6 +18,7 @@
 * **Ticket**: Plan 実行中に AI が必要に応じて作成する作業単位。各 Ticket は特定の `plan_revision` に属する
 * **Run**: 1 つの Plan に対して、Ticket 生成と Ticket 実行を反復するオーケストレーション
 * **Repository Lock**: 同一 repository に対する state mutation を 1 本に直列化する排他制御
+* **State Write Protocol**: front matter と state file を安全に commit するための atomic write-replace / transaction / rollback-first recovery 規則
 * **Codex CLI Wrapper**: `codex exec` 呼び出しを live / stub で抽象化し、構造化された業務出力を返す境界
 
 重要な点は、MVP では独立した `approve` コマンドを持たないこと、そして `tgbt run --plan-id ...` が Plan の実行開始と Ticket オーケストレーションをまとめて担うことである。
@@ -28,11 +29,12 @@
 
 ## 3. 仕様文書マップ
 
-現在、一次参照先として扱う仕様文書は以下の 5 本である。
+現在、一次参照先として扱う仕様文書は以下の 6 本である。
 
 * `product_vision.md`: 背景、解決したい問題、設計思想、人間と AI の役割分担、MVP で重視する価値
 * `state_machine.md`: Plan / Ticket の状態遷移、active Ticket の定義、Ticket 依存、`run` の反復モデル、`settled` の意味
-* `file_format.md`: Plan / Ticket / log / session record / counters / repository lock の形式、保存先、命名規則
+* `file_format.md`: Plan / Ticket / log / session record / counters / repository lock / transaction journal の形式、保存先、命名規則
+* `state_write_protocol.md`: front matter と state file の所有権、atomic write-replace、transaction、rollback-first recovery
 * `cli_contract.md`: CLI の責務、コマンド体系、各コマンドの入力、出力、前提条件、失敗条件
 * `codex_cli_wrapper.md`: `codex exec` 呼び出しの抽象化、live / stub、strict replay、request / result モデル、業務レベル出力契約
 
@@ -42,6 +44,7 @@
 * `product_vision.md` は背景・目的・設計思想を担う
 * `state_machine.md` は状態遷移と active Ticket の意味を担う
 * `file_format.md` はファイル形式だけを担う
+* `state_write_protocol.md` は安全な保存手順と recovery を担う
 * `cli_contract.md` は CLI 契約だけを担う
 * `codex_cli_wrapper.md` は Codex 呼び出し抽象化と出力契約だけを担う
 
@@ -54,24 +57,27 @@
 1. `cli_contract.md`
 2. `state_machine.md`
 3. `file_format.md`
-4. `codex_cli_wrapper.md`
-5. 必要に応じて `product_vision.md`
+4. `state_write_protocol.md`
+5. `codex_cli_wrapper.md`
+6. 必要に応じて `product_vision.md`
 
 ### 4.2 永続化層から先に作る場合
 
 1. `file_format.md`
-2. `state_machine.md`
-3. `codex_cli_wrapper.md`
-4. `cli_contract.md`
-5. 必要に応じて `product_vision.md`
+2. `state_write_protocol.md`
+3. `state_machine.md`
+4. `codex_cli_wrapper.md`
+5. `cli_contract.md`
+6. 必要に応じて `product_vision.md`
 
 ### 4.3 実行オーケストレーションから先に作る場合
 
 1. `state_machine.md`
 2. `cli_contract.md`
 3. `file_format.md`
-4. `codex_cli_wrapper.md`
-5. 必要に応じて `product_vision.md`
+4. `state_write_protocol.md`
+5. `codex_cli_wrapper.md`
+6. 必要に応じて `product_vision.md`
 
 ---
 
@@ -100,10 +106,11 @@ MVP では、Plan 更新・Ticket 生成・Ticket 実行・実行結果の要約
 * Ticket の現在状態は Ticket file の front matter を正本とする
 * `artifacts/system/counters.json` は採番の正本とする
 * execution log と session record は監査証跡であり、状態の正本ではない
+* 複数ファイル更新の commit と recovery は `state_write_protocol.md` に従う
 
 front matter と監査証跡が衝突した場合、現在状態の解釈は front matter を優先する。
 
-同一 repository に対する state mutation は、repository lock によって直列化される。
+同一 repository に対する state mutation は、repository lock によって直列化される。未完了 transaction を見つけた場合の recovery 方針は rollback-first とする。
 
 * `tgbt run` は repository lock を取得してから開始する
 * 既存 Plan を更新する `tgbt plan --plan-id ...` も repository lock を取得してから実行する
