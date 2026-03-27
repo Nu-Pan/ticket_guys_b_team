@@ -1,13 +1,9 @@
-# ticket_guys_b_team 用の Codex 設定。
-# 既定モデルに加えて、マルチエージェント運用で必要になる役割、
-# 成果物配置、品質ゲート、停止条件を明示する。
-
 # デフォルトプロファイルの設定
 profile = "default"
 
 [profiles.default]
 model = "gpt-5.4"
-model_reasoning_effort = "high"
+model_reasoning_effort = "xhigh"
 personality = "pragmatic"
 
 [project]
