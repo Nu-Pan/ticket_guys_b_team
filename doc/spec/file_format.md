@@ -12,10 +12,8 @@
 * Codex session record file
 * Counter state file
 * Repository lock file
-* Transaction journal file
-* Preimage backup artifact
 
-本書はファイル形式と保存規約に集中し、CLI 契約や詳細な状態遷移は扱わない。atomic write-replace、transaction、rollback-first recovery の手順そのものは `state_write_protocol.md` を参照する。
+本書はファイル形式と保存規約に集中し、CLI 契約や詳細な状態遷移は扱わない。atomic write-replace と異常終了後の扱いそのものは `state_write_protocol.md` を参照する。
 
 ---
 
@@ -30,7 +28,7 @@
 * 現在状態の正本は Markdown front matter とする
 * `artifacts/system/counters.json` は採番の正本とする
 * execution log と session record は監査証跡であり、状態の正本ではない
-* transaction journal と preimage backup は recovery 用 control artifact である
+* repository lock は state mutation の直列化に使う control artifact である
 
 front matter と監査証跡が衝突した場合、現在状態の解釈は front matter を優先する。
 
@@ -50,8 +48,6 @@ artifacts/
     counters.json
     locks/
       repository.lock.json
-    txns/
-    backups/
 ```
 
 各ディレクトリの役割は以下の通りとする。
@@ -62,8 +58,6 @@ artifacts/
 * `artifacts/codex/`: Codex CLI wrapper の session record
 * `artifacts/system/counters.json`: 採番の正本
 * `artifacts/system/locks/`: repository 全体の state mutation を禁止する lock artifact
-* `artifacts/system/txns/`: 論理的 atomicity と recovery 判定に使う transaction journal
-* `artifacts/system/backups/`: rollback-first recovery に使う preimage backup
 
 ---
 
@@ -534,126 +528,19 @@ raw request を lossless に保存することは要件としない。
 
 ---
 
-## 9. Transaction Journal File Format
+## 9. Counter State File Format
 
 ### 9.1 保存先
-
-```text
-artifacts/system/txns/<txn_id>.json
-```
-
-### 9.2 目的
-
-transaction journal は、複数ファイル mutation の進行状態と recovery 根拠を残す control artifact である。
-
-### 9.3 必須フィールド
-
-最低限以下を含むこと。
-
-* `txn_id`
-* `state`
-* `command_name`
-* `created_at`
-* `updated_at`
-* `targets`
-
-`state` は以下のいずれかでなければならない。
-
-* `preparing`
-* `committing`
-* `committed`
-* `aborted`
-
-### 9.4 `targets` の item に含めることが望ましい項目
-
-* `path`
-* `action` (`create | replace | delete`)
-* `had_preimage`
-* `backup_path`
-
-### 9.5 推奨フィールド
-
-必要に応じて以下を追加してよい。
-
-* `plan_id`
-* `plan_revision`
-* `run_id`
-* `abort_reason`
-* `notes`
-
-### 9.6 例
-
-```json
-{
-  "txn_id": "txn-20260326-0001",
-  "state": "committing",
-  "command_name": "run",
-  "plan_id": "plan-20260321-001",
-  "plan_revision": 2,
-  "run_id": "run-0003",
-  "created_at": "2026-03-26T10:00:00+09:00",
-  "updated_at": "2026-03-26T10:00:02+09:00",
-  "targets": [
-    {
-      "path": "artifacts/system/counters.json",
-      "action": "replace",
-      "had_preimage": true,
-      "backup_path": "artifacts/system/backups/txn-20260326-0001/artifacts/system/counters.json.bak"
-    },
-    {
-      "path": "artifacts/tickets/worker-0007.md",
-      "action": "create",
-      "had_preimage": false,
-      "backup_path": null
-    }
-  ]
-}
-```
-
-### 9.7 要件
-
-* transaction journal は state-mutating command の新規 mutation より前に create されなければならない
-* 未完了 transaction の判定根拠は `state in {preparing, committing}` とする
-* recovery は journal の `targets` と backup 情報を正本として行う
-
----
-
-## 10. Preimage Backup Artifact
-
-### 10.1 保存先
-
-推奨保存先:
-
-```text
-artifacts/system/backups/<txn_id>/<relative-target-path>.bak
-```
-
-### 10.2 目的
-
-preimage backup は rollback-first recovery のために transaction 開始前の file 内容を保持する artifact である。
-
-### 10.3 要件
-
-* 既存 file を mutate する場合、publish 前に preimage backup を保存しなければならない
-* backup は byte-for-byte copy を推奨する
-* target が新規作成の場合は backup を必須としないが、transaction journal に `had_preimage=false` を残さなければならない
-* backup の path encoding は implementation-defined でよいが、決定的でなければならない
-
----
-
-## 11. Counter State File Format
-
-### 11.1 保存先
 
 ```text
 artifacts/system/counters.json
 ```
 
-### 11.2 目的
+### 9.2 目的
 
 `ticket_id` / `run_id` / `codex_call_id` の単調増加採番を保証するための正本である。
 
-### 11.3 必須フィールド
+### 9.3 必須フィールド
 
 最低限以下を含むこと。
 
@@ -662,7 +549,7 @@ artifacts/system/counters.json
 * `next_codex_call_seq`
 * `updated_at`
 
-### 11.4 例
+### 9.4 例
 
 ```json
 {
@@ -673,13 +560,14 @@ artifacts/system/counters.json
 }
 ```
 
-### 11.5 要件
+### 9.5 要件
 
 * 採番はこの file を正本として行うこと
 * `next_*` は **unsigned 64-bit 整数範囲**で扱わなければならない
 * 実装は少なくとも `1 .. 18446744073709551615` の範囲を扱えなければならない
 * 途中クラッシュや後続失敗による欠番を許容する
-* 一度 `next_*` を進めて永続化したら、その番号は消費済みとみなし、巻き戻してはならない
+* 一度 `next_*` を進めて永続化したら、その番号は消費済みとみなし、`tgbt` 自身は巻き戻してはならない
+* 外部 snapshot restore により repository 全体を過去時点へ戻す運用は、本 file 単体の巻き戻しとは別扱いとして許容する
 * `ticket_id` は対応する Ticket file 作成を試みる直前に採番してよい
 * `run_id` は repository lock 取得後、最初の run-scoped artifact を作る前に採番しなければならない
 * `codex_call_id` は wrapper 実行を試みる直前に採番してよい
@@ -688,26 +576,27 @@ artifacts/system/counters.json
 
 ---
 
-## 12. Repository Lock File Format
 
-### 12.1 保存先
+## 10. Repository Lock File Format
+
+### 10.1 保存先
 
 ```text
 artifacts/system/locks/repository.lock.json
 ```
 
-### 12.2 目的
+### 10.2 目的
 
 repository 全体に対する同時 state mutation を禁止するための lock artifact である。
 
-### 12.3 必須フィールド
+### 10.3 必須フィールド
 
 最低限以下を含むこと。
 
 * `command_name`
 * `acquired_at`
 
-### 12.4 推奨フィールド
+### 10.4 推奨フィールド
 
 必要に応じて以下を追加してよい。
 
@@ -717,7 +606,7 @@ repository 全体に対する同時 state mutation を禁止するための lock
 * `hostname`
 * `command_line`
 
-### 12.5 例
+### 10.5 例
 
 ```json
 {
@@ -728,7 +617,7 @@ repository 全体に対する同時 state mutation を禁止するための lock
 }
 ```
 
-### 12.6 要件
+### 10.6 要件
 
 * lock 取得は、最終 lock path に対する **原子的な non-overwrite create** で行わなければならない
 * 「存在確認してから作る」方式は禁止する

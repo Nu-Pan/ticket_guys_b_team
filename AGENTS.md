@@ -94,7 +94,7 @@ Always use the OpenAI developer documentation MCP server if you need to work wit
 - 背景・設計思想・MVP の価値判断が必要なら `doc/spec/product_vision.md`
 - 状態遷移や `settled` / active の意味が必要なら `doc/spec/state_machine.md`
 - 保存先、front matter、命名規則、採番規則が必要なら `doc/spec/file_format.md`
-- front matter の安全な書き換え、atomic write-replace、transaction、rollback-first recovery が必要なら `doc/spec/state_write_protocol.md`
+- front matter の安全な書き換え、atomic write-replace、複数ファイル mutation の扱い、失敗後の restore 前提契約が必要なら `doc/spec/state_write_protocol.md`
 - CLI の入出力、失敗条件、コマンド責務が必要なら `doc/spec/cli_contract.md`
 - `codex exec` の live / stub、strict replay、request/result モデルが必要なら `doc/spec/codex_cli_wrapper.md`
 
