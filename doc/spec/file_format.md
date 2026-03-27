@@ -623,7 +623,7 @@ repository 全体に対する同時 state mutation を禁止するための lock
 * 「存在確認してから作る」方式は禁止する
 * 実装は `O_CREAT|O_EXCL` 相当、または同等の排他意味論を持つ OS primitive を使用しなければならない
 * 既存 lock が存在する場合、新しい state-mutating `tgbt` は失敗しなければならない
+* `plan` は新規作成・既存更新の別を問わず、Plan file 作成・更新、破棄・退避、front matter 更新を行う前に lock を取得しなければならない
 * `run` 開始時に lock を取得し、終了時に解放すること
-* 既存 Plan を更新する `plan --plan-id ...` も、破棄・退避・front matter 更新を行う前に lock を取得しなければならない
 * MVP では stale lock の自動判定・自動回収は行わない
 * stale lock の手動削除運用を許容してよい

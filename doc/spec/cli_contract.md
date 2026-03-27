@@ -135,12 +135,12 @@ Next: restore pre-run state and required session record under artifacts/codex/
 
 同一 repository に対して state mutation を行う `tgbt` コマンドは、repository lock を取得しなければならない。
 
-MVP で lock 対象となるのは少なくとも以下である。
+MVP では、state mutation を行う `tgbt` コマンドはすべて lock 対象とする。現時点では少なくとも以下が該当する。
 
+* `tgbt plan`
 * `tgbt run`
-* 既存 Plan を更新する `tgbt plan --plan-id ...`
 
-`run` だけでなく `plan` 更新も排他対象とする。新規 Plan 作成は lock 対象外としてよいが、既存 Plan の更新と active Ticket 集合の破棄・退避は lock 保持下でのみ行ってよい。
+新規 Plan 作成も既存 Plan 更新も、Plan file 作成・更新、active Ticket 集合の破棄・退避、front matter 更新を行う前に lock を取得しなければならない。
 
 MVP では stale lock の自動回収を行わない。既存 lock が残っている場合、利用者は他プロセス停止を確認したうえで手動除去してよい。
 
@@ -265,7 +265,7 @@ tgbt run --plan-id plan-20260321-001 --codex-cli-mode stub
 ```text
 Plan: plan-20260321-001
 Plan revision: 2
-Status: running
+Status: settled
 Log: artifacts/logs/plan-20260321-001-run-0003.jsonl
 Updated tickets:
 - artifacts/tickets/worker-0007.md
@@ -285,7 +285,7 @@ Log: artifacts/logs/plan-20260321-001-run-0003.jsonl
 
 * Plan file が存在すること
 * Plan front matter が妥当であること
-* Plan status が `draft` または `running` であること
+* Plan status が `draft` であること
 * repository lock を取得できること
 * `stub` のときは strict replay の前提が満たされていること
 
@@ -312,7 +312,7 @@ strict replay の前提とは、少なくとも以下を指す。
 10. 必要な follow-up Ticket を作成した後、元 Ticket を `settled` にする
 11. 新規 Ticket 作成不要かつ active Ticket がすべて `settled` なら Plan を `settled` にして終了する
 12. runnable な `todo` Ticket が 0 件で、かつ unsettled active Ticket が残る場合は run を失敗させる
-13. `max_run_loop_count` または `max_new_ticket_count_per_run` を超える場合は run を強制停止する
+13. `max_run_loop_count` または `max_new_ticket_count_per_run` に達した時点で、その run を強制停止する
 14. repository lock を解放する
 
 ### 7.6 Ticket 生成契約
@@ -325,7 +325,7 @@ strict replay の前提とは、少なくとも以下を指す。
 * 依存先 Ticket の不存在、`required_state` が `settled` 以外、循環依存は run 失敗として扱う
 * payload 中の `client_ticket_ref` は orchestration 層が actual `ticket_id` に置き換える
 * payload は canonical markdown ではなく proposal payload として扱い、application が parse / validate して Ticket file を render する
-* 1 回の planning payload が残りの `max_new_ticket_count_per_run` を超える場合、その payload からは 1 件も作成せず失敗する
+* 1 回の planning payload が残りの `max_new_ticket_count_per_run` に収まらない場合、その payload からは 1 件も作成せず失敗する
 
 ### 7.7 Ticket 実行契約
 
@@ -374,12 +374,12 @@ MVP では以下の hard limit を固定値として持つ。
 * `max_run_loop_count = 512`
 * `max_new_ticket_count_per_run = 256`
 
-いずれかに達した時点で、その top-level `run` は強制停止しなければならない。Plan は `settled` でなくてもよい。
+いずれかに達した時点で、その top-level `run` は失敗として強制停止しなければならない。Plan は `settled` でなくてもよい。
 
 ### 7.11 失敗条件
 
 * Plan file が存在しない
-* Plan status が `settled` である
+* Plan status が `draft` ではない
 * front matter が壊れている
 * active Ticket 群の読み取りに失敗した
 * Ticket file の生成または更新に失敗した
@@ -392,7 +392,7 @@ MVP では以下の hard limit を固定値として持つ。
 * business output validation に失敗した
 * 依存先 Ticket の不存在、`required_state` が `settled` 以外、循環依存が検出された
 * runnable な `todo` Ticket が 0 件で、かつ unsettled active Ticket が残っている
-* `max_run_loop_count` または `max_new_ticket_count_per_run` を超えた
+* `max_run_loop_count` または `max_new_ticket_count_per_run` に達した
 * 実行ログ保存に失敗した
 
 ### 7.12 失敗時の状態更新

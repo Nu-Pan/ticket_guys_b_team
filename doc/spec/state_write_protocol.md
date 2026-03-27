@@ -225,7 +225,7 @@ state-mutating command が非 0 終了した場合、またはプロセスが中
 
 ### 8.1 `plan` 新規作成
 
-新規 Plan 作成は、Plan file の atomic create で足りる。
+新規 Plan 作成でも repository lock を取得しなければならない。publish 単位としては Plan file の atomic create で足りる。
 
 ### 8.2 `plan --plan-id ...` による既存 Plan 更新
 
@@ -242,7 +242,7 @@ publish は決定的順序で行えばよいが、途中失敗時に repository 
 `run` 開始時は、少なくとも以下を扱う。
 
 * `run_id` を反映した `counters.json`
-* 必要なら `repository.lock.json`
+* `repository.lock.json`
 * `run_started` を含む execution log
 * Plan の `status=running` 更新
 

@@ -85,7 +85,7 @@ Plan を実行に移す意思決定は `run` 開始で表現する。
 
 Plan または Ticket の front matter を変更しうる処理は、repository lock の保持下でのみ行ってよい。
 
-MVP では、`tgbt run` と既存 Plan を更新する `tgbt plan --plan-id ...` がこれに該当する。
+MVP では、state mutation を行う `tgbt` コマンドはすべてこれに該当する。現時点では `tgbt plan` と `tgbt run` が対象である。
 
 ### 2.8 異常終了時の失敗モデル
 
@@ -324,7 +324,7 @@ MVP では、`run` に以下の hard limit を設ける。
 `max_run_loop_count` は、`run` の外側反復が 1 周進むたびに 1 増加する。
 `max_new_ticket_count_per_run` は、その run 中に新規作成した Ticket 総数であり、初回 planning と follow-up planning の両方を含む。
 
-これらのいずれかを超える場合、その `run` は強制停止しなければならない。MVP では進捗不変判定は導入しない。
+これらのいずれかに達した時点で、その `run` は失敗として強制停止しなければならない。MVP では進捗不変判定は導入しない。
 
 ---
 

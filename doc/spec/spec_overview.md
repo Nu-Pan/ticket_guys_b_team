@@ -113,8 +113,8 @@ front matter と監査証跡が衝突した場合、現在状態の解釈は fro
 
 同一 repository に対する state mutation は、repository lock によって直列化される。
 
+* `tgbt plan` は新規作成・既存更新の別を問わず repository lock を取得してから実行する
 * `tgbt run` は repository lock を取得してから開始する
-* 既存 Plan を更新する `tgbt plan --plan-id ...` も repository lock を取得してから実行する
 * MVP では、同一 repository に対して同時に実行可能な state-mutating `tgbt` は 1 本だけである
 
 MVP では、state-mutating command の異常終了後に内部 recovery を行わない。
