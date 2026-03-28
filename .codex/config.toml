@@ -1,33 +1,3 @@
-
-# ----
-# 全体設定
-# ----
-
-# デフォルトプロファイルの設定
-profile = "question"
-
-# プロジェクトルートの有るはずのもの
-project_root_markers = [
-    ".git",
-    "pyproject.toml",
-]
-
-# 参照が vscode で開きやすい形式になる
-file_opener = "vscode"
-
-# セッション履歴を残さない
-history.persistence = "none"
-
-# ----
-# web 検索
-# ----
-
-web_search = "cached"
-
-[tools.web_search]
-context_size = "high"
-#allowed_domains =
-
 # ----
 # アクセス権限
 # ----
@@ -43,32 +13,6 @@ context_size = "high"
 enabled = false
 
 # ----
-# プロファイル：一般的な質問応答用
-# ----
-
-# NOTE
-#   コンセプトは「プロジェクト上で ChatGPT Thinking を触れる」
-#   比較的短めの質問から、十分に考えられた高品質な回答を得られることを目的とする
-
-[profiles.question]
-model = "gpt-5.4"
-model_reasoning_effort = "xhigh"
-plan_mode_reasoning_effort = "xhigh"
-model_verbosity = "high"
-approval_policy = "on-request"
-sandbox_mode = "read-only"
-personality = "pragmatic"
-developer_instructions = """
-- 常に日本語で回答する。
-- この session の目的はユーザーからの質問に回答することである。
-- 実施前に `AGENTS.md` を読み、repo 固有の guidance や skill がある場合はそれらを優先する。
-- この session では read-only の調査と回答だけを扱い、リポジトリ編集は行わない。
-- 事実・推測・未確認事項を明確に分け、まず目的・前提・制約を整理してから答える。
-- 明示的に依頼されない限り、編集・実行・破壊的操作を前提にしない。
-- 最終回答では、必要に応じて根拠と制約を述べる。
-"""
-
-# ----
 # プロファイル：Codex 自己改善専用
 # ----
 
@@ -76,14 +20,8 @@ developer_instructions = """
 #   コンセプトは「Codex 自身の設定・導線・最小ハーネスだけを安全に改善する」ことである
 
 [profiles.codex_meta]
-model = "gpt-5.4"
-model_reasoning_effort = "xhigh"
-plan_mode_reasoning_effort = "xhigh"
-model_verbosity = "high"
-approval_policy = "on-request"
 sandbox_mode = "workspace-write"
 default_permissions = "codex_meta_scope"
-personality = "pragmatic"
 developer_instructions = """
 - 常に日本語で回答する。
 - この session の目的は Codex 自己改善である。
@@ -104,13 +42,7 @@ developer_instructions = """
 #   仕上がるまで磨き込む」ことである
 
 [profiles.spec_doc]
-model = "gpt-5.4"
-model_reasoning_effort = "xhigh"
-plan_mode_reasoning_effort = "xhigh"
-model_verbosity = "high"
-approval_policy = "on-request"
 sandbox_mode = "workspace-write"
-personality = "pragmatic"
 developer_instructions = """
 - 常に日本語で回答する。
 - この session の目的は仕様策定である。
