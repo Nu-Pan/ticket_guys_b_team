@@ -4,7 +4,7 @@
 - 人間向けの説明は `README.md` に書いてある
 - プロダクト仕様の正本は `doc/spec/*.md` にある
 - この `AGENTS.md` は、AI エージェントが最初に読むブートストラップ兼ルータである
-- 詳細ルールは `doc/task/*.md` と `doc/tech/*.md` に分離している
+- 詳細ルールは `doc/task/*.md` と `doc/tech/*.md` に分離し、Codex 自己改善の詳細 workflow は user skill に分離している
 - 「`ticket_guys_b_team` が実現する AI エージェントのワークフロー」と「`ticket_guys_b_team` 自体の開発中に遵守するべき AI エージェントの行動原則」は異なる
 
 # 絶対ルール
@@ -92,10 +92,11 @@ Always use the OpenAI developer documentation MCP server if you need to work wit
 
 必読:
 
-- `doc/task/codex_self_improvement.md`
+- `~/.codex/config.toml`
 
 条件付き:
 
+- 詳細 workflow が必要なら user skill `codex-self-improvement`
 - Codex や OpenAI developer docs の契約確認が必要なら、OpenAI developer docs MCP
 - 変更対象の `.codex/**/*`
 

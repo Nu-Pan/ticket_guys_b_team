@@ -1,40 +1,5 @@
 # ----
-# アクセス権限
-# ----
-
-# Codex 自己改善専用の最小権限
-[permissions.codex_meta_scope.filesystem.":project_roots"]
-"." = "read"
-"AGENTS.md" = "write"
-".codex" = "write"
-"doc/task/codex_self_improvement.md" = "write"
-
-[permissions.codex_meta_scope.network]
-enabled = false
-
-# ----
-# プロファイル：Codex 自己改善専用
-# ----
-
-# NOTE
-#   コンセプトは「Codex 自身の設定・導線・最小ハーネスだけを安全に改善する」ことである
-
-[profiles.codex_meta]
-sandbox_mode = "workspace-write"
-default_permissions = "codex_meta_scope"
-developer_instructions = """
-- 常に日本語で回答する。
-- この session の目的は Codex 自己改善である。
-- 実施前に `AGENTS.md` と `doc/task/codex_self_improvement.md` を読み、repo 全体 guidance と詳細ルールに従う。
-- この session では Codex 自己改善に必要な設定・導線・最小ハーネス改善だけを扱う。
-- Codex や OpenAI developer docs の契約確認が必要なら OpenAI developer docs MCP を使う。
-- 許可されていない範囲へ広げず、最小ハーネスから進める。
-- 指示や権限が衝突する場合は編集せず、ユーザーに確認する。
-- 最終報告では、変更内容、成立根拠、未解決事項、制約、関連文書との矛盾を述べる。
-"""
-
-# ----
-# プロファイル：仕様書の追加・改善専用
+# repo 共有プロファイル：仕様書の追加・改善専用
 # ----
 
 # NOTE

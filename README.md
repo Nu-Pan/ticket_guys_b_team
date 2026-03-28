@@ -8,4 +8,5 @@
 ## 開発環境など
 
 - [AGENTS.md](AGENTS.md)
-- [.codex/config.toml](.codex/config.toml)
+- ユーザー設定: `~/.codex/config.toml`
+- リポジトリ共有設定: [.codex/config.toml](.codex/config.toml)
