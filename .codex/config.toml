@@ -1,5 +1,7 @@
 
 # ----
+# 全体設定
+# ----
 
 # デフォルトプロファイルの設定
 profile = "question"
@@ -17,14 +19,17 @@ file_opener = "vscode"
 history.persistence = "none"
 
 # ----
+# web 検索
+# ----
 
-# web 検索の設定
 web_search = "cached"
 
 [tools.web_search]
 context_size = "high"
 #allowed_domains =
 
+# ----
+# アクセス権限
 # ----
 
 # Codex 自己改善専用の最小権限
@@ -38,11 +43,13 @@ context_size = "high"
 enabled = false
 
 # ----
+# プロファイル：一般的な質問応答用
+# ----
 
-# 一般的な質問応答用
 # NOTE
 #   コンセプトは「プロジェクト上で ChatGPT Thinking を触れる」
 #   比較的短めの質問から、十分に考えられた高品質な回答を得られることを目的とする
+
 [profiles.question]
 model = "gpt-5.4"
 model_reasoning_effort = "xhigh"
@@ -61,10 +68,40 @@ developer_instructions = """
 - 明示的に依頼されない限り、編集・実行・破壊的操作を前提にしない。
 """
 
-# 仕様書の追加・改善専用
+# ----
+# プロファイル：Codex 自己改善専用
+# ----
+
+# NOTE
+#   コンセプトは「Codex 自身の設定・導線・最小ハーネスだけを安全に改善する」ことである
+
+[profiles.codex_meta]
+model = "gpt-5.4"
+model_reasoning_effort = "xhigh"
+plan_mode_reasoning_effort = "xhigh"
+model_verbosity = "high"
+approval_policy = "on-request"
+sandbox_mode = "workspace-write"
+default_permissions = "codex_meta_scope"
+personality = "pragmatic"
+developer_instructions = """
+- 常に日本語で回答する。
+- このセッションは Codex 自己改善専用である。profile 名を推測せず、この instructions 自体を正本として扱う。
+- 実施前に `AGENTS.md` と `doc/task/codex_self_improvement.md` を読み、詳細ルールに従う。
+- Codex や OpenAI developer docs の契約確認が必要なら OpenAI developer docs MCP を使う。
+- 許可されていない範囲へ広げず、最小ハーネスから進める。
+- 指示や権限が衝突する場合は編集せず、ユーザーに確認する。
+- 最終報告では、変更内容、成立根拠、未解決事項、制約を述べる。
+"""
+
+# ----
+# プロファイル：仕様書の追加・改善専用
+# ----
+
 # NOTE
 #   コンセプトは「仕様の変更要求に対して、関連仕様の調査と自己レビューを前提に
 #   仕上がるまで磨き込む」ことである
+
 [profiles.spec_doc]
 model = "gpt-5.4"
 model_reasoning_effort = "xhigh"
@@ -83,26 +120,4 @@ developer_instructions = """
 - repo から確認できる事実は先に自力で回収し、人間にはプロダクト判断や仕様選択など discover できない点だけを確認する。
 - 仕様作業中はコード実装に飛ばず、必要なら仕様確定前であることを明示する。
 - 最終報告では、変更内容、品質到達の根拠、未解決事項、仕様間矛盾、実装との差異を必ず述べる。
-"""
-
-# Codex 自己改善専用
-# NOTE
-#   コンセプトは「Codex 自身の設定・導線・最小ハーネスだけを安全に改善する」ことである
-[profiles.codex_meta]
-model = "gpt-5.4"
-model_reasoning_effort = "xhigh"
-plan_mode_reasoning_effort = "xhigh"
-model_verbosity = "high"
-approval_policy = "on-request"
-sandbox_mode = "workspace-write"
-default_permissions = "codex_meta_scope"
-personality = "pragmatic"
-developer_instructions = """
-- 常に日本語で回答する。
-- このセッションは Codex 自己改善専用である。profile 名を推測せず、この instructions 自体を正本として扱う。
-- 実施前に `AGENTS.md` と `doc/task/codex_self_improvement.md` を読み、詳細ルールに従う。
-- Codex や OpenAI developer docs の契約確認が必要なら OpenAI developer docs MCP を使う。
-- 許可されていない範囲へ広げず、最小ハーネスから進める。
-- 指示や権限が衝突する場合は編集せず、ユーザーに確認する。
-- 最終報告では、変更内容、成立根拠、未解決事項、制約を述べる。
 """
