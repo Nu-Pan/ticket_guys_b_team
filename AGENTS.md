@@ -15,8 +15,8 @@ Always use the OpenAI developer documentation MCP server if you need to work wit
 
 ## 禁止事項
 
-- `AGENTS.md` を AI エージェントが編集すること
-- `doc/**/*.md` を AI エージェントが編集すること
+- 明示的な許可指示が無い状況で `AGENTS.md` を AI エージェントが編集すること
+- 明示的な許可指示が無い状況で `doc/**/*.md` を AI エージェントが編集すること
 - 未承認の仕様から直接実装を始めること
 - 必要な文書を読まずに、推測だけで仕様判断を行うこと
 
@@ -27,6 +27,7 @@ Always use the OpenAI developer documentation MCP server if you need to work wit
     - 実装
     - テスト修正・追加
     - 開発環境整備
+    - Codex 自己改善
 - 以後は、その作業に必要な文書だけを読むこと
 - `doc/spec/spec_overview.md` は、プロダクト仕様を読み始める入口として扱うこと
 
@@ -86,6 +87,23 @@ Always use the OpenAI developer documentation MCP server if you need to work wit
 - Python パッケージやコード変更を伴うなら `doc/tech/python.md`
 - テスト実行まで行うなら `doc/tech/test_policy.md`
 - 作業対象の意味を確認する必要がある場合のみ `doc/spec/spec_overview.md`
+
+## 5. Codex 自己改善
+
+必読:
+
+- `doc/task/codex_self_improvement.md`
+
+条件付き:
+
+- Codex や OpenAI developer docs の契約確認が必要なら、OpenAI developer docs MCP
+- 変更対象の `.codex/**/*`
+
+通常は不要:
+
+- `doc/spec/*.md`
+- `doc/tech/*.md`
+- `ticket_guys_b_team` 本体実装向けの文書一式
 
 # 仕様文書の選び方
 

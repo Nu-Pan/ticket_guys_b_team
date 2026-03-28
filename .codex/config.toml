@@ -1,12 +1,108 @@
-# デフォルトプロファイルの設定
-profile = "default"
 
-[profiles.default]
+# ----
+
+# デフォルトプロファイルの設定
+profile = "question"
+
+# プロジェクトルートの有るはずのもの
+project_root_markers = [
+    ".git",
+    "pyproject.toml",
+]
+
+# 参照が vscode で開きやすい形式になる
+file_opener = "vscode"
+
+# セッション履歴を残さない
+history.persistence = "none"
+
+# ----
+
+# web 検索の設定
+web_search = "cached"
+
+[tools.web_search]
+context_size = "high"
+#allowed_domains =
+
+# ----
+
+# Codex 自己改善専用の最小権限
+[permissions.codex_meta_scope.filesystem.":project_roots"]
+"." = "read"
+"AGENTS.md" = "write"
+".codex" = "write"
+"doc/task/codex_self_improvement.md" = "write"
+
+[permissions.codex_meta_scope.network]
+enabled = false
+
+# ----
+
+# 一般的な質問応答用
+# NOTE
+#   コンセプトは「プロジェクト上で ChatGPT Thinking を触れる」
+#   比較的短めの質問から、十分に考えられた高品質な回答を得られることを目的とする
+[profiles.question]
 model = "gpt-5.4"
 model_reasoning_effort = "xhigh"
+plan_mode_reasoning_effort = "xhigh"
+model_verbosity = "high"
+approval_policy = "on-request"
+sandbox_mode = "read-only"
 personality = "pragmatic"
+developer_instructions = """
+- 常に日本語で回答する。
+- ユーザーからの質問に対する回答を行う。
+- リポジトリへの編集操作は全て禁止。
+- 事実・推測・未確認事項を明確に分ける。
+- まず目的・前提・制約を整理してから答える。
+- AGENTS.md や skill がある場合はそれらを優先する。
+- 明示的に依頼されない限り、編集・実行・破壊的操作を前提にしない。
+"""
 
-[project]
-name = "ticket_guys_b_team"
-language = "ja"
-primary_interface = "cli"
+# 仕様書の追加・改善専用
+# NOTE
+#   コンセプトは「仕様の変更要求に対して、関連仕様の調査と自己レビューを前提に
+#   仕上がるまで磨き込む」ことである
+[profiles.spec_doc]
+model = "gpt-5.4"
+model_reasoning_effort = "xhigh"
+plan_mode_reasoning_effort = "xhigh"
+model_verbosity = "high"
+approval_policy = "on-request"
+sandbox_mode = "workspace-write"
+personality = "pragmatic"
+developer_instructions = """
+- 常に日本語で回答する。
+- 仕様策定作業を行う。
+- `doc/**/*.md` の AI エージェントによる編集を許可する。
+- 仕様変更要求をそのまま反映して終わりにせず、最低 1 回は自己レビューを挟む。
+- 自己レビューでは、要求充足、用語整合、状態遷移整合、CLI 契約整合、例・失敗条件・制約の欠落、関連仕様との矛盾を点検する。
+- 品質不足や矛盾を見つけたら、最終報告前に自分で追加修正を続ける。
+- repo から確認できる事実は先に自力で回収し、人間にはプロダクト判断や仕様選択など discover できない点だけを確認する。
+- 仕様作業中はコード実装に飛ばず、必要なら仕様確定前であることを明示する。
+- 最終報告では、変更内容、品質到達の根拠、未解決事項、仕様間矛盾、実装との差異を必ず述べる。
+"""
+
+# Codex 自己改善専用
+# NOTE
+#   コンセプトは「Codex 自身の設定・導線・最小ハーネスだけを安全に改善する」ことである
+[profiles.codex_meta]
+model = "gpt-5.4"
+model_reasoning_effort = "xhigh"
+plan_mode_reasoning_effort = "xhigh"
+model_verbosity = "high"
+approval_policy = "on-request"
+sandbox_mode = "workspace-write"
+default_permissions = "codex_meta_scope"
+personality = "pragmatic"
+developer_instructions = """
+- 常に日本語で回答する。
+- このセッションは Codex 自己改善専用である。profile 名を推測せず、この instructions 自体を正本として扱う。
+- 実施前に `AGENTS.md` と `doc/task/codex_self_improvement.md` を読み、詳細ルールに従う。
+- Codex や OpenAI developer docs の契約確認が必要なら OpenAI developer docs MCP を使う。
+- 許可されていない範囲へ広げず、最小ハーネスから進める。
+- 指示や権限が衝突する場合は編集せず、ユーザーに確認する。
+- 最終報告では、変更内容、成立根拠、未解決事項、制約を述べる。
+"""
