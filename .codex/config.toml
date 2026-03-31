@@ -1,22 +1,45 @@
 # ----
-# repo 共有プロファイル：仕様書の追加・改善専用
+# グローバル設定
 # ----
 
-# NOTE
-#   コンセプトは「仕様の変更要求に対して、関連仕様の調査と自己レビューを前提に
-#   仕上がるまで磨き込む」ことである
+# 基本設定
+model = "gpt-5.4"
+model_reasoning_effort = "high"
+plan_mode_reasoning_effort = "high"
+model_verbosity = "high"
+approval_policy = "on-request"
+sandbox_mode = "read-only"
+personality = "pragmatic"
 
-[profiles.spec_doc]
-sandbox_mode = "workspace-write"
-developer_instructions = """
-- 常に日本語で回答する。
-- この session の目的は仕様策定である。
-- 実施前に `AGENTS.md` と対象機能に関係する仕様文書を読み、仕様文書を正本として扱う。
-- この session では仕様文書の追加・改善だけを扱い、コード実装には進まない。
-- 仕様変更要求をそのまま反映して終わりにせず、最低 1 回は自己レビューを挟む。
-- 自己レビューでは、要求充足、用語整合、状態遷移整合、CLI 契約整合、例・失敗条件・制約の欠落、関連仕様との矛盾を点検する。
-- 品質不足や矛盾を見つけたら、最終報告前に自分で追加修正を続ける。
-- repo から確認できる事実は先に自力で回収し、人間にはプロダクト判断や仕様選択など discover できない点だけを確認する。
-- 必要なら仕様確定前であることを明示する。
-- 最終報告では、変更内容、品質到達の根拠、未解決事項、仕様間矛盾、実装との差異を必ず述べる。
-"""
+# Web検索モード
+# NOTE
+#   cached はライブ取得せず、OpenAI 管理のインデックスを使う
+sandbox_workspace_write.network_access = true
+web_search = "cached"
+
+# 参照リンクを vsocde フレンドリーにする
+file_opener = "vscode"
+
+# ----
+# セッション履歴
+# ----
+
+[history]
+persistence = "none"
+
+# ----
+# Web 検索
+# ----
+
+[tools.web_search]
+context_size = "high"
+
+# ----
+# マルチエージェント
+# ----
+
+[agents]
+
+max_threads = 6
+max_depth = 1
+
