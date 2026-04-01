@@ -20,6 +20,9 @@ web_search = "cached"
 # 参照リンクを vsocde フレンドリーにする
 file_opener = "vscode"
 
+# 基本指示は使わない
+#developer_instructions = ...
+
 # ----
 # セッション履歴
 # ----

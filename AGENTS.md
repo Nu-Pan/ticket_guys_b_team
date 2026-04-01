@@ -9,10 +9,6 @@
 
 # 絶対ルール
 
-## OpenAI Docs
-
-Always use the OpenAI developer documentation MCP server if you need to work with the OpenAI API, ChatGPT Apps SDK, Codex, or other OpenAI developer docs, without me having to explicitly ask.
-
 ## 禁止事項
 
 - 明示的な許可指示が無い状況で `AGENTS.md` を AI エージェントが編集すること
