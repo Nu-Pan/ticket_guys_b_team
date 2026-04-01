@@ -14,18 +14,27 @@ app = typer.Typer(
 )
 
 
-class ApprovalTarget(str, enum.Enum):
-    """`approve` コマンドの遷移先。"""
+class CodexCliMode(str, enum.Enum):
+    """`run` コマンドの Codex CLI 実行モード。"""
 
-    IN_REVIEW = "in_review"
-    APPROVED = "approved"
+    LIVE = "live"
+    STUB = "stub"
 
 
-class RunMode(str, enum.Enum):
-    """`run` コマンドの実行モード。"""
+def _raise_not_implemented(*, command_name: str, impact: str, next_step: str) -> None:
+    """未実装コマンドの共通エラー出力を行って終了する。
 
-    DRY_RUN = "dry-run"
-    PRODUCTION = "production"
+    Args:
+        command_name: 未実装として扱うコマンド名。
+        impact: 今回の呼び出しで起きていない影響範囲。
+        next_step: 次に取るべき行動。
+    """
+
+    # NOTE: 未実装コマンドを成功扱いにすると利用者が state mutation 済みと誤認する。
+    typer.echo(f"ERROR: {command_name} command is not implemented yet", err=True)
+    typer.echo(f"Impact: {impact}", err=True)
+    typer.echo(f"Next: {next_step}", err=True)
+    raise typer.Exit(code=1)
 
 
 @app.command()
@@ -41,108 +50,33 @@ def plan(
 ) -> None:
     """Plan 草案の生成または更新を受け付ける。"""
 
-    # NOTE: 仕様確定前のため、現時点では CLI 形状だけを提供する。
     _ = request_text, plan_id
-
-
-@app.command()
-def approve(
-    plan_id: Annotated[
-        str,
-        typer.Argument(help="Plan identifier to update."),
-    ],
-    target: Annotated[
-        ApprovalTarget,
-        typer.Option("--to", help="Transition target state."),
-    ],
-) -> None:
-    """Plan の承認状態を変更する。"""
-
-    # NOTE: 状態遷移ロジックは未実装で、引数契約のみ先に固定する。
-    _ = plan_id, target
-
-
-@app.command()
-def ticket(
-    plan_id: Annotated[
-        str,
-        typer.Argument(help="Approved plan identifier."),
-    ],
-) -> None:
-    """承認済み Plan からチケット群を生成する。"""
-
-    _ = plan_id
+    _raise_not_implemented(
+        command_name="plan",
+        impact="no plan file or front matter was created or updated",
+        next_step="implement plan persistence before retrying this command",
+    )
 
 
 @app.command()
 def run(
-    ticket_id: Annotated[
+    plan_id: Annotated[
         str,
-        typer.Argument(help="Ticket identifier to execute."),
+        typer.Option("--plan-id", help="Plan identifier to execute."),
     ],
-    mode: Annotated[
-        RunMode,
-        typer.Argument(help="Execution mode."),
-    ] = RunMode.PRODUCTION,
-    model: Annotated[
-        str | None,
-        typer.Argument(help="Model name for execution."),
-    ] = None,
-    reasoning_effort: Annotated[
-        str | None,
-        typer.Argument(help="Reasoning effort for execution."),
-    ] = None,
+    codex_cli_mode: Annotated[
+        CodexCliMode,
+        typer.Option("--codex-cli-mode", help="Codex CLI execution mode."),
+    ] = CodexCliMode.LIVE,
 ) -> None:
-    """指定した Ticket の実行を受け付ける。"""
+    """指定した Plan を起点に run を実行する。"""
 
-    _ = ticket_id, mode, model, reasoning_effort
-
-
-@app.command("review-queue")
-def review_queue(
-    plan_id: Annotated[
-        str | None,
-        typer.Option("--plan-id", help="Optional plan identifier filter."),
-    ] = None,
-) -> None:
-    """`review_pending` なチケット一覧を表示する。"""
-
-    _ = plan_id
-
-
-@app.command()
-def artifacts(
-    plan_id: Annotated[
-        str | None,
-        typer.Option("--plan-id", help="Plan identifier for artifact lookup."),
-    ] = None,
-    ticket_id: Annotated[
-        str | None,
-        typer.Option("--ticket-id", help="Ticket identifier for artifact lookup."),
-    ] = None,
-) -> None:
-    """Plan または Ticket に紐づく成果物を表示する。"""
-
-    _validate_artifact_target(plan_id=plan_id, ticket_id=ticket_id)
-
-
-def _validate_artifact_target(*, plan_id: str | None, ticket_id: str | None) -> None:
-    """`artifacts` コマンドの入力形を検証する。
-
-    Args:
-        plan_id: Plan 単位で参照する場合の識別子。
-        ticket_id: Ticket 単位で参照する場合の識別子。
-
-    Raises:
-        typer.BadParameter: 指定数が契約に反している場合。
-    """
-
-    # 成果物参照は plan_id / ticket_id のどちらか一方に限定する。
-    if plan_id is None and ticket_id is None:
-        raise typer.BadParameter("Specify either --plan-id or --ticket-id.")
-
-    if plan_id is not None and ticket_id is not None:
-        raise typer.BadParameter("Specify only one of --plan-id or --ticket-id.")
+    _ = plan_id, codex_cli_mode
+    _raise_not_implemented(
+        command_name="run",
+        impact="no plan or ticket state mutation was performed",
+        next_step="implement run orchestration before retrying this command",
+    )
 
 
 def main() -> None:

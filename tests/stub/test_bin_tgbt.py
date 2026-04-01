@@ -22,11 +22,13 @@ def test_bin_tgbt_shows_help_from_repo_root() -> None:
     assert result.returncode == 0
     assert "Usage: tgbt" in result.stdout
     assert "ticket_guys_b_team command line interface." in result.stdout
-    assert "review-queue" in result.stdout
+    assert "plan" in result.stdout
+    assert "run" in result.stdout
+    assert "review-queue" not in result.stdout
 
 
-def test_bin_tgbt_resolves_repo_root_outside_repository() -> None:
-    """リポジトリ外の作業ディレクトリでも起動できることを確認する。"""
+def test_bin_tgbt_resolves_repo_root_outside_repository_then_fails_explicitly() -> None:
+    """リポジトリ外からも entrypoint を解決し、未実装エラーまで到達する。"""
 
     result = subprocess.run(
         [str(CLI_PATH), "plan", "CLI だけ確認する"],
@@ -36,6 +38,7 @@ def test_bin_tgbt_resolves_repo_root_outside_repository() -> None:
         check=False,
     )
 
-    assert result.returncode == 0
+    assert result.returncode == 1
     assert result.stdout == ""
-    assert result.stderr == ""
+    assert "ERROR: plan command is not implemented yet" in result.stderr
+    assert "Impact: no plan file or front matter was created or updated" in result.stderr

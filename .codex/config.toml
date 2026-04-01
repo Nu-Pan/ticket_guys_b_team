@@ -8,7 +8,7 @@ model_reasoning_effort = "high"
 plan_mode_reasoning_effort = "high"
 model_verbosity = "high"
 approval_policy = "on-request"
-sandbox_mode = "read-only"
+sandbox_mode = "workspace-write"
 personality = "pragmatic"
 
 # Web検索モード
