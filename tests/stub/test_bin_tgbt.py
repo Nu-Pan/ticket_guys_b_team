@@ -36,12 +36,12 @@ def test_bin_tgbt_resolves_repo_root_outside_repository_and_updates_plan_from_st
     """リポジトリ外からも entrypoint を解決し、stub fixture から Plan を更新できる。"""
 
     plan_id = "plan-bin-test-001"
-    plan_path = REPO_ROOT / "artifacts" / "plans" / f"{plan_id}.md"
+    plan_path = REPO_ROOT / ".tgbt" / "plans" / f"{plan_id}.md"
     session_record_path = (
-        REPO_ROOT / "artifacts" / "codex" / f"{plan_id}-rev-2-call-0001-plan_drafting.json"
+        REPO_ROOT / ".tgbt" / "codex" / f"{plan_id}-rev-2-call-0001-plan_drafting.json"
     )
-    counters_path = REPO_ROOT / "artifacts" / "system" / "counters.json"
-    lock_path = REPO_ROOT / "artifacts" / "system" / "locks" / "repository.lock.json"
+    counters_path = REPO_ROOT / ".tgbt" / "system" / "counters.json"
+    lock_path = REPO_ROOT / ".tgbt" / "system" / "locks" / "repository.lock.json"
 
     plan_backup = plan_path.read_text(encoding="utf-8") if plan_path.exists() else None
     session_backup = (
@@ -115,11 +115,11 @@ def test_bin_tgbt_resolves_repo_root_outside_repository_and_updates_plan_from_st
 
         assert result.returncode == 0
         assert result.stderr == ""
-        assert f"Updated: artifacts/plans/{plan_id}.md" in result.stdout
+        assert f"Updated: .tgbt/plans/{plan_id}.md" in result.stdout
         assert "Plan revision: 2" in result.stdout
         assert "Status: draft" in result.stdout
         assert (
-            f"Session record: artifacts/codex/{plan_id}-rev-2-call-0001-plan_drafting.json"
+            f"Session record: .tgbt/codex/{plan_id}-rev-2-call-0001-plan_drafting.json"
             in result.stdout
         )
         assert "bin 更新後タイトル" in plan_path.read_text(encoding="utf-8")
@@ -128,11 +128,11 @@ def test_bin_tgbt_resolves_repo_root_outside_repository_and_updates_plan_from_st
         _restore_file(session_record_path, session_backup)
         _restore_file(counters_path, counters_backup)
         lock_path.unlink(missing_ok=True)
-        _rmdir_if_empty(REPO_ROOT / "artifacts" / "system" / "locks")
-        _rmdir_if_empty(REPO_ROOT / "artifacts" / "system")
-        _rmdir_if_empty(REPO_ROOT / "artifacts" / "codex")
-        _rmdir_if_empty(REPO_ROOT / "artifacts" / "plans")
-        _rmdir_if_empty(REPO_ROOT / "artifacts")
+        _rmdir_if_empty(REPO_ROOT / ".tgbt" / "system" / "locks")
+        _rmdir_if_empty(REPO_ROOT / ".tgbt" / "system")
+        _rmdir_if_empty(REPO_ROOT / ".tgbt" / "codex")
+        _rmdir_if_empty(REPO_ROOT / ".tgbt" / "plans")
+        _rmdir_if_empty(REPO_ROOT / ".tgbt")
 
 
 def _write_plan(path: Path, *, metadata: dict[str, object], sections: dict[str, str]) -> None:
@@ -217,10 +217,10 @@ def _write_stub_record(
                     "last_message_text": codex_wrapper.canonicalize_json(payload),
                     "business_output": payload,
                     "generated_artifacts": [
-                        f"artifacts/codex/{plan_id}-rev-2-call-0001-plan_drafting.json"
+                        f".tgbt/codex/{plan_id}-rev-2-call-0001-plan_drafting.json"
                     ],
                     "stop_reason": "completed",
-                    "session_record_path": f"artifacts/codex/{plan_id}-rev-2-call-0001-plan_drafting.json",
+                    "session_record_path": f".tgbt/codex/{plan_id}-rev-2-call-0001-plan_drafting.json",
                     "replayed_from": None,
                     "redaction_report": {},
                 },

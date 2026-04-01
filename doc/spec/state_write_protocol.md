@@ -36,22 +36,22 @@
 
 以下は現在状態の正本であり、本書の commit 規則に従って書き換えなければならない。
 
-* `artifacts/plans/*.md`
-* `artifacts/tickets/*.md`
-* `artifacts/system/counters.json`
+* `.tgbt/plans/*.md`
+* `.tgbt/tickets/*.md`
+* `.tgbt/system/counters.json`
 
 ### 3.2 control artifact
 
 以下は状態更新の制御用 artifact である。
 
-* `artifacts/system/locks/repository.lock.json`
+* `.tgbt/system/locks/repository.lock.json`
 
 ### 3.3 audit artifact
 
 以下は監査証跡であり、現在状態の正本ではない。
 
-* `artifacts/logs/*.jsonl`
-* `artifacts/codex/*.json`
+* `.tgbt/logs/*.jsonl`
+* `.tgbt/codex/*.json`
 
 ### 3.4 temporary / candidate file
 

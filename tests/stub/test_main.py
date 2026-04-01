@@ -78,10 +78,10 @@ def test_plan_creates_a_new_plan_file_from_stub_record(
     assert result.exit_code == 0
     assert result.stderr == ""
     assert result.stdout.strip().splitlines() == [
-        f"Updated: artifacts/plans/{plan_id}.md",
+        f"Updated: .tgbt/plans/{plan_id}.md",
         "Plan revision: 1",
         "Status: draft",
-        "Session record: artifacts/codex/plan-20260401-001-rev-1-call-0001-plan_drafting.json",
+        "Session record: .tgbt/codex/plan-20260401-001-rev-1-call-0001-plan_drafting.json",
     ]
 
     plan_path = state_io.plan_path(isolated_repo, plan_id)
@@ -131,25 +131,25 @@ def test_plan_updates_existing_plan_from_stub_record_and_rewrites_sections(
     )
     existing_plan = state_io.load_plan_document(plan_path)
     _write_ticket(
-        isolated_repo / "artifacts/tickets/worker-0001.md",
+        isolated_repo / ".tgbt/tickets/worker-0001.md",
         plan_id=plan_id,
         plan_revision=1,
         status="todo",
     )
     _write_ticket(
-        isolated_repo / "artifacts/tickets/worker-0002.md",
+        isolated_repo / ".tgbt/tickets/worker-0002.md",
         plan_id=plan_id,
         plan_revision=1,
         status="settled",
     )
     _write_ticket(
-        isolated_repo / "artifacts/tickets/worker-0003.md",
+        isolated_repo / ".tgbt/tickets/worker-0003.md",
         plan_id=plan_id,
         plan_revision=2,
         status="todo",
     )
     _write_ticket(
-        isolated_repo / "artifacts/tickets/worker-0004.md",
+        isolated_repo / ".tgbt/tickets/worker-0004.md",
         plan_id="plan-20260321-999",
         plan_revision=1,
         status="done",
@@ -182,10 +182,10 @@ def test_plan_updates_existing_plan_from_stub_record_and_rewrites_sections(
 
     assert result.exit_code == 0
     assert result.stdout.strip().splitlines() == [
-        f"Updated: artifacts/plans/{plan_id}.md",
+        f"Updated: .tgbt/plans/{plan_id}.md",
         "Plan revision: 2",
         "Status: draft",
-        "Session record: artifacts/codex/plan-20260321-001-rev-2-call-0001-plan_drafting.json",
+        "Session record: .tgbt/codex/plan-20260321-001-rev-2-call-0001-plan_drafting.json",
     ]
 
     metadata, sections = _load_plan(plan_path)
@@ -201,10 +201,10 @@ def test_plan_updates_existing_plan_from_stub_record_and_rewrites_sections(
     )
     assert sections["目的"] == "差し戻し条件を含めた Plan に更新する"
     assert sections["成果物"] == "- 更新済み Plan file\n- strict replay fixture"
-    assert not (isolated_repo / "artifacts/tickets/worker-0001.md").exists()
-    assert not (isolated_repo / "artifacts/tickets/worker-0002.md").exists()
-    assert (isolated_repo / "artifacts/tickets/worker-0003.md").exists()
-    assert (isolated_repo / "artifacts/tickets/worker-0004.md").exists()
+    assert not (isolated_repo / ".tgbt/tickets/worker-0001.md").exists()
+    assert not (isolated_repo / ".tgbt/tickets/worker-0002.md").exists()
+    assert (isolated_repo / ".tgbt/tickets/worker-0003.md").exists()
+    assert (isolated_repo / ".tgbt/tickets/worker-0004.md").exists()
 
 
 def test_plan_reports_missing_stub_record_and_does_not_create_plan(

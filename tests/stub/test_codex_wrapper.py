@@ -87,7 +87,7 @@ def test_execute_live_builds_expected_argv_and_saves_redacted_session_record(
     assert seen_argv[0:2] == ["codex", "exec"]
     assert result.codex_cli_mode is CodexCliMode.LIVE
     assert result.session_record_path == (
-        "artifacts/codex/plan-20260401-001-rev-1-call-0001-plan_drafting.json"
+        ".tgbt/codex/plan-20260401-001-rev-1-call-0001-plan_drafting.json"
     )
     assert "<REDACTED:AUTH_CREDENTIAL>" in result.stdout
     assert "<REDACTED:SECRET>" in result.stderr
@@ -146,7 +146,7 @@ def _build_request(tmp_path: Path, *, prompt_text: str, codex_call_id: str) -> c
         prompt_text=prompt_text,
         model=codex_wrapper.DEFAULT_MODEL,
         reasoning_effort=codex_wrapper.DEFAULT_REASONING_EFFORT,
-        stub_record_path="artifacts/codex/plan-20260401-001-rev-1-call-0001-plan_drafting.json",
+        stub_record_path=".tgbt/codex/plan-20260401-001-rev-1-call-0001-plan_drafting.json",
     )
 
 

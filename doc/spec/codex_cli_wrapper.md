@@ -439,7 +439,7 @@ live 実行で保存する session record は、追加変換なしで stub sourc
 保存先 path は、`run_id != null` の呼び出しでは以下で決定しなければならない。
 
 ```text
-artifacts/codex/<scope>-<run_id>-<codex_call_id>-<call_purpose>.json
+.tgbt/codex/<scope>-<run_id>-<codex_call_id>-<call_purpose>.json
 ```
 
 `<scope>` は以下とする。
@@ -450,7 +450,7 @@ artifacts/codex/<scope>-<run_id>-<codex_call_id>-<call_purpose>.json
 `plan_drafting` では以下を使う。
 
 ```text
-artifacts/codex/<plan_id>-rev-<plan_revision>-<codex_call_id>-plan_drafting.json
+.tgbt/codex/<plan_id>-rev-<plan_revision>-<codex_call_id>-plan_drafting.json
 ```
 
 ---
@@ -601,7 +601,7 @@ wrapper 実行時、少なくとも以下の事実を execution log へ反映で
 
 artifact としては少なくとも以下を生成または参照できることが望ましい。
 
-* `run_id != null` のとき `artifacts/codex/<scope>-<run_id>-<codex_call_id>-<call_purpose>.json`
-* `plan_drafting` のとき `artifacts/codex/<plan_id>-rev-<plan_revision>-<codex_call_id>-plan_drafting.json`
+* `run_id != null` のとき `.tgbt/codex/<scope>-<run_id>-<codex_call_id>-<call_purpose>.json`
+* `plan_drafting` のとき `.tgbt/codex/<plan_id>-rev-<plan_revision>-<codex_call_id>-plan_drafting.json`
 
 MVP では別個の last message file を必須にしない。

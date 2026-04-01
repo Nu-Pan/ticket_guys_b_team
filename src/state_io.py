@@ -58,7 +58,7 @@ def get_repository_root() -> Path:
 def artifacts_root(repo_root: Path) -> Path:
     """artifact 配下のルートパスを返す。"""
 
-    return repo_root / "artifacts"
+    return repo_root / ".tgbt"
 
 
 def plans_dir(repo_root: Path) -> Path:

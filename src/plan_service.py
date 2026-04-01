@@ -318,7 +318,7 @@ def _translate_wrapper_error(error: codex_wrapper.CodexWrapperError) -> PlanComm
     ):
         next_step = (
             "restore the matching pre-call state and required session record under "
-            "artifacts/codex/, then retry"
+            ".tgbt/codex/, then retry"
         )
     else:
         next_step = (

@@ -112,7 +112,7 @@ MVP では、Plan 草案生成、Ticket 生成・Ticket 実行・実行結果の
 
 * Plan の現在状態は Plan file の front matter を正本とする
 * Ticket の現在状態は Ticket file の front matter を正本とする
-* `artifacts/system/counters.json` は採番の正本とする
+* `.tgbt/system/counters.json` は採番の正本とする
 * execution log と session record は監査証跡であり、状態の正本ではない
 * authoritative mutable state の個別 publish は `state_write_protocol.md` の atomic write-replace に従う
 
@@ -126,12 +126,12 @@ front matter と監査証跡が衝突した場合、現在状態の解釈は fro
 
 MVP では、state-mutating command の異常終了後に内部 recovery を行わない。
 
-* repository と `artifacts/` は、外部 snapshot から丸ごと restore できる前提で運用する
+* repository と `.tgbt/` は、外部 snapshot から丸ごと restore できる前提で運用する
 * 非 0 終了またはプロセス中断後の repository state は、restore 前の継続利用対象ではない
 * ユーザーは既知の安全な snapshot へ restore してから retry する
 * stale lock が残った場合は、他プロセス停止を確認したうえで手動除去を許容する
 
-active Ticket は、対象 Plan の **現在 `plan_revision`** に属し、かつ `artifacts/tickets/` に現存する Ticket file 集合を意味する。
+active Ticket は、対象 Plan の **現在 `plan_revision`** に属し、かつ `.tgbt/tickets/` に現存する Ticket file 集合を意味する。
 
 * active Ticket には `todo` / `running` / `done` / `settled` を含める
 * 過去 revision の Ticket は、同じ directory に残っていても active ではない

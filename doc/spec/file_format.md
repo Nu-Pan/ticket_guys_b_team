@@ -26,7 +26,7 @@
 * 実行失敗時も可能な限りファイルを保存する
 * live 実行の記録は stub 実行にそのまま転用可能でなければならない
 * 現在状態の正本は Markdown front matter とする
-* `artifacts/system/counters.json` は採番の正本とする
+* `.tgbt/system/counters.json` は採番の正本とする
 * execution log と session record は監査証跡であり、状態の正本ではない
 * repository lock は state mutation の直列化に使う control artifact である
 
@@ -36,10 +36,10 @@ front matter と監査証跡が衝突した場合、現在状態の解釈は fro
 
 ## 3. 既定ディレクトリ構造
 
-成果物の既定配置は `artifacts/` 配下とする。
+成果物の既定配置は `.tgbt/` 配下とする。
 
 ```text
-artifacts/
+.tgbt/
   plans/
   tickets/
   logs/
@@ -52,12 +52,12 @@ artifacts/
 
 各ディレクトリの役割は以下の通りとする。
 
-* `artifacts/plans/`: Plan file
-* `artifacts/tickets/`: Ticket file
-* `artifacts/logs/`: 実行ログ JSONL
-* `artifacts/codex/`: Codex CLI wrapper の session record
-* `artifacts/system/counters.json`: 採番の正本
-* `artifacts/system/locks/`: repository 全体の state mutation を禁止する lock artifact
+* `.tgbt/plans/`: Plan file
+* `.tgbt/tickets/`: Ticket file
+* `.tgbt/logs/`: 実行ログ JSONL
+* `.tgbt/codex/`: Codex CLI wrapper の session record
+* `.tgbt/system/counters.json`: 採番の正本
+* `.tgbt/system/locks/`: repository 全体の state mutation を禁止する lock artifact
 
 ---
 
@@ -148,7 +148,7 @@ call-NNNN
 ### 5.1 保存先
 
 ```text
-artifacts/plans/<plan_id>.md
+.tgbt/plans/<plan_id>.md
 ```
 
 1 Plan につき 1 ファイルとする。
@@ -235,7 +235,7 @@ updated_at: 2026-03-21T10:00:00+09:00
 ### 6.1 保存先
 
 ```text
-artifacts/tickets/<ticket_id>.md
+.tgbt/tickets/<ticket_id>.md
 ```
 
 1 Ticket につき 1 ファイルとする。
@@ -325,8 +325,8 @@ worker Ticket では、少なくとも以下を記載できることが望まし
 
 ```md
 # Artifacts
-- artifacts/logs/plan-20260321-001-run-0003.jsonl
-- artifacts/codex/worker-0002-run-0003-call-0002-ticket_execution.json
+- .tgbt/logs/plan-20260321-001-run-0003.jsonl
+- .tgbt/codex/worker-0002-run-0003-call-0002-ticket_execution.json
 ```
 
 ### 6.8 例
@@ -376,7 +376,7 @@ Plan 実行の起点となるコマンドを実装する。
 推奨保存先:
 
 ```text
-artifacts/logs/<plan_id>-<run_id>.jsonl
+.tgbt/logs/<plan_id>-<run_id>.jsonl
 ```
 
 1 top-level `run` につき 1 ファイルを推奨する。
@@ -436,7 +436,7 @@ execution log は JSON Lines とし、1 行が 1 event を表す。
 推奨保存先:
 
 ```text
-artifacts/codex/<scope>-<run_id>-<codex_call_id>-<call_purpose>.json
+.tgbt/codex/<scope>-<run_id>-<codex_call_id>-<call_purpose>.json
 ```
 
 これは `run_id != null` の wrapper 呼び出しで使う。
@@ -449,15 +449,15 @@ artifacts/codex/<scope>-<run_id>-<codex_call_id>-<call_purpose>.json
 `plan_drafting` では以下を使う。
 
 ```text
-artifacts/codex/<plan_id>-rev-<plan_revision>-<codex_call_id>-plan_drafting.json
+.tgbt/codex/<plan_id>-rev-<plan_revision>-<codex_call_id>-plan_drafting.json
 ```
 
 例:
 
 ```text
-artifacts/codex/plan-20260321-001-run-0003-call-0001-ticket_planning.json
-artifacts/codex/worker-0001-run-0003-call-0002-ticket_execution.json
-artifacts/codex/plan-20260321-001-rev-2-call-0007-plan_drafting.json
+.tgbt/codex/plan-20260321-001-run-0003-call-0001-ticket_planning.json
+.tgbt/codex/worker-0001-run-0003-call-0002-ticket_execution.json
+.tgbt/codex/plan-20260321-001-rev-2-call-0007-plan_drafting.json
 ```
 
 ### 8.2 目的
@@ -544,7 +544,7 @@ raw request を lossless に保存することは要件としない。
 ### 9.1 保存先
 
 ```text
-artifacts/system/counters.json
+.tgbt/system/counters.json
 ```
 
 ### 9.2 目的
@@ -594,7 +594,7 @@ artifacts/system/counters.json
 ### 10.1 保存先
 
 ```text
-artifacts/system/locks/repository.lock.json
+.tgbt/system/locks/repository.lock.json
 ```
 
 ### 10.2 目的

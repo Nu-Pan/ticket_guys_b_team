@@ -66,7 +66,7 @@ Plan を実行に移す意思決定は `run` 開始で表現する。
 
 対象 Plan を `P`、その現在 revision を `R = P.plan_revision` とする。
 
-**active Ticket 集合**とは、`artifacts/tickets/` に現存し、かつ以下を満たす Ticket file 集合をいう。
+**active Ticket 集合**とは、`.tgbt/tickets/` に現存し、かつ以下を満たす Ticket file 集合をいう。
 
 * `plan_id == P.plan_id`
 * `plan_revision == R`
