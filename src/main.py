@@ -1,9 +1,19 @@
 """`ticket_guys_b_team` の CLI エントリポイント。"""
 
-import enum
+from pathlib import Path
+import sys
 from typing import Annotated
 
 import typer
+
+
+if __package__ in {None, ""}:
+    sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+    import src.plan_service as plan_service
+    from src.codex_common import CodexCliMode
+else:
+    from . import plan_service
+    from .codex_common import CodexCliMode
 
 
 # CLI の公開形をここで固定する。
@@ -12,13 +22,6 @@ app = typer.Typer(
     help="ticket_guys_b_team command line interface.",
     no_args_is_help=True,
 )
-
-
-class CodexCliMode(str, enum.Enum):
-    """`run` コマンドの Codex CLI 実行モード。"""
-
-    LIVE = "live"
-    STUB = "stub"
 
 
 def _raise_not_implemented(*, command_name: str, impact: str, next_step: str) -> None:
@@ -37,6 +40,15 @@ def _raise_not_implemented(*, command_name: str, impact: str, next_step: str) ->
     raise typer.Exit(code=1)
 
 
+def _raise_command_error(error: plan_service.PlanCommandError) -> None:
+    """業務コマンドのエラーを CLI 向けに整形して終了する。"""
+
+    typer.echo(f"ERROR: {error.cause}", err=True)
+    typer.echo(f"Impact: {error.impact}", err=True)
+    typer.echo(f"Next: {error.next_step}", err=True)
+    raise typer.Exit(code=1)
+
+
 @app.command()
 def plan(
     request_text: Annotated[
@@ -47,15 +59,26 @@ def plan(
         str | None,
         typer.Option("--plan-id", help="Existing plan identifier to update."),
     ] = None,
+    codex_cli_mode: Annotated[
+        CodexCliMode,
+        typer.Option("--codex-cli-mode", help="Codex CLI execution mode."),
+    ] = CodexCliMode.LIVE,
 ) -> None:
     """Plan 草案の生成または更新を受け付ける。"""
 
-    _ = request_text, plan_id
-    _raise_not_implemented(
-        command_name="plan",
-        impact="no plan file or front matter was created or updated",
-        next_step="implement plan persistence before retrying this command",
-    )
+    try:
+        result = plan_service.create_or_update_plan(
+            request_text=request_text,
+            plan_id=plan_id,
+            codex_cli_mode=codex_cli_mode,
+        )
+    except plan_service.PlanCommandError as error:
+        _raise_command_error(error)
+    else:
+        typer.echo(f"Updated: {result.updated_path}")
+        typer.echo(f"Plan revision: {result.plan_revision}")
+        typer.echo(f"Status: {result.status}")
+        typer.echo(f"Session record: {result.session_record_path}")
 
 
 @app.command()

@@ -23,7 +23,7 @@
 * **Run**: 1 つの Plan に対して、Ticket 生成と Ticket 実行を反復するオーケストレーション
 * **Repository Lock**: 同一 repository に対する state mutation を 1 本に直列化する排他制御
 * **State Write Protocol**: front matter と state file を安全に commit するための atomic write-replace と、異常終了後は外部 snapshot へ restore する失敗契約
-* **Codex CLI Wrapper**: `codex exec` 呼び出しを live / stub で抽象化し、構造化された業務出力を返す境界
+* **Codex CLI Wrapper**: `codex exec` 呼び出しを `plan` / `run` の双方から live / stub で抽象化し、構造化された業務出力を返す境界
 
 重要な点は、MVP では独立した `approve` コマンドを持たないこと、そして `tgbt run --plan-id ...` が Plan の実行開始と Ticket オーケストレーションをまとめて担うことである。
 
@@ -102,7 +102,7 @@ MVP では、以下を意図的に削る。
 * call purpose ごとの model / reasoning 最適化
 * 進捗不変ループ検出のような高度な停止判定
 
-MVP では、Plan 更新・Ticket 生成・Ticket 実行・実行結果の要約保存・フォローアップ Ticket 生成の流れを最優先で固める。
+MVP では、Plan 草案生成、Ticket 生成・Ticket 実行・実行結果の要約保存・フォローアップ Ticket 生成の流れを最優先で固める。
 
 ---
 

@@ -439,16 +439,25 @@ execution log は JSON Lines とし、1 行が 1 event を表す。
 artifacts/codex/<scope>-<run_id>-<codex_call_id>-<call_purpose>.json
 ```
 
+これは `run_id != null` の wrapper 呼び出しで使う。
+
 `<scope>` は **決定的に** 以下とする。
 
 * `ticket_id != null` のとき `<scope> = <ticket_id>`
 * `ticket_id == null` のとき `<scope> = <plan_id>`
+
+`plan_drafting` では以下を使う。
+
+```text
+artifacts/codex/<plan_id>-rev-<plan_revision>-<codex_call_id>-plan_drafting.json
+```
 
 例:
 
 ```text
 artifacts/codex/plan-20260321-001-run-0003-call-0001-ticket_planning.json
 artifacts/codex/worker-0001-run-0003-call-0002-ticket_execution.json
+artifacts/codex/plan-20260321-001-rev-2-call-0007-plan_drafting.json
 ```
 
 ### 8.2 目的
@@ -463,7 +472,7 @@ session record は 1 回の wrapper 呼び出しの request / response を保存
 * `plan_id`
 * `plan_revision`
 * `ticket_id` (`ticket` に紐づかない call では `null` 可)
-* `run_id`
+* `run_id` (`plan_drafting` では `null` 可)
 * `codex_call_id`
 * `call_purpose`
 * `codex_cli_mode`
@@ -475,6 +484,7 @@ session record は 1 回の wrapper 呼び出しの request / response を保存
 
 MVP では以下のみを使用する。
 
+* `plan_drafting`
 * `ticket_planning`
 * `ticket_execution`
 * `followup_planning`
@@ -524,7 +534,8 @@ raw request を lossless に保存することは要件としない。
 * live 実行の session record は、そのまま stub source として利用できること
 * stub 実行時に元 record を破壊してはならないこと
 * strict replay では、source record の `request` と current request を **同じ正規化・redaction 関数**に通した結果が、`codex_cli_mode` と `stub_record_path` を除いて一致しなければならないこと
-* `last_message_text` は、3 つの call purpose については redaction 後 `business_output` の canonical JSON serialization であることが望ましい
+* `plan_drafting` では `run_id = null` を許容すること
+* `last_message_text` は、4 つの call purpose については redaction 後 `business_output` の canonical JSON serialization であることが望ましい
 
 ---
 
@@ -570,9 +581,10 @@ artifacts/system/counters.json
 * 外部 snapshot restore により repository 全体を過去時点へ戻す運用は、本 file 単体の巻き戻しとは別扱いとして許容する
 * `ticket_id` は対応する Ticket file 作成を試みる直前に採番してよい
 * `run_id` は repository lock 取得後、最初の run-scoped artifact を作る前に採番しなければならない
-* `codex_call_id` は wrapper 実行を試みる直前に採番してよい
+* `codex_call_id` は `plan` / `run` を問わず wrapper 実行を試みる直前に採番してよい
 * repository lock により、この file の更新は state-mutating `tgbt` 間で直列化されること
-* strict replay では、この file を過去 run 開始前の状態へ戻すことで同じ `run_id` / `codex_call_id` 系列を再現できること
+* strict replay では、`run` 系 call についてはこの file を過去 run 開始前の状態へ戻すことで同じ `run_id` / `codex_call_id` 系列を再現できること
+* `plan_drafting` については、この file を対象 call 実行前の状態へ戻すことで同じ `codex_call_id` 系列を再現できること
 
 ---
 

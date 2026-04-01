@@ -83,8 +83,17 @@ AI は canonical markdown 全文を正本として返してはならない。
 
 `codex_cli_wrapper.md` で定義する business output は、canonical markdown ではなく proposal payload として扱う。
 
-MVP の `run` 系 call purpose では、application は少なくとも以下のように payload を section へ写像する。
+MVP の call purpose では、application は少なくとも以下のように payload を section へ写像する。
 
+* `plan_drafting.title` → Plan の `title`
+* `plan_drafting.sections.purpose` → Plan の `目的`
+* `plan_drafting.sections.out_of_scope` → Plan の `スコープ外`
+* `plan_drafting.sections.deliverables` → Plan の `成果物`
+* `plan_drafting.sections.constraints` → Plan の `制約`
+* `plan_drafting.sections.acceptance_criteria` → Plan の `受け入れ条件`
+* `plan_drafting.sections.open_questions` → Plan の `未確定事項`
+* `plan_drafting.sections.risks` → Plan の `想定リスク`
+* `plan_drafting.sections.execution_strategy` → Plan の `実行方針`
 * `ticket_planning.tickets[].title` → Ticket の `Title`
 * `ticket_planning.tickets[].purpose` → Ticket の `Purpose`
 * `ticket_planning.tickets[].depends_on` → Ticket の `Dependencies`
@@ -225,17 +234,29 @@ state-mutating command が非 0 終了した場合、またはプロセスが中
 
 ### 8.1 `plan` 新規作成
 
-新規 Plan 作成でも repository lock を取得しなければならない。publish 単位としては Plan file の atomic create で足りる。
+新規 Plan 作成でも repository lock を取得しなければならない。
+
+少なくとも以下を candidate として事前に確定する。
+
+* `codex_call_id` を反映した `counters.json`
+* `plan_drafting` session record
+* 新規 Plan file
+
+publish は決定的順序で行えばよいが、少なくとも `counters.json` は wrapper 実行前に publish してよい。
 
 ### 8.2 `plan --plan-id ...` による既存 Plan 更新
 
 既存 Plan 更新では、少なくとも以下の candidate を事前に確定する。
 
+* `codex_call_id` を反映した `counters.json`
+* `plan_drafting` session record
 * 更新後の Plan file
 * 破棄または退避対象となる active Ticket 群
 * 必要なら関連 metadata
 
 publish は決定的順序で行えばよいが、途中失敗時に repository 全体の一貫性は保証されない。
+
+avoidable failure を減らすため、active Ticket 群の削除または退避は `plan_drafting` payload の validation が完了した後にのみ行ってよい。
 
 ### 8.3 `run` 開始
 

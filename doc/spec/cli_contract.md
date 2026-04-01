@@ -129,7 +129,7 @@ Next: restore pre-run state and required session record under artifacts/codex/
 * `live`
 * `stub`
 
-`run` は常に実行コマンドであり、dry-run / preflight / validate は現時点では提供しない。
+`plan` / `run` は常に実行コマンドであり、dry-run / preflight / validate は現時点では提供しない。
 
 ### 5.6 repository lock
 
@@ -164,10 +164,13 @@ state-mutating command が非 0 終了した場合、またはプロセスが中
 
 ### 6.2 入力
 
-以下のいずれかを受け付ける。
+以下を受け付ける。
 
+* `--codex-cli-mode {live|stub}`
 * 自然言語要求
-* 既存 `plan_id` と追記指示
+* 必要に応じて既存 `plan_id` と更新指示
+
+`--codex-cli-mode` の既定値は `live` とする。
 
 例:
 
@@ -179,10 +182,15 @@ tgbt plan "CLI で plan / run を扱えるようにしたい"
 tgbt plan --plan-id plan-20260321-001 "strict replay を導入する"
 ```
 
+```bash
+tgbt plan --codex-cli-mode stub "strict replay fixture から Plan を再生成する"
+```
+
 ### 6.3 出力
 
 * `artifacts/plans/<plan_id>.md` を生成または更新する
 * 実行結果として少なくとも `plan_id`、`plan_revision`、保存先を表示する
+* 主要な session record 参照先または保存先を追跡できること
 
 例:
 
@@ -199,6 +207,7 @@ Status: draft
 * `running` または `settled` の Plan を更新した場合も `draft` に戻す
 * 既存 Plan を更新した場合、`plan_revision` は 1 増加する
 * 既存 Plan を更新して active Ticket 集合を破棄または退避する処理は、repository lock を取得したときにのみ行ってよい
+* `plan` の Codex 呼び出しは `plan_drafting` payload を proposal として扱い、application が canonical Plan markdown を render する
 
 ### 6.5 Ticket 破棄規則
 
@@ -224,11 +233,17 @@ execution log と session record は監査証跡として保持してよい。
 * candidate validation に失敗した
 * active Ticket 破棄処理に失敗した
 * `plan_revision` 更新に失敗した
+* wrapper 実行に失敗した
+* `plan_drafting` payload の validation に失敗した
+* `stub` 時に source record が存在しない
+* `stub` 時に strict replay request 検証に失敗した
+* `codex_call_id` 採番または `counters.json` 更新に失敗した
 
 ### 6.7 MVP 制約
 
-* 必須セクションを並べたテンプレート草案生成に留めてよい
-* 要望内容の深い自動解釈や高度な要件抽出は未実装でよい
+* `plan` は Codex wrapper を通じて `plan_drafting` payload を受け取り、application が canonical Plan markdown を render する
+* `plan_drafting` は canonical markdown 全文ではなく proposal payload を返す
+* `stub` は strict replay であり、近似的な応答再現を許容しない
 
 ---
 
@@ -347,24 +362,31 @@ strict replay の前提とは、少なくとも以下を指す。
 
 ### 7.9 stub 契約
 
-`stub` モードでは、top-level `run` は manifest を用いない。
+`stub` モードでは、`plan` / `run` とも manifest を用いない。
 
-代わりに orchestration 層が、現在の wrapper 呼び出しに対して以下の canonical path を決定し、単一 `stub_record_path` として wrapper に渡す。
+代わりに orchestration 層が、現在の wrapper 呼び出しに対して canonical path を決定し、単一 `stub_record_path` として wrapper に渡す。
 
 ```text
 artifacts/codex/<scope>-<run_id>-<codex_call_id>-<call_purpose>.json
 ```
 
-ここで `<scope>` は以下とする。
+`run_id != null` の wrapper 呼び出しでは、`<scope>` は以下とする。
 
 * `ticket_id != null` のとき `<scope> = <ticket_id>`
 * `ticket_id == null` のとき `<scope> = <plan_id>`
+
+`plan_drafting` では以下を使う。
+
+```text
+artifacts/codex/<plan_id>-rev-<plan_revision>-<codex_call_id>-plan_drafting.json
+```
 
 要件:
 
 * `stub` は strict replay であり、保存用 canonicalization + redaction 後の current request と source record request は `codex_cli_mode` / `stub_record_path` を除いて完全一致しなければならない
 * source record が不足した場合、その `run` は失敗とする
 * source record の identity が不一致なら、その `run` は失敗とする
+* `plan_drafting` では `run_id = null` を使う
 * `stub` は新しい `run_id` / `codex_call_id` 系列を生成するためのモードではない
 
 ### 7.10 hard limit
