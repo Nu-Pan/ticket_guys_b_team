@@ -2,23 +2,38 @@
 
 import json
 from pathlib import Path
+import shutil
 import subprocess
 
+import pytest
 import yaml
 
 from src import codex_wrapper, plan_drafting, state_io
 
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
-CLI_PATH = REPO_ROOT / "bin" / "tgbt"
 
 
-def test_bin_tgbt_shows_help_from_repo_root() -> None:
+@pytest.fixture
+def isolated_cli_repo(tmp_path: Path) -> Path:
+    """`bin/tgbt` 検証用の自己完結した一時リポジトリを作る。"""
+
+    repo_root = tmp_path / "repo"
+    shutil.copytree(REPO_ROOT / "bin", repo_root / "bin")
+    shutil.copytree(REPO_ROOT / "src", repo_root / "src")
+
+    # NOTE: 仮想環境は共有しつつ、state は一時リポジトリ配下へ閉じ込める。
+    (repo_root / ".venv").symlink_to(REPO_ROOT / ".venv", target_is_directory=True)
+    return repo_root
+
+
+def test_bin_tgbt_shows_help_from_repo_root(isolated_cli_repo: Path) -> None:
     """リポジトリ直下から `bin/tgbt` が起動できることを確認する。"""
 
+    cli_path = isolated_cli_repo / "bin" / "tgbt"
     result = subprocess.run(
-        [str(CLI_PATH), "--help"],
-        cwd=REPO_ROOT,
+        [str(cli_path), "--help"],
+        cwd=isolated_cli_repo,
         capture_output=True,
         text=True,
         check=False,
@@ -32,107 +47,94 @@ def test_bin_tgbt_shows_help_from_repo_root() -> None:
     assert "review-queue" not in result.stdout
 
 
-def test_bin_tgbt_resolves_repo_root_outside_repository_and_updates_plan_from_stub() -> None:
+def test_bin_tgbt_resolves_repo_root_outside_repository_and_updates_plan_from_stub(
+    isolated_cli_repo: Path,
+) -> None:
     """リポジトリ外からも entrypoint を解決し、stub fixture から Plan を更新できる。"""
 
+    cli_path = isolated_cli_repo / "bin" / "tgbt"
     plan_id = "plan-bin-test-001"
-    plan_path = REPO_ROOT / ".tgbt" / "plans" / f"{plan_id}.md"
+    plan_path = isolated_cli_repo / ".tgbt" / "plans" / f"{plan_id}.md"
     session_record_path = (
-        REPO_ROOT / ".tgbt" / "codex" / f"{plan_id}-rev-2-call-0001-plan_drafting.json"
+        isolated_cli_repo
+        / ".tgbt"
+        / "codex"
+        / f"{plan_id}-rev-2-call-0001-plan_drafting.json"
     )
-    counters_path = REPO_ROOT / ".tgbt" / "system" / "counters.json"
-    lock_path = REPO_ROOT / ".tgbt" / "system" / "locks" / "repository.lock.json"
+    counters_path = isolated_cli_repo / ".tgbt" / "system" / "counters.json"
 
-    plan_backup = plan_path.read_text(encoding="utf-8") if plan_path.exists() else None
-    session_backup = (
-        session_record_path.read_text(encoding="utf-8")
-        if session_record_path.exists()
-        else None
+    _write_plan(
+        plan_path,
+        metadata={
+            "plan_id": plan_id,
+            "plan_revision": 1,
+            "title": "既存タイトル",
+            "status": "draft",
+            "created_at": "2026-03-21T10:00:00+09:00",
+            "updated_at": "2026-03-21T10:00:00+09:00",
+        },
+        sections={
+            "目的": "既存の目的",
+            "スコープ外": "- 既存のスコープ外",
+            "成果物": "- 既存の成果物",
+            "制約": "- 既存の制約",
+            "受け入れ条件": "- 既存の受け入れ条件",
+            "未確定事項": "- 既存の未確定事項",
+            "想定リスク": "- 既存の想定リスク",
+            "実行方針": "- 既存の実行方針",
+        },
     )
-    counters_backup = counters_path.read_text(encoding="utf-8") if counters_path.exists() else None
-
-    try:
-        _write_plan(
-            plan_path,
-            metadata={
-                "plan_id": plan_id,
-                "plan_revision": 1,
-                "title": "既存タイトル",
-                "status": "draft",
-                "created_at": "2026-03-21T10:00:00+09:00",
+    existing_plan = state_io.load_plan_document(plan_path)
+    _write_stub_record(
+        isolated_cli_repo,
+        session_record_path,
+        plan_id=plan_id,
+        request_text="bin/tgbt から stub 更新を確認する",
+        title="bin 更新後タイトル",
+        existing_plan=existing_plan,
+    )
+    counters_path.parent.mkdir(parents=True, exist_ok=True)
+    counters_path.write_text(
+        json.dumps(
+            {
+                "next_ticket_seq": 1,
+                "next_run_seq": 1,
+                "next_codex_call_seq": 1,
                 "updated_at": "2026-03-21T10:00:00+09:00",
             },
-            sections={
-                "目的": "既存の目的",
-                "スコープ外": "- 既存のスコープ外",
-                "成果物": "- 既存の成果物",
-                "制約": "- 既存の制約",
-                "受け入れ条件": "- 既存の受け入れ条件",
-                "未確定事項": "- 既存の未確定事項",
-                "想定リスク": "- 既存の想定リスク",
-                "実行方針": "- 既存の実行方針",
-            },
+            ensure_ascii=False,
+            indent=2,
         )
-        existing_plan = state_io.load_plan_document(plan_path)
-        _write_stub_record(
-            session_record_path,
-            plan_id=plan_id,
-            request_text="bin/tgbt から stub 更新を確認する",
-            title="bin 更新後タイトル",
-            existing_plan=existing_plan,
-        )
-        counters_path.parent.mkdir(parents=True, exist_ok=True)
-        counters_path.write_text(
-            json.dumps(
-                {
-                    "next_ticket_seq": 1,
-                    "next_run_seq": 1,
-                    "next_codex_call_seq": 1,
-                    "updated_at": "2026-03-21T10:00:00+09:00",
-                },
-                ensure_ascii=False,
-                indent=2,
-            )
-            + "\n",
-            encoding="utf-8",
-        )
+        + "\n",
+        encoding="utf-8",
+    )
 
-        result = subprocess.run(
-            [
-                str(CLI_PATH),
-                "plan",
-                "--plan-id",
-                plan_id,
-                "--codex-cli-mode",
-                "stub",
-                "bin/tgbt から stub 更新を確認する",
-            ],
-            cwd="/tmp",
-            capture_output=True,
-            text=True,
-            check=False,
-        )
+    result = subprocess.run(
+        [
+            str(cli_path),
+            "plan",
+            "--plan-id",
+            plan_id,
+            "--codex-cli-mode",
+            "stub",
+            "bin/tgbt から stub 更新を確認する",
+        ],
+        cwd="/tmp",
+        capture_output=True,
+        text=True,
+        check=False,
+    )
 
-        assert result.returncode == 0
-        assert result.stderr == ""
-        assert f"Updated: .tgbt/plans/{plan_id}.md" in result.stdout
-        assert "Plan revision: 2" in result.stdout
-        assert "Status: draft" in result.stdout
-        assert (
-            f"Session record: .tgbt/codex/{plan_id}-rev-2-call-0001-plan_drafting.json"
-            in result.stdout
-        )
-        assert "bin 更新後タイトル" in plan_path.read_text(encoding="utf-8")
-    finally:
-        _restore_file(plan_path, plan_backup)
-        _restore_file(session_record_path, session_backup)
-        _restore_file(counters_path, counters_backup)
-        lock_path.unlink(missing_ok=True)
-        _rmdir_if_empty(REPO_ROOT / ".tgbt" / "system" / "locks")
-        _rmdir_if_empty(REPO_ROOT / ".tgbt" / "system")
-        _rmdir_if_empty(REPO_ROOT / ".tgbt" / "codex")
-        _rmdir_if_empty(REPO_ROOT / ".tgbt" / "plans")
-        _rmdir_if_empty(REPO_ROOT / ".tgbt")
+    assert result.returncode == 0
+    assert result.stderr == ""
+    assert f"Updated: .tgbt/plans/{plan_id}.md" in result.stdout
+    assert "Plan revision: 2" in result.stdout
+    assert "Status: draft" in result.stdout
+    assert (
+        f"Session record: .tgbt/codex/{plan_id}-rev-2-call-0001-plan_drafting.json"
+        in result.stdout
+    )
+    assert "bin 更新後タイトル" in plan_path.read_text(encoding="utf-8")
 
 
 def _write_plan(path: Path, *, metadata: dict[str, object], sections: dict[str, str]) -> None:
@@ -145,6 +147,7 @@ def _write_plan(path: Path, *, metadata: dict[str, object], sections: dict[str, 
 
 
 def _write_stub_record(
+    repo_root: Path,
     path: Path,
     *,
     plan_id: str,
@@ -184,7 +187,7 @@ def _write_stub_record(
         "run_id": None,
         "codex_call_id": "call-0001",
         "call_purpose": plan_drafting.CALL_PURPOSE,
-        "cwd": str(REPO_ROOT),
+        "cwd": str(repo_root),
         "prompt_text": prompt_text,
         "model": codex_wrapper.DEFAULT_MODEL,
         "reasoning_effort": codex_wrapper.DEFAULT_REASONING_EFFORT,
@@ -232,23 +235,3 @@ def _write_stub_record(
         + "\n",
         encoding="utf-8",
     )
-
-
-def _restore_file(path: Path, original_text: str | None) -> None:
-    """作業前のファイル状態を戻す。"""
-
-    if original_text is None:
-        path.unlink(missing_ok=True)
-        return
-    path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text(original_text, encoding="utf-8")
-
-
-def _rmdir_if_empty(path: Path) -> None:
-    """空 directory だけを掃除する。"""
-
-    try:
-        if path.exists():
-            path.rmdir()
-    except OSError:
-        return

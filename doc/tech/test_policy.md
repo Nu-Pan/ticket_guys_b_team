@@ -32,6 +32,11 @@ Codex CLI の利用有無で 2 系統のテストを用意する。
 - この切り替えは `ticket_guys_b_team` の機能として用意する
 - 品質向上のために積極的に拡充・修正するのは主にこちらである
 - 通常は、こちらのテストが通れば動作確認として合格とする
+- 日常的に実行する標準テストは、原則としてこちらに寄せる
+- 環境セットアップ後は、stub テストは単に `pytest` を実行すれば通ることを目標とする
+- stub テストの成否は、既存 repository 状態、既存 `.tgbt/`、stale lock、手動 restore の有無に依存させない
+- strict replay に必要な session record、Plan / Ticket、front matter、counter、lock-free 状態は、テスト fixture またはダミー実装側で自前構築する
+- テスト実行者に、stub テストの前準備として live 実行、手動 snapshot restore、既存 state の掃除を要求しない
 
 # 実装者向けルール
 
@@ -40,6 +45,9 @@ Codex CLI の利用有無で 2 系統のテストを用意する。
 - `doc/spec/*.md` と既存テストが矛盾する場合、既存テストを正本扱いして仕様を読み替えない
 - live / stub の違いが論点になる場合は、必要に応じて `doc/spec/codex_cli_wrapper.md` を読み直す
 - 状態遷移が論点になる場合は、必要に応じて `doc/spec/state_machine.md` を読み直す
+- stub テストを追加・修正する場合、必要な replay data と state はテストのスコープ内で閉じる
+- stub テストのために実リポジトリの既存 state へ依存する設計を新たに持ち込まない
+- strict replay の前提条件が必要でも、それを満たす責務は通常テストではテストハーネス側に置く
 
 # カバレッジ
 

@@ -311,6 +311,8 @@ strict replay の前提とは、少なくとも以下を指す。
 * `.tgbt/system/counters.json` が再現したい run 開始前の状態へ戻されていること
 * canonical path に必要な source record が存在すること
 
+これは `tgbt` の業務契約として必要な前提である。通常の `pytest` ベース stub テストでは、これらの前提は test harness / fixture が一時 directory、fixture file、ダミー state を用いて自前で満たすものとし、テスト実行者に既存 repository 状態の手動 restore や `.tgbt/` 調整を要求しない。
+
 ### 7.5 高水準アルゴリズム
 
 `run` は少なくとも以下を反復する。
@@ -388,6 +390,7 @@ strict replay の前提とは、少なくとも以下を指す。
 * source record の identity が不一致なら、その `run` は失敗とする
 * `plan_drafting` では `run_id = null` を使う
 * `stub` は新しい `run_id` / `codex_call_id` 系列を生成するためのモードではない
+* 通常の自動 stub テストでは、必要な source record と整合 state は orchestration の外側にある test harness / fixture が自己完結に用意する
 
 ### 7.10 hard limit
 
@@ -430,7 +433,8 @@ MVP では以下の hard limit を固定値として持つ。
 * active Ticket の集約表示専用コマンドは持たない
 * Ticket 実行の並列化は提供しない
 * 自動受け入れゲートの厳密仕様は本契約に含めない
-* strict replay は「事前状態を戻したテスト環境」を前提とする
+* strict replay は「事前状態と整合するテスト環境」を前提とする
+* ただし通常の stub テストでは、その整合状態は test harness / fixture が構築するものであり、既存 repository 状態への手動依存を意味しない
 * progress invariance のような高度なループ検出は行わない
 
 ---
