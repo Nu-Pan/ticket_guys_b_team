@@ -3,6 +3,7 @@
 import json
 from pathlib import Path
 import subprocess
+from typing import cast
 
 import pytest
 
@@ -91,18 +92,75 @@ def test_execute_live_builds_expected_argv_and_saves_redacted_session_record(
     )
     assert "<REDACTED:AUTH_CREDENTIAL>" in result.stdout
     assert "<REDACTED:SECRET>" in result.stderr
-    assert "<REDACTED:SECRET>" in str(result.business_output["sections"]["constraints"])
+    sections = cast(dict[str, str], result.business_output["sections"])
+    assert "<REDACTED:SECRET>" in sections["constraints"]
     assert "AUTH_CREDENTIAL" in result.redaction_report
 
     session_record = json.loads((tmp_path / result.session_record_path).read_text(encoding="utf-8"))
     assert session_record["request"]["prompt_text"] == "<REDACTED:AUTH_CREDENTIAL>"
     assert "<REDACTED:SECRET>" in session_record["result"]["stderr"]
+    assert session_record["result"]["returncode"] == 0
+
+
+def test_execute_live_surfaces_cli_failure_before_payload_validation(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """非 0 終了時は JSON 不在より先に CLI failure を報告する。"""
+
+    request = codex_wrapper.CodexCliRequest(
+        plan_id="plan-20260401-001",
+        plan_revision=1,
+        ticket_id=None,
+        run_id=None,
+        codex_call_id="call-0001",
+        call_purpose=plan_drafting.CALL_PURPOSE,
+        codex_cli_mode=CodexCliMode.LIVE,
+        cwd=str(tmp_path),
+        prompt_text="live prompt",
+        model="gpt-5.2-codex",
+        reasoning_effort="high",
+    )
+
+    def fake_run(
+        argv: list[str],
+        *,
+        capture_output: bool,
+        text: bool,
+        check: bool,
+    ) -> subprocess.CompletedProcess[str]:
+        assert capture_output is True
+        assert text is True
+        assert check is False
+        return subprocess.CompletedProcess(
+            argv,
+            1,
+            stdout="",
+            stderr="Authentication failed",
+        )
+
+    monkeypatch.setattr(codex_wrapper.subprocess, "run", fake_run)
+
+    with pytest.raises(
+        codex_wrapper.CodexExecutionError,
+        match=r"codex exec failed with returncode 1: stderr=Authentication failed",
+    ):
+        codex_wrapper.execute(request)
+
+    session_record_path = (
+        tmp_path / ".tgbt/codex/plan-20260401-001-rev-1-call-0001-plan_drafting.json"
+    )
+    session_record = json.loads(session_record_path.read_text(encoding="utf-8"))
+    assert session_record["result"]["returncode"] == 1
+    assert session_record["result"]["stop_reason"] == "codex_exec_failed"
+    assert session_record["result"]["stderr"] == "Authentication failed"
 
 
 def test_execute_stub_replays_saved_record(tmp_path: Path) -> None:
     """stub 実行が source record を strict replay する。"""
 
     request = _build_request(tmp_path, prompt_text="stub prompt", codex_call_id="call-0001")
+    assert request.stub_record_path is not None
     path = tmp_path / request.stub_record_path
     _write_stub_record(path, request=request, title="stub title")
 
@@ -118,6 +176,7 @@ def test_execute_stub_rejects_request_mismatch(tmp_path: Path) -> None:
     """strict replay request 不一致を拒否する。"""
 
     request = _build_request(tmp_path, prompt_text="stub prompt", codex_call_id="call-0001")
+    assert request.stub_record_path is not None
     path = tmp_path / request.stub_record_path
     _write_stub_record(path, request=request, title="stub title")
 

@@ -3,6 +3,7 @@
 from datetime import datetime
 import json
 from pathlib import Path
+import subprocess
 
 import pytest
 from typer.testing import CliRunner
@@ -250,6 +251,56 @@ def test_plan_rejects_missing_plan_id(isolated_repo: Path) -> None:
     assert "ERROR: plan_id was not found: plan-20260321-001" in result.stderr
     assert "Impact: no plan file or front matter was created or updated" in result.stderr
     assert not state_io.lock_path(isolated_repo).exists()
+
+
+def test_plan_live_reports_codex_cli_failure_details(
+    isolated_repo: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """live 実行失敗時に returncode/stderr を CLI へ伝える。"""
+
+    plan_id = "plan-20260401-001"
+    monkeypatch.setattr(plan_service, "_next_plan_id", lambda repo_root: plan_id)
+
+    def fake_run(
+        argv: list[str],
+        *,
+        capture_output: bool,
+        text: bool,
+        check: bool,
+    ) -> subprocess.CompletedProcess[str]:
+        assert capture_output is True
+        assert text is True
+        assert check is False
+        return subprocess.CompletedProcess(
+            argv,
+            1,
+            stdout="",
+            stderr="Authentication failed",
+        )
+
+    monkeypatch.setattr(codex_wrapper.subprocess, "run", fake_run)
+
+    result = RUNNER.invoke(
+        app,
+        ["plan", "CLI の初回本番実行を確認する"],
+    )
+
+    assert result.exit_code == 1
+    assert (
+        "ERROR: codex exec failed with returncode 1: stderr=Authentication failed"
+        in result.stderr
+    )
+    assert (
+        "Impact: no plan file or front matter was created or updated, but counters or session records may have changed"
+        in result.stderr
+    )
+    session_record_path = (
+        isolated_repo / ".tgbt/codex/plan-20260401-001-rev-1-call-0001-plan_drafting.json"
+    )
+    session_record = json.loads(session_record_path.read_text(encoding="utf-8"))
+    assert session_record["result"]["returncode"] == 1
+    assert session_record["result"]["stop_reason"] == "codex_exec_failed"
 
 
 def test_plan_rejects_when_repository_lock_already_exists(isolated_repo: Path) -> None:

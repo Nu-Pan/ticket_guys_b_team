@@ -205,9 +205,33 @@ def _execute_live(request: CodexCliRequest) -> CodexCliResult:
         if last_message_path.exists():
             raw_last_message = last_message_path.read_text(encoding="utf-8").strip()
 
+        payload: plan_drafting.PlanDraftingPayload | None = None
+        payload_error: json.JSONDecodeError | plan_drafting.PlanDraftingValidationError | None = None
         try:
             payload = plan_drafting.validate_payload(_parse_json_object(raw_last_message))
         except (json.JSONDecodeError, plan_drafting.PlanDraftingValidationError) as error:
+            payload_error = error
+
+        if completed.returncode != 0:
+            _write_session_record(
+                request=request,
+                session_record_abspath=session_record_abspath,
+                stdout=completed.stdout,
+                stderr=completed.stderr,
+                raw_last_message=raw_last_message,
+                business_output=_payload_to_business_output(payload),
+                stop_reason="codex_exec_failed",
+                returncode=completed.returncode,
+            )
+            raise CodexExecutionError(
+                _format_execution_error(
+                    returncode=completed.returncode,
+                    stderr=completed.stderr,
+                    payload_error=payload_error,
+                )
+            )
+
+        if payload_error is not None:
             _write_session_record(
                 request=request,
                 session_record_abspath=session_record_abspath,
@@ -216,10 +240,13 @@ def _execute_live(request: CodexCliRequest) -> CodexCliResult:
                 raw_last_message=raw_last_message,
                 business_output=None,
                 stop_reason="invalid_business_output",
+                returncode=completed.returncode,
             )
             raise CodexBusinessOutputError(
-                f"plan_drafting payload validation failed: {error}"
-            ) from error
+                f"plan_drafting payload validation failed: {payload_error}"
+            ) from payload_error
+
+        assert payload is not None
 
         result = _build_success_result(
             request=request,
@@ -235,21 +262,10 @@ def _execute_live(request: CodexCliRequest) -> CodexCliResult:
             stdout=completed.stdout,
             stderr=completed.stderr,
             raw_last_message=raw_last_message,
-            business_output={
-                "schema_name": plan_drafting.CALL_PURPOSE,
-                "schema_version": 1,
-                "call_purpose": plan_drafting.CALL_PURPOSE,
-                "summary": payload.summary,
-                "title": payload.title,
-                "sections": payload.sections,
-            },
+            business_output=_payload_to_business_output(payload),
             stop_reason=result.stop_reason,
+            returncode=completed.returncode,
         )
-
-        if completed.returncode != 0:
-            raise CodexExecutionError(
-                f"codex exec failed with returncode {completed.returncode}"
-            )
         return result
 
 
@@ -403,6 +419,7 @@ def _write_session_record(
     raw_last_message: str,
     business_output: dict[str, object] | None,
     stop_reason: str,
+    returncode: int,
 ) -> None:
     """session record を保存する。"""
 
@@ -439,7 +456,7 @@ def _write_session_record(
             "codex_call_id": request.codex_call_id,
             "call_purpose": request.call_purpose,
             "codex_cli_mode": request.codex_cli_mode.value,
-            "returncode": 0 if business_output is not None else 1,
+            "returncode": returncode,
             "stdout": redacted_stdout,
             "stderr": redacted_stderr,
             "last_message_text": redacted_last_message,
@@ -524,6 +541,52 @@ def merge_redaction_reports(*reports: dict[str, int]) -> dict[str, int]:
         for key, value in report.items():
             merged[key] = merged.get(key, 0) + value
     return merged
+
+
+def _payload_to_business_output(
+    payload: plan_drafting.PlanDraftingPayload | None,
+) -> dict[str, object] | None:
+    """payload を session record 保存用 dict へ戻す。"""
+
+    if payload is None:
+        return None
+    return {
+        "schema_name": plan_drafting.CALL_PURPOSE,
+        "schema_version": 1,
+        "call_purpose": plan_drafting.CALL_PURPOSE,
+        "summary": payload.summary,
+        "title": payload.title,
+        "sections": payload.sections,
+    }
+
+
+def _format_execution_error(
+    *,
+    returncode: int,
+    stderr: str,
+    payload_error: json.JSONDecodeError | plan_drafting.PlanDraftingValidationError | None,
+) -> str:
+    """Codex CLI 実行失敗を人間向けに要約する。"""
+
+    detail = f"codex exec failed with returncode {returncode}"
+    stderr_summary = _summarize_error_text(stderr)
+    if stderr_summary:
+        return f"{detail}: stderr={stderr_summary}"
+    if payload_error is not None:
+        return f"{detail}: last_message was unusable ({payload_error})"
+    return detail
+
+
+def _summarize_error_text(text: str, *, max_length: int = 200) -> str:
+    """CLI エラー出力の先頭要約を返す。"""
+
+    redacted_text, _ = redact_text(text.strip())
+    if not redacted_text:
+        return ""
+    first_line = redacted_text.splitlines()[0].strip()
+    if len(first_line) <= max_length:
+        return first_line
+    return first_line[: max_length - 3] + "..."
 
 
 def redact_text(text: str) -> tuple[str, dict[str, int]]:
