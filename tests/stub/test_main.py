@@ -276,7 +276,17 @@ def test_plan_live_reports_codex_cli_failure_details(
             argv,
             1,
             stdout="",
-            stderr="Authentication failed",
+            stderr=(
+                "OpenAI Codex v0.118.0 (research preview)\n"
+                "ERROR: {\n"
+                '  "type": "error",\n'
+                '  "error": {\n'
+                '    "message": "Invalid schema for response_format '
+                '\'codex_output_schema\': In context=(\'properties\', '
+                '\'schema_name\'), schema must have a \'type\' key."\n'
+                "  }\n"
+                "}\n"
+            ),
         )
 
     monkeypatch.setattr(codex_wrapper.subprocess, "run", fake_run)
@@ -288,9 +298,10 @@ def test_plan_live_reports_codex_cli_failure_details(
 
     assert result.exit_code == 1
     assert (
-        "ERROR: codex exec failed with returncode 1: stderr=Authentication failed"
+        "ERROR: codex exec failed with returncode 1: stderr="
         in result.stderr
     )
+    assert "schema must have a 'type' key" in result.stderr
     assert (
         "Impact: no plan file or front matter was created or updated, but counters or session records may have changed"
         in result.stderr

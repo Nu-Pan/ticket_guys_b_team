@@ -578,15 +578,29 @@ def _format_execution_error(
 
 
 def _summarize_error_text(text: str, *, max_length: int = 200) -> str:
-    """CLI エラー出力の先頭要約を返す。"""
+    """CLI エラー出力から原因に近い 1 行を要約する。"""
 
     redacted_text, _ = redact_text(text.strip())
     if not redacted_text:
         return ""
-    first_line = redacted_text.splitlines()[0].strip()
-    if len(first_line) <= max_length:
-        return first_line
-    return first_line[: max_length - 3] + "..."
+
+    lines = [line.strip() for line in redacted_text.splitlines() if line.strip()]
+    preferred_line = ""
+    for line in reversed(lines):
+        if '"message":' in line:
+            preferred_line = line
+            break
+    if not preferred_line:
+        for line in reversed(lines):
+            if "ERROR:" in line:
+                preferred_line = line
+                break
+    if not preferred_line and lines:
+        preferred_line = lines[-1]
+
+    if len(preferred_line) <= max_length:
+        return preferred_line
+    return preferred_line[: max_length - 3] + "..."
 
 
 def redact_text(text: str) -> tuple[str, dict[str, int]]:

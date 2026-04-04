@@ -39,9 +39,9 @@ JSON_SCHEMA = {
         "sections",
     ],
     "properties": {
-        "schema_name": {"const": CALL_PURPOSE},
-        "schema_version": {"const": 1},
-        "call_purpose": {"const": CALL_PURPOSE},
+        "schema_name": {"type": "string", "const": CALL_PURPOSE},
+        "schema_version": {"type": "integer", "const": 1},
+        "call_purpose": {"type": "string", "const": CALL_PURPOSE},
         "summary": {"type": "string"},
         "title": {"type": "string"},
         "sections": {

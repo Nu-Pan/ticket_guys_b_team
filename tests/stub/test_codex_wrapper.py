@@ -136,14 +136,24 @@ def test_execute_live_surfaces_cli_failure_before_payload_validation(
             argv,
             1,
             stdout="",
-            stderr="Authentication failed",
+            stderr=(
+                "OpenAI Codex v0.118.0 (research preview)\n"
+                "ERROR: {\n"
+                '  "type": "error",\n'
+                '  "error": {\n'
+                '    "message": "Invalid schema for response_format '
+                '\'codex_output_schema\': In context=(\'properties\', '
+                '\'schema_name\'), schema must have a \'type\' key."\n'
+                "  }\n"
+                "}\n"
+            ),
         )
 
     monkeypatch.setattr(codex_wrapper.subprocess, "run", fake_run)
 
     with pytest.raises(
         codex_wrapper.CodexExecutionError,
-        match=r"codex exec failed with returncode 1: stderr=Authentication failed",
+        match=r"codex exec failed with returncode 1: stderr=.*schema must have a 'type' key",
     ):
         codex_wrapper.execute(request)
 
@@ -153,7 +163,7 @@ def test_execute_live_surfaces_cli_failure_before_payload_validation(
     session_record = json.loads(session_record_path.read_text(encoding="utf-8"))
     assert session_record["result"]["returncode"] == 1
     assert session_record["result"]["stop_reason"] == "codex_exec_failed"
-    assert session_record["result"]["stderr"] == "Authentication failed"
+    assert "schema must have a 'type' key" in session_record["result"]["stderr"]
 
 
 def test_execute_stub_replays_saved_record(tmp_path: Path) -> None:
@@ -188,6 +198,22 @@ def test_execute_stub_rejects_request_mismatch(tmp_path: Path) -> None:
 
     with pytest.raises(codex_wrapper.StubReplayMismatchError):
         codex_wrapper.execute(mismatched_request)
+
+
+def test_summarize_error_text_prefers_message_line() -> None:
+    """stderr 要約は banner ではなく message 行を優先する。"""
+
+    summary = codex_wrapper._summarize_error_text(
+        (
+            "OpenAI Codex v0.118.0 (research preview)\n"
+            "ERROR: {\n"
+            '  "message": "Invalid schema for response_format '
+            '\'codex_output_schema\': schema must have a \'type\' key."\n'
+            "}\n"
+        )
+    )
+
+    assert "schema must have a 'type' key" in summary
 
 
 def _build_request(tmp_path: Path, *, prompt_text: str, codex_call_id: str) -> codex_wrapper.CodexCliRequest:
