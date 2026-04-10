@@ -19,9 +19,9 @@ RUNNER = CliRunner()
 
 @pytest.fixture
 def isolated_repo(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Path:
-    """repository root 解決を一時ディレクトリへ差し替える。"""
+    """対象 repository を一時ディレクトリへ切り替える。"""
 
-    monkeypatch.setattr(state_io, "get_repository_root", lambda: tmp_path)
+    monkeypatch.chdir(tmp_path)
     return tmp_path
 
 
@@ -257,6 +257,28 @@ def test_plan_rejects_missing_plan_id(isolated_repo: Path) -> None:
     assert "ERROR: plan_id was not found: plan-20260321-001" in result.stderr
     assert "Impact: no plan file or front matter was created or updated" in result.stderr
     assert not state_io.lock_path(isolated_repo).exists()
+
+
+def test_plan_reports_repository_root_resolution_failure(
+    isolated_repo: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """cwd 解決失敗を CLI 向けエラーへ整形する。"""
+
+    def fail_to_resolve_repository_root() -> Path:
+        raise state_io.StateValidationError("failed to resolve current working directory: boom")
+
+    monkeypatch.setattr(state_io, "get_repository_root", fail_to_resolve_repository_root)
+
+    result = RUNNER.invoke(app, ["plan", "CLI だけ確認する"])
+
+    assert result.exit_code == 1
+    assert (
+        "ERROR: state validation failed: failed to resolve current working directory: boom"
+        in result.stderr
+    )
+    assert "Impact: no plan file or front matter was created or updated" in result.stderr
+    assert not any(state_io.plans_dir(isolated_repo).glob("*.md"))
 
 
 def test_plan_live_reports_codex_cli_failure_details(

@@ -2,11 +2,11 @@
 
 set -euo pipefail
 
-# スクリプト位置からリポジトリルートを解決する。
+# スクリプト位置から launcher 自身の runtime を解決する。
 script_dir="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
-repo_root="$(cd -- "${script_dir}/.." && pwd)"
-python_executable="${repo_root}/.venv/bin/python"
-entrypoint="${repo_root}/src/main.py"
+launcher_root="$(cd -- "${script_dir}/.." && pwd)"
+python_executable="${launcher_root}/.venv/bin/python"
+entrypoint="${launcher_root}/src/main.py"
 
 # 仮想環境経由のみで起動する。
 if [[ ! -x "${python_executable}" ]]; then

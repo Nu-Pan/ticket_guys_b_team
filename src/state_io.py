@@ -50,9 +50,14 @@ class CounterState:
 
 
 def get_repository_root() -> Path:
-    """リポジトリルートを返す。"""
+    """現在の process が対象にしている repository root を返す。"""
 
-    return Path(__file__).resolve().parents[1]
+    try:
+        return Path.cwd()
+    except OSError as error:
+        raise StateValidationError(
+            f"failed to resolve current working directory: {error}"
+        ) from error
 
 
 def absolute_path_string(path: Path) -> str:

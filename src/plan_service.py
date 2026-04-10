@@ -56,10 +56,9 @@ def create_or_update_plan(
             next_step="provide a non-empty plan request and retry the command",
         )
 
-    repo_root = state_io.get_repository_root()
-    state_io.ensure_plan_storage(repo_root)
-
     try:
+        repo_root = state_io.get_repository_root()
+        state_io.ensure_plan_storage(repo_root)
         with state_io.repository_lock(repo_root, command_name="plan", plan_id=plan_id):
             if plan_id is None:
                 target_plan_id = _next_plan_id(repo_root)

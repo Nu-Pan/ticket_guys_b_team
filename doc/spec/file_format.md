@@ -145,6 +145,8 @@ call-NNNN
 
 保存先の規約を示す節では、repository root からの canonical relative path を用いる。
 
+本書でいう `repository root` は、特に別記がない限り、top-level `tgbt` process が開始された時点の current working directory を指す。
+
 一方、ファイル内容や JSON field に格納される path 文字列は、特に別記がない限り filesystem absolute path とする。
 本書中の absolute path 例示は `<repo-root>/...` を用いる。
 

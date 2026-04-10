@@ -15,25 +15,25 @@ REPO_ROOT = Path(__file__).resolve().parents[2]
 
 
 @pytest.fixture
-def isolated_cli_repo(tmp_path: Path) -> Path:
-    """`bin/tgbt` 検証用の自己完結した一時リポジトリを作る。"""
+def isolated_launcher_root(tmp_path: Path) -> Path:
+    """`bin/tgbt` 検証用の自己完結した launcher 配置を作る。"""
 
-    repo_root = tmp_path / "repo"
-    shutil.copytree(REPO_ROOT / "bin", repo_root / "bin")
-    shutil.copytree(REPO_ROOT / "src", repo_root / "src")
+    launcher_root = tmp_path / "launcher"
+    shutil.copytree(REPO_ROOT / "bin", launcher_root / "bin")
+    shutil.copytree(REPO_ROOT / "src", launcher_root / "src")
 
-    # NOTE: 仮想環境は共有しつつ、state は一時リポジトリ配下へ閉じ込める。
-    (repo_root / ".venv").symlink_to(REPO_ROOT / ".venv", target_is_directory=True)
-    return repo_root
+    # NOTE: 仮想環境は共有しつつ、対象 state は invocation cwd 配下へ閉じ込める。
+    (launcher_root / ".venv").symlink_to(REPO_ROOT / ".venv", target_is_directory=True)
+    return launcher_root
 
 
-def test_bin_tgbt_shows_help_from_repo_root(isolated_cli_repo: Path) -> None:
+def test_bin_tgbt_shows_help_from_repo_root(isolated_launcher_root: Path) -> None:
     """リポジトリ直下から `bin/tgbt` が起動できることを確認する。"""
 
-    cli_path = isolated_cli_repo / "bin" / "tgbt"
+    cli_path = isolated_launcher_root / "bin" / "tgbt"
     result = subprocess.run(
         [str(cli_path), "--help"],
-        cwd=isolated_cli_repo,
+        cwd=isolated_launcher_root,
         capture_output=True,
         text=True,
         check=False,
@@ -47,21 +47,23 @@ def test_bin_tgbt_shows_help_from_repo_root(isolated_cli_repo: Path) -> None:
     assert "review-queue" not in result.stdout
 
 
-def test_bin_tgbt_resolves_repo_root_outside_repository_and_updates_plan_from_stub(
-    isolated_cli_repo: Path,
+def test_bin_tgbt_uses_invocation_cwd_as_target_repository(
+    isolated_launcher_root: Path,
+    tmp_path: Path,
 ) -> None:
-    """リポジトリ外からも entrypoint を解決し、stub fixture から Plan を更新できる。"""
+    """launcher 配置とは別の invocation cwd を対象 repository として更新する。"""
 
-    cli_path = isolated_cli_repo / "bin" / "tgbt"
+    cli_path = isolated_launcher_root / "bin" / "tgbt"
+    target_repo_root = tmp_path / "target-repo"
     plan_id = "plan-bin-test-001"
-    plan_path = isolated_cli_repo / ".tgbt" / "plans" / f"{plan_id}.md"
+    plan_path = target_repo_root / ".tgbt" / "plans" / f"{plan_id}.md"
     session_record_path = (
-        isolated_cli_repo
+        target_repo_root
         / ".tgbt"
         / "codex"
         / f"{plan_id}-rev-2-call-0001-plan_drafting.json"
     )
-    counters_path = isolated_cli_repo / ".tgbt" / "system" / "counters.json"
+    counters_path = target_repo_root / ".tgbt" / "system" / "counters.json"
 
     _write_plan(
         plan_path,
@@ -86,7 +88,7 @@ def test_bin_tgbt_resolves_repo_root_outside_repository_and_updates_plan_from_st
     )
     existing_plan = state_io.load_plan_document(plan_path)
     _write_stub_record(
-        isolated_cli_repo,
+        target_repo_root,
         session_record_path,
         plan_id=plan_id,
         request_text="bin/tgbt から stub 更新を確認する",
@@ -119,7 +121,7 @@ def test_bin_tgbt_resolves_repo_root_outside_repository_and_updates_plan_from_st
             "stub",
             "bin/tgbt から stub 更新を確認する",
         ],
-        cwd="/tmp",
+        cwd=target_repo_root,
         capture_output=True,
         text=True,
         check=False,

@@ -161,6 +161,7 @@ class CodexCliWrapper(Protocol):
 path を表す request field は、少なくとも以下の意味論を満たすこと。
 
 * `cwd` は filesystem absolute path
+* `cwd` は top-level `tgbt` process 開始時の current working directory を absolute path 化したもの
 * `stub_record_path` は filesystem absolute path
 
 ### 7.1 `call_purpose` の値
