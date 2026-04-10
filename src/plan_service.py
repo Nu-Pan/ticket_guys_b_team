@@ -125,7 +125,7 @@ def _create_new_plan(
 
     plan_revision = 1
     codex_call_id = state_io.allocate_codex_call_id(repo_root)
-    session_record_path = state_io.plan_drafting_session_record_relative_path(
+    session_record_relative_path = state_io.plan_drafting_session_record_relative_path(
         repo_root,
         plan_id=plan_id,
         plan_revision=plan_revision,
@@ -139,7 +139,7 @@ def _create_new_plan(
         codex_call_id=codex_call_id,
         codex_cli_mode=codex_cli_mode,
         existing_plan=None,
-        session_record_path=session_record_path,
+        session_record_relative_path=session_record_relative_path,
     )
     result = codex_wrapper.execute(request)
     payload = plan_drafting.validate_payload(result.business_output)
@@ -156,7 +156,7 @@ def _create_new_plan(
         create_only=True,
     )
     return PlanCommandResult(
-        updated_path=str(plan_path.relative_to(repo_root)),
+        updated_path=state_io.absolute_path_string(plan_path),
         plan_revision=plan_revision,
         status="draft",
         session_record_path=result.session_record_path,
@@ -185,7 +185,7 @@ def _update_existing_plan(
     assert isinstance(current_revision, int)
     next_revision = current_revision + 1
     codex_call_id = state_io.allocate_codex_call_id(repo_root)
-    session_record_path = state_io.plan_drafting_session_record_relative_path(
+    session_record_relative_path = state_io.plan_drafting_session_record_relative_path(
         repo_root,
         plan_id=plan_id,
         plan_revision=next_revision,
@@ -199,7 +199,7 @@ def _update_existing_plan(
         codex_call_id=codex_call_id,
         codex_cli_mode=codex_cli_mode,
         existing_plan=current_document,
-        session_record_path=session_record_path,
+        session_record_relative_path=session_record_relative_path,
     )
     result = codex_wrapper.execute(request)
     payload = plan_drafting.validate_payload(result.business_output)
@@ -217,7 +217,7 @@ def _update_existing_plan(
     )
 
     return PlanCommandResult(
-        updated_path=str(path.relative_to(repo_root)),
+        updated_path=state_io.absolute_path_string(path),
         plan_revision=next_revision,
         status="draft",
         session_record_path=result.session_record_path,
@@ -233,7 +233,7 @@ def _build_codex_request(
     codex_call_id: str,
     codex_cli_mode: CodexCliMode,
     existing_plan: state_io.PlanDocument | None,
-    session_record_path: str,
+    session_record_relative_path: str,
 ) -> codex_wrapper.CodexCliRequest:
     """Codex wrapper request を構築する。"""
 
@@ -255,7 +255,11 @@ def _build_codex_request(
         ),
         model=model,
         reasoning_effort=reasoning_effort,
-        stub_record_path=session_record_path if codex_cli_mode is CodexCliMode.STUB else None,
+        stub_record_path=(
+            state_io.absolute_path_string(repo_root / session_record_relative_path)
+            if codex_cli_mode is CodexCliMode.STUB
+            else None
+        ),
     )
 
 

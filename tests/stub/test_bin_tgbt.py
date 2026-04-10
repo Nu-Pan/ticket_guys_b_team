@@ -127,11 +127,11 @@ def test_bin_tgbt_resolves_repo_root_outside_repository_and_updates_plan_from_st
 
     assert result.returncode == 0
     assert result.stderr == ""
-    assert f"Updated: .tgbt/plans/{plan_id}.md" in result.stdout
+    assert f"Updated: {plan_path}" in result.stdout
     assert "Plan revision: 2" in result.stdout
     assert "Status: draft" in result.stdout
     assert (
-        f"Session record: .tgbt/codex/{plan_id}-rev-2-call-0001-plan_drafting.json"
+        f"Session record: {session_record_path}"
         in result.stdout
     )
     assert "bin 更新後タイトル" in plan_path.read_text(encoding="utf-8")
@@ -219,11 +219,9 @@ def _write_stub_record(
                     "stderr": "",
                     "last_message_text": codex_wrapper.canonicalize_json(payload),
                     "business_output": payload,
-                    "generated_artifacts": [
-                        f".tgbt/codex/{plan_id}-rev-2-call-0001-plan_drafting.json"
-                    ],
+                    "generated_artifacts": [str(path)],
                     "stop_reason": "completed",
-                    "session_record_path": f".tgbt/codex/{plan_id}-rev-2-call-0001-plan_drafting.json",
+                    "session_record_path": str(path),
                     "replayed_from": None,
                     "redaction_report": {},
                 },

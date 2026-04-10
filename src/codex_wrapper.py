@@ -144,6 +144,8 @@ def _validate_request(request: CodexCliRequest) -> None:
 
     if request.call_purpose != plan_drafting.CALL_PURPOSE:
         raise CodexBusinessOutputError("unsupported call_purpose")
+    if not Path(request.cwd).is_absolute():
+        raise CodexBusinessOutputError("cwd must be an absolute path")
     if request.ticket_id is not None:
         raise CodexBusinessOutputError("plan_drafting requires ticket_id=None")
     if request.run_id is not None:
@@ -152,6 +154,8 @@ def _validate_request(request: CodexCliRequest) -> None:
         raise CodexBusinessOutputError("reasoning_effort is invalid")
     if request.codex_cli_mode is CodexCliMode.STUB and not request.stub_record_path:
         raise StubRecordRequiredError("stub_record_path is required in stub mode")
+    if request.stub_record_path is not None and not Path(request.stub_record_path).is_absolute():
+        raise CodexBusinessOutputError("stub_record_path must be an absolute path")
 
 
 def _execute_live(request: CodexCliRequest) -> CodexCliResult:
@@ -253,7 +257,7 @@ def _execute_live(request: CodexCliRequest) -> CodexCliResult:
             stdout=completed.stdout,
             stderr=completed.stderr,
             payload=payload,
-            session_record_path=session_record_path,
+            session_record_path=state_io.absolute_path_string(session_record_abspath),
             replayed_from=None,
         )
         _write_session_record(
@@ -273,8 +277,7 @@ def _execute_stub(request: CodexCliRequest) -> CodexCliResult:
     """stub 実行を行う。"""
 
     assert request.stub_record_path is not None
-    repo_root = Path(request.cwd)
-    stub_record_abspath = repo_root / request.stub_record_path
+    stub_record_abspath = Path(request.stub_record_path)
     if not stub_record_abspath.exists():
         raise StubRecordNotFoundError(
             f"stub record was not found: {request.stub_record_path}"
@@ -352,9 +355,9 @@ def _execute_stub(request: CodexCliRequest) -> CodexCliResult:
             "title": payload.title,
             "sections": payload.sections,
         },
-        session_record_path=request.stub_record_path,
-        replayed_from=request.stub_record_path,
-        generated_artifacts=[request.stub_record_path],
+        session_record_path=state_io.absolute_path_string(stub_record_abspath),
+        replayed_from=state_io.absolute_path_string(stub_record_abspath),
+        generated_artifacts=[state_io.absolute_path_string(stub_record_abspath)],
         stop_reason=str(source_result.get("stop_reason", "stub_replay")),
         redaction_report={str(key): int(value) for key, value in redaction_report.items()},
     )
@@ -462,10 +465,10 @@ def _write_session_record(
             "last_message_text": redacted_last_message,
             "business_output": redacted_output,
             "generated_artifacts": [
-                str(session_record_abspath.relative_to(Path(request.cwd)))
+                state_io.absolute_path_string(session_record_abspath)
             ],
             "stop_reason": stop_reason,
-            "session_record_path": str(session_record_abspath.relative_to(Path(request.cwd))),
+            "session_record_path": state_io.absolute_path_string(session_record_abspath),
             "replayed_from": None,
             "redaction_report": redaction_report,
         },

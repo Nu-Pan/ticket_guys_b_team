@@ -55,6 +55,12 @@ def get_repository_root() -> Path:
     return Path(__file__).resolve().parents[1]
 
 
+def absolute_path_string(path: Path) -> str:
+    """filesystem absolute path を文字列化する。"""
+
+    return str(path if path.is_absolute() else path.resolve())
+
+
 def artifacts_root(repo_root: Path) -> Path:
     """artifact 配下のルートパスを返す。"""
 

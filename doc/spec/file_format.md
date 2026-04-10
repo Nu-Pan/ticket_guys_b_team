@@ -141,6 +141,13 @@ call-NNNN
 * Markdown ベースの主要ファイルは YAML front matter を先頭に持つ
 * YAML front matter は `---` で開始し、`---` で終了する
 
+### 4.7 path 文字列の表現
+
+保存先の規約を示す節では、repository root からの canonical relative path を用いる。
+
+一方、ファイル内容や JSON field に格納される path 文字列は、特に別記がない限り filesystem absolute path とする。
+本書中の absolute path 例示は `<repo-root>/...` を用いる。
+
 ---
 
 ## 5. Plan File Format
@@ -322,11 +329,12 @@ Ticket file 本文は以下のセクションをこの順序で含む。
 ### 6.7 Artifacts の推奨記載
 
 worker Ticket では、少なくとも以下を記載できることが望ましい。
+`Artifacts` セクションに記載する path は filesystem absolute path とする。
 
 ```md
 # Artifacts
-- .tgbt/logs/plan-20260321-001-run-0003.jsonl
-- .tgbt/codex/worker-0002-run-0003-call-0002-ticket_execution.json
+- <repo-root>/.tgbt/logs/plan-20260321-001-run-0003.jsonl
+- <repo-root>/.tgbt/codex/worker-0002-run-0003-call-0002-ticket_execution.json
 ```
 
 ### 6.8 例
@@ -408,6 +416,8 @@ execution log は JSON Lines とし、1 行が 1 event を表す。
 * `message`
 * `limit_name`
 
+path を表す event field は filesystem absolute path とする。
+
 ### 7.5 `event_type` の例
 
 * `run_started`
@@ -459,6 +469,8 @@ execution log は JSON Lines とし、1 行が 1 event を表す。
 .tgbt/codex/worker-0001-run-0003-call-0002-ticket_execution.json
 .tgbt/codex/plan-20260321-001-rev-2-call-0007-plan_drafting.json
 ```
+
+ここで示す保存先は repository root からの canonical relative path である。record 内に保存される `result.session_record_path` と `result.replayed_from` は、対応する filesystem absolute path とする。
 
 ### 8.2 目的
 
@@ -528,6 +540,7 @@ raw request を lossless に保存することは要件としない。
 * `redaction_report`
 
 `business_output` は、`call_purpose` ごとの業務レベル出力契約に従って parse / validate 済みの構造化 payload を保持する。
+`generated_artifacts` の各要素、`session_record_path`、`replayed_from` は filesystem absolute path とする。
 
 ### 8.7 要件
 

@@ -79,10 +79,13 @@ def test_plan_creates_a_new_plan_file_from_stub_record(
     assert result.exit_code == 0
     assert result.stderr == ""
     assert result.stdout.strip().splitlines() == [
-        f"Updated: .tgbt/plans/{plan_id}.md",
+        f"Updated: {isolated_repo / '.tgbt/plans' / f'{plan_id}.md'}",
         "Plan revision: 1",
         "Status: draft",
-        "Session record: .tgbt/codex/plan-20260401-001-rev-1-call-0001-plan_drafting.json",
+        (
+            "Session record: "
+            f"{isolated_repo / '.tgbt/codex/plan-20260401-001-rev-1-call-0001-plan_drafting.json'}"
+        ),
     ]
 
     plan_path = state_io.plan_path(isolated_repo, plan_id)
@@ -183,10 +186,13 @@ def test_plan_updates_existing_plan_from_stub_record_and_rewrites_sections(
 
     assert result.exit_code == 0
     assert result.stdout.strip().splitlines() == [
-        f"Updated: .tgbt/plans/{plan_id}.md",
+        f"Updated: {isolated_repo / '.tgbt/plans' / f'{plan_id}.md'}",
         "Plan revision: 2",
         "Status: draft",
-        "Session record: .tgbt/codex/plan-20260321-001-rev-2-call-0001-plan_drafting.json",
+        (
+            "Session record: "
+            f"{isolated_repo / '.tgbt/codex/plan-20260321-001-rev-2-call-0001-plan_drafting.json'}"
+        ),
     ]
 
     metadata, sections = _load_plan(plan_path)
@@ -507,6 +513,7 @@ def _write_plan_stub_record(
         plan_revision=plan_revision,
         codex_call_id=codex_call_id,
     )
+    session_record_abspath = repo_root / session_record_path
     request = codex_wrapper.CodexCliRequest(
         plan_id=plan_id,
         plan_revision=plan_revision,
@@ -524,7 +531,7 @@ def _write_plan_stub_record(
         ),
         model=model,
         reasoning_effort=reasoning_effort,
-        stub_record_path=session_record_path,
+        stub_record_path=str(session_record_abspath),
     )
     storage_request, _ = codex_wrapper.redact_request_for_storage(
         codex_wrapper.build_storage_request(request)
@@ -560,15 +567,14 @@ def _write_plan_stub_record(
             "stderr": "",
             "last_message_text": codex_wrapper.canonicalize_json(business_output),
             "business_output": business_output,
-            "generated_artifacts": [session_record_path],
+            "generated_artifacts": [str(session_record_abspath)],
             "stop_reason": "completed",
-            "session_record_path": session_record_path,
+            "session_record_path": str(session_record_abspath),
             "replayed_from": None,
             "redaction_report": {},
         },
         "saved_at": "2026-03-21T10:00:00+09:00",
     }
-    session_record_abspath = repo_root / session_record_path
     session_record_abspath.parent.mkdir(parents=True, exist_ok=True)
     session_record_abspath.write_text(
         json.dumps(record, ensure_ascii=False, indent=2) + "\n",

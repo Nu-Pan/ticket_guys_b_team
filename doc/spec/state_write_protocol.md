@@ -77,6 +77,8 @@ application は少なくとも以下を所有する。
 * `depends_on` の正規化済み表現
 * artifact path の記録
 
+ここで記録する artifact path は、filesystem absolute path とする。
+
 AI は canonical markdown 全文を正本として返してはならない。
 
 ### 4.2 Codex CLI 呼び出しとしての具体化
@@ -104,6 +106,7 @@ MVP の call purpose では、application は少なくとも以下のように p
 * `followup_planning.tickets[]` → follow-up Ticket の `Title` / `Purpose` / `Dependencies` / `Execution Instructions`
 
 したがって、実装上は「本文セクション文章を JSON object として受け取り、application が parse / validate したうえで canonical markdown に埋め込む」という形を正規とする。
+`ticket_execution.generated_artifacts` に含まれる path は filesystem absolute path とし、application は Ticket の `Artifacts` へそのまま反映する。
 
 ### 4.3 許可される更新粒度
 
@@ -283,6 +286,8 @@ Ticket 実行の完了後は、少なくとも以下を扱う。
 * session record
 * source Ticket の `Run Summary` / `Artifacts` 更新
 * source Ticket の `status=done` 更新
+
+このとき `Artifacts` に反映する path は absolute path として扱う。
 
 ### 8.6 follow-up 整理
 
