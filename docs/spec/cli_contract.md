@@ -200,6 +200,69 @@ state-mutating command が非 0 終了した場合、またはプロセスが中
 
 追加の引数、追加の option を受け付けない。
 
+application は wrapper 実行前に、`<repo-root>` 配下の bootstrap 現状を表す **入力コンテキスト** を構築しなければならない。
+
+`plan_drafting` へ渡す入力コンテキストは、少なくとも以下の top-level key を含む正規化済み object とする。
+
+* `plan_kind = "env"`
+* `goal`
+* `env_snapshot`
+
+`goal` は、「`tgbt` の repository-local worker runtime 方針に沿って bootstrap 整合作業の Plan を作る」という固定目的を表す文字列とする。
+
+`env_snapshot` は、少なくとも以下を含まなければならない。
+
+* `repo_root`
+* `agents_md`
+* `repo_local_runtime`
+* `repo_root_codex_dir`
+
+各 field の意味論は以下のとおりとする。
+
+* `repo_root`
+  * top-level `tgbt` process 開始時の current working directory を指す filesystem absolute path
+* `agents_md`
+  * `AGENTS.md` の現状を表す object
+  * `exists`
+  * `absolute_path`
+  * `content_text`
+* `repo_local_runtime`
+  * `tgbt` worker runtime の期待配置を表す object
+  * `codex_home_path`
+  * `config_toml`
+  * `instructions_md`
+* `repo_local_runtime.config_toml`
+  * `.tgbt/.codex/config.toml` の現状を表す object
+  * `exists`
+  * `absolute_path`
+  * `content_text`
+* `repo_local_runtime.instructions_md`
+  * `.tgbt/instructions.md` の現状を表す object
+  * `exists`
+  * `absolute_path`
+  * `content_text`
+* `repo_root_codex_dir`
+  * repository 直下 `.codex/` directory の存在有無だけを表す object
+  * `exists`
+  * `absolute_path`
+
+`exists` は必須 field とし、欠落は省略ではなく `exists = false` で表現しなければならない。
+`absolute_path` は、存在の有無にかかわらず、その artifact の canonical な配置先を指す filesystem absolute path とする。
+`content_text` は `exists = false` のとき `null`、`exists = true` のとき UTF-8 text とする。
+`repo_root_codex_dir` については、MVP では directory 配下の再帰列挙や内容要約を要求しない。
+
+対象とする bootstrap 現状は、MVP では以下に限定する。
+
+* `AGENTS.md`
+* `.tgbt/.codex/config.toml`
+* `.tgbt/instructions.md`
+* repository 直下 `.codex/` の存在有無
+
+これらの file や directory が存在しないこと自体は入力不正ではない。
+欠落も bootstrap 整合 Plan の判断材料として `env_snapshot` に含めなければならない。
+
+application はこれらの現状読み取りと正規化を担当し、Codex 側へ path 発見や file 有無推定を委ねてはならない。
+
 例:
 
 ```bash
@@ -215,6 +278,7 @@ tgbt plan env
 #### 6.3.4 状態遷移
 
 * 新規生成時は `draft`
+* 新規 `plan_id` は `file_format.md` の `plan_id` 採番規則に従って決定する
 * `plan_drafting` payload を proposal として扱い、application が canonical Plan markdown を render する
 
 #### 6.3.5 失敗条件
@@ -284,6 +348,7 @@ Session record: <repo-root>/.tgbt/codex/plan-20260321-001-rev-2-call-0001-plan_d
 * 新規生成時は `draft`
 * 更新時も `draft`
 * `running` または `settled` の Plan を更新した場合も `draft` に戻す
+* `--plan-id` を指定しない新規作成では、`plan_id` は `file_format.md` の `plan_id` 採番規則に従って決定する
 * 既存 Plan を更新した場合、`plan_revision` は 1 増加する
 * 既存 Plan を更新して active Ticket 集合を破棄または退避する処理は、repository lock を取得したときにのみ行ってよい
 * `plan_drafting` payload を proposal として扱い、application が canonical Plan markdown を render する

@@ -213,6 +213,34 @@ MVP では以下を要件とする。
 
 resolved 値は strict replay identity の一部であり、session record に保存される。
 
+### 7.4 `plan_drafting` request context
+
+wrapper は `prompt_text` の内部 schema を parse / validate しなくてよい。
+ただし、`plan_drafting` request を構築する orchestration 層は、Codex が call site ごとの判断材料を機械的に読めるよう、**構造化された入力コンテキスト** を `prompt_text` へ直列化しなければならない。
+
+`tgbt plan env` から発行する `plan_drafting` request では、`prompt_text` 内の入力コンテキストは少なくとも以下の意味論を保持しなければならない。
+
+* `plan_kind = "env"`
+* `goal`
+* `env_snapshot`
+
+`goal` は、「`tgbt` の repository-local worker runtime 方針に沿って bootstrap 整合作業の Plan を作る」という固定目的を表す文字列とする。
+
+`env_snapshot` は、少なくとも以下の bootstrap 現状を含まなければならない。
+
+* `repo_root`
+* `agents_md = { exists, absolute_path, content_text }`
+* `repo_local_runtime.codex_home_path`
+* `repo_local_runtime.config_toml = { exists, absolute_path, content_text }`
+* `repo_local_runtime.instructions_md = { exists, absolute_path, content_text }`
+* `repo_root_codex_dir = { exists, absolute_path }`
+
+ここでいう `content_text` は、存在する file について application が読み取った UTF-8 text を指す。
+欠落は field 省略ではなく `exists = false` と `content_text = null` で表現しなければならない。
+repository 直下 `.codex/` については、MVP では存在有無だけを渡せばよく、directory 内容の再帰展開を要求しない。
+
+`plan docs` など他の call site は、同じ `plan_drafting` payload schema を使ってよいが、`plan env` と同一の入力コンテキストを要求しない。
+
 ---
 
 ## 8. `CodexCliResult` の必須概念

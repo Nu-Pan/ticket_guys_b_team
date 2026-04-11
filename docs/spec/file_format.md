@@ -104,6 +104,14 @@ front matter と監査証跡が衝突した場合、現在状態の解釈は fro
 plan-YYYYMMDD-NNN
 ```
 
+要件:
+
+* 新規 Plan 作成時は、作成日の日付を `YYYYMMDD` として用い、`.tgbt/plans/` 配下の `plan-YYYYMMDD-NNN.md` に一致する既存 file を走査して `NNN` の最大値に 1 を加えた値を採用しなければならない
+* 走査対象に含めるのは canonical 形式に一致する file のみとし、不一致な file 名は採番根拠に含めてはならない
+* 欠番があっても再利用してはならない
+* 新規作成された Plan の `plan_revision` は 1 で開始しなければならない
+* `plan_id` 採番は `counters.json` の責務ではなく、`next_plan_seq` のような field を要求しない
+
 #### `plan_revision`
 
 同一 `plan_id` に対して、1 から始まる単調増加整数を推奨する。
@@ -607,6 +615,7 @@ raw request を lossless に保存することは要件としない。
 ### 9.5 要件
 
 * 採番はこの file を正本として行うこと
+* `plan_id` 採番はこの file の責務に含めず、`4.5 plan_id` の規則に従うこと
 * `next_*` は **unsigned 64-bit 整数範囲**で扱わなければならない
 * 実装は少なくとも `1 .. 18446744073709551615` の範囲を扱えなければならない
 * 途中クラッシュや後続失敗による欠番を許容する
