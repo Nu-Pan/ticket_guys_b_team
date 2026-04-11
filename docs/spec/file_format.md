@@ -10,6 +10,7 @@
 * Ticket file
 * Execution log file
 * Codex session record file
+* Codex worker runtime file
 * Counter state file
 * Repository lock file
 
@@ -40,6 +41,9 @@ front matter と監査証跡が衝突した場合、現在状態の解釈は fro
 
 ```text
 .tgbt/
+  .codex/
+    config.toml
+  instructions.md
   plans/
   tickets/
   logs/
@@ -56,8 +60,12 @@ front matter と監査証跡が衝突した場合、現在状態の解釈は fro
 * `.tgbt/tickets/`: Ticket file
 * `.tgbt/logs/`: 実行ログ JSONL
 * `.tgbt/codex/`: Codex CLI wrapper の session record
+* `.tgbt/.codex/config.toml`: `CODEX_HOME` 配下の repo-local Codex CLI runtime 設定
+* `.tgbt/instructions.md`: worker 実行時に `model_instructions_file` から参照する runtime 指示
 * `.tgbt/system/counters.json`: 採番の正本
 * `.tgbt/system/locks/`: repository 全体の state mutation を禁止する lock artifact
+
+追跡対象の正本は `docs/spec/` 配下に置き、`.tgbt/` 配下の runtime file は Git 追跡対象外として扱う。
 
 ---
 
@@ -149,6 +157,16 @@ call-NNNN
 
 一方、ファイル内容や JSON field に格納される path 文字列は、特に別記がない限り filesystem absolute path とする。
 本書中の absolute path 例示は `<repo-root>/...` を用いる。
+
+### 4.8 Codex worker runtime の共通ルール
+
+`tgbt` が Codex CLI を worker として起動する場合、runtime file は少なくとも以下を満たさなければならない。
+
+* `CODEX_HOME` は `<repo-root>/.tgbt/.codex` を指す
+* `<repo-root>/.tgbt/.codex/config.toml` は profile `tgbt-worker` を定義する
+* profile `tgbt-worker` は `model_instructions_file = "<repo-root>/.tgbt/instructions.md"` を持つ
+* `<repo-root>/.tgbt/instructions.md` は `docs/spec/codex_worker_instructions.md` を正本として runtime 生成される
+* worker runtime は `~/.codex` と `<repo-root>/.codex` に依存してはならない
 
 ---
 

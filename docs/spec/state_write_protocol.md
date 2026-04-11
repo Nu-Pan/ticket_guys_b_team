@@ -45,6 +45,8 @@
 以下は状態更新の制御用 artifact である。
 
 * `.tgbt/system/locks/repository.lock.json`
+* `.tgbt/.codex/config.toml`
+* `.tgbt/instructions.md`
 
 ### 3.3 audit artifact
 
@@ -247,7 +249,7 @@ state-mutating command が非 0 終了した場合、またはプロセスが中
 
 publish は決定的順序で行えばよいが、少なくとも `counters.json` は wrapper 実行前に publish してよい。
 
-### 8.2 `plan --plan-id ...` による既存 Plan 更新
+### 8.2 `tgbt plan docs --plan-id ...` による既存 Plan 更新
 
 既存 Plan 更新では、少なくとも以下の candidate を事前に確定する。
 

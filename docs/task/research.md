@@ -18,7 +18,7 @@
 - 調査段階では、コード変更や設計変更を既成事実化しない
 - 必要な文書だけを読み、無関係なコーディング規約や環境手順は通常読まない
 - 推測を事実として扱わない
-- `doc/spec/*.md` と実装が矛盾する場合は、どちらが正しいかを推測せず、まず「仕様」と「実装現状」を別々の事実として整理する
+- `docs/spec/*.md` と実装が矛盾する場合は、どちらが正しいかを推測せず、まず「仕様」と「実装現状」を別々の事実として整理する
 
 # 推奨読書順
 
@@ -32,7 +32,7 @@
 
 ## 2. 仕様が関係するなら入口だけ開く
 
-- まず `doc/spec/spec_overview.md` を読む
+- まず `docs/spec/spec_overview.md` を読む
 - その後、必要な仕様文書だけを追加で読む
 
 ## 3. コードを読む範囲を絞る
@@ -42,12 +42,13 @@
 
 # 仕様文書の選び方
 
-- CLI の期待挙動を確認したい: `doc/spec/cli_contract.md`
-- 状態遷移や停止条件を確認したい: `doc/spec/state_machine.md`
-- front matter や保存形式を確認したい: `doc/spec/file_format.md`
-- front matter の安全な書き換え、複数ファイル mutation の扱い、失敗後の restore 前提契約を確認したい: `doc/spec/state_write_protocol.md`
-- live / stub や strict replay を確認したい: `doc/spec/codex_cli_wrapper.md`
-- 背景思想や MVP の意図を確認したい: `doc/spec/product_vision.md`
+- CLI の期待挙動を確認したい: `docs/spec/cli_contract.md`
+- 状態遷移や停止条件を確認したい: `docs/spec/state_machine.md`
+- front matter や保存形式を確認したい: `docs/spec/file_format.md`
+- front matter の安全な書き換え、複数ファイル mutation の扱い、失敗後の restore 前提契約を確認したい: `docs/spec/state_write_protocol.md`
+- live / stub や strict replay を確認したい: `docs/spec/codex_cli_wrapper.md`
+- worker 用の repo-local Codex runtime や `.tgbt/instructions.md` の正本を確認したい: `docs/spec/codex_worker_instructions.md`
+- 背景思想や MVP の意図を確認したい: `docs/spec/product_vision.md`
 
 # やってはいけないこと
 
@@ -62,7 +63,7 @@
 - 事実
 - その事実から言えること
 - まだ確定していないこと
-- `doc/spec/*.md` と実装・テストの差分
+- `docs/spec/*.md` と実装・テストの差分
 - 実装に進むなら次に読むべき文書
 
 # 実装やテストへ進む条件
@@ -70,10 +71,10 @@
 以下のいずれかに入ったら、この文書だけでは足りない。
 
 - 実装方針を確定してコード変更に入る
-    - `doc/task/implementation.md` を読む
+    - `docs/task/implementation.md` を読む
 - テストの追加・修正が主作業になる
-    - `doc/tech/test_policy.md` を読む
+    - `docs/tech/test_policy.md` を読む
 - Python コードの編集や実行が発生する
-    - `doc/tech/python.md` を読む
+    - `docs/tech/python.md` を読む
 - `.venv`、依存追加、ツール実行環境の調整が必要になる
-    - `doc/tech/dev_environment.md` を読む
+    - `docs/tech/dev_environment.md` を読む

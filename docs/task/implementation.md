@@ -16,24 +16,25 @@
 
 ## 1. 入口仕様を読む
 
-- まず `doc/spec/spec_overview.md` を読む
+- まず `docs/spec/spec_overview.md` を読む
 - 変更対象に対応する仕様文書だけを追加で読む
-- 既存実装や既存テストが仕様と矛盾していても、まず `doc/spec/*.md` を正本として扱う
+- 既存実装や既存テストが仕様と矛盾していても、まず `docs/spec/*.md` を正本として扱う
 
 ## 2. 関連仕様を絞る
 
-- CLI の追加・変更: `doc/spec/cli_contract.md`
-- 状態遷移や run の流れに関わる変更: `doc/spec/state_machine.md`
-- front matter、保存先、採番、artifact の形式に関わる変更: `doc/spec/file_format.md`
-- front matter の安全な書き換え、atomic write-replace、複数ファイル mutation の扱い、失敗後の restore 前提契約に関わる変更: `doc/spec/state_write_protocol.md`
-- `codex exec` 呼び出し、live / stub、strict replay に関わる変更: `doc/spec/codex_cli_wrapper.md`
-- どの設計判断が MVP の意図に沿うか迷う: `doc/spec/product_vision.md`
+- CLI の追加・変更: `docs/spec/cli_contract.md`
+- 状態遷移や run の流れに関わる変更: `docs/spec/state_machine.md`
+- front matter、保存先、採番、artifact の形式に関わる変更: `docs/spec/file_format.md`
+- front matter の安全な書き換え、atomic write-replace、複数ファイル mutation の扱い、失敗後の restore 前提契約に関わる変更: `docs/spec/state_write_protocol.md`
+- `codex exec` 呼び出し、live / stub、strict replay に関わる変更: `docs/spec/codex_cli_wrapper.md`
+- worker 用の repo-local Codex runtime や `.tgbt/instructions.md` の正本に関わる変更: `docs/spec/codex_worker_instructions.md`
+- どの設計判断が MVP の意図に沿うか迷う: `docs/spec/product_vision.md`
 
 ## 3. 技術文書を必要な分だけ読む
 
-- Python を編集するなら `doc/tech/python.md`
-- テストを追加・修正するなら `doc/tech/test_policy.md`
-- `.venv`、依存関係、実行環境を触るなら `doc/tech/dev_environment.md`
+- Python を編集するなら `docs/tech/python.md`
+- テストを追加・修正するなら `docs/tech/test_policy.md`
+- `.venv`、依存関係、実行環境を触るなら `docs/tech/dev_environment.md`
 
 # 実装中の原則
 
@@ -42,13 +43,13 @@
 - オーバーエンジニアリングを避けること
 - 意図がコードから読み取りにくい場合は、短いコメントや `NOTE` を使って補うこと
 - 仕様に書かれていない挙動を勝手に追加しないこと
-- 既存コードや既存テストを理由に、明示承認なしで `doc/spec/*.md` を実装へ寄せて変更しないこと
+- 既存コードや既存テストを理由に、明示承認なしで `docs/spec/*.md` を実装へ寄せて変更しないこと
 
 # テストと検証
 
 - 変更内容に対応するテストを実装または更新すること
 - 静的検査と動作確認を行うこと
-- Python の型チェックやテスト方針は `doc/tech/python.md` と `doc/tech/test_policy.md` に従うこと
+- Python の型チェックやテスト方針は `docs/tech/python.md` と `docs/tech/test_policy.md` に従うこと
 
 # 実装完了時のチェックリスト
 
@@ -64,4 +65,4 @@
 - なぜその変更で要求を満たすと判断したか
 - 実行した確認内容
 - 残っている制約や懸念
-- `doc/spec/*.md` との差分を見つけた場合はその内容
+- `docs/spec/*.md` との差分を見つけた場合はその内容
