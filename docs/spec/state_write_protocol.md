@@ -243,7 +243,25 @@ state-mutating command が非 0 終了した場合、またはプロセスが中
 
 ## 8. command ごとの推奨 publish 単位
 
-### 8.1 `plan` 新規作成
+### 8.1 `tgbt env`
+
+`tgbt env` は Plan / Ticket の authoritative mutable state を更新してはならない。
+更新対象は bootstrap repair に必要な control artifact と audit artifact に限定する。
+
+少なくとも以下の phase に分けて扱ってよい。
+
+1. bootstrap 前 phase
+   * `repository.lock.json`
+2. bootstrap repair phase
+   * `.tgbt/.codex/config.toml`
+   * `.tgbt/instructions.md`
+3. bootstrap audit phase
+   * `.tgbt/logs/env-latest.jsonl`
+
+`AGENTS.md` と repository 直下 `.codex/` は観測対象だが、自動修正対象に含めてはならない。
+`tgbt env` は one-shot command として扱い、Plan file、Ticket file、session record、run log を publish してはならない。
+
+### 8.2 `plan` 新規作成
 
 新規 Plan 作成でも repository lock を取得しなければならない。
 
@@ -260,7 +278,7 @@ state-mutating command が非 0 終了した場合、またはプロセスが中
 新規 Plan file は `plan_drafting` payload の validation 完了後にのみ publish してよい。
 publish は決定的順序で行えばよいが、`counters.json` は wrapper 実行前に publish してよい。
 
-### 8.2 `tgbt plan docs --plan-id ...` による既存 Plan 更新
+### 8.3 `tgbt plan docs --plan-id ...` による既存 Plan 更新
 
 既存 Plan 更新でも、少なくとも以下の phase に分けて扱ってよい。
 
@@ -278,7 +296,7 @@ publish は決定的順序で行えばよいが、途中失敗時に repository 
 
 avoidable failure を減らすため、active Ticket 群の削除または退避は `plan_drafting` payload の validation が完了した後にのみ行ってよい。
 
-### 8.3 `run` 開始
+### 8.4 `run` 開始
 
 `run` 開始時は、少なくとも以下を扱う。
 

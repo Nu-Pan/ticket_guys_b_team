@@ -10,7 +10,7 @@ import subprocess
 import tempfile
 
 from .codex_common import CodexCliMode, VALID_REASONING_EFFORTS
-from . import plan_drafting, state_io
+from . import env_runtime, plan_drafting, state_io
 
 
 DEFAULT_MODEL = "gpt-5.2-codex"
@@ -182,6 +182,8 @@ def _execute_live(request: CodexCliRequest) -> CodexCliResult:
         argv = [
             "codex",
             "exec",
+            "--profile",
+            env_runtime.CODEX_PROFILE_NAME,
             "--model",
             request.model,
             "-c",
@@ -194,6 +196,11 @@ def _execute_live(request: CodexCliRequest) -> CodexCliResult:
             request.cwd,
             request.prompt_text,
         ]
+        runtime_env = dict(os.environ)
+        runtime_env["CODEX_HOME"] = state_io.absolute_path_string(
+            state_io.repo_local_codex_home(repo_root)
+        )
+        env_runtime.regenerate_repo_local_runtime(repo_root)
 
         try:
             completed = subprocess.run(
@@ -201,6 +208,7 @@ def _execute_live(request: CodexCliRequest) -> CodexCliResult:
                 capture_output=True,
                 text=True,
                 check=False,
+                env=runtime_env,
             )
         except OSError as error:
             raise CodexSpawnError(f"failed to spawn codex exec: {error}") from error

@@ -1,4 +1,4 @@
-"""`plan` コマンドの業務処理を扱う。"""
+"""`tgbt plan docs` の業務処理を扱う。"""
 
 from dataclasses import dataclass
 from datetime import datetime
@@ -32,7 +32,7 @@ class PlanCommandError(Exception):
 
 @dataclass(frozen=True)
 class PlanCommandResult:
-    """`plan` コマンド成功時の出力。"""
+    """`tgbt plan docs` 成功時の出力。"""
 
     updated_path: str
     plan_revision: int
@@ -46,7 +46,7 @@ def create_or_update_plan(
     plan_id: str | None,
     codex_cli_mode: CodexCliMode,
 ) -> PlanCommandResult:
-    """Plan file を新規作成または更新する。"""
+    """docs Plan file を新規作成または更新する。"""
 
     normalized_request = request_text.strip()
     if not normalized_request:
@@ -59,7 +59,7 @@ def create_or_update_plan(
     try:
         repo_root = state_io.get_repository_root()
         state_io.ensure_plan_storage(repo_root)
-        with state_io.repository_lock(repo_root, command_name="plan", plan_id=plan_id):
+        with state_io.repository_lock(repo_root, command_name="plan docs", plan_id=plan_id):
             if plan_id is None:
                 target_plan_id = _next_plan_id(repo_root)
                 return _create_new_plan(
@@ -246,7 +246,7 @@ def _build_codex_request(
         call_purpose=plan_drafting.CALL_PURPOSE,
         codex_cli_mode=codex_cli_mode,
         cwd=str(repo_root),
-        prompt_text=plan_drafting.build_prompt(
+        prompt_text=plan_drafting.build_docs_prompt(
             request_text=request_text,
             plan_id=plan_id,
             plan_revision=plan_revision,
@@ -276,6 +276,7 @@ def _build_plan_document_from_payload(
     if existing_metadata is None:
         metadata = {
             "plan_id": plan_id,
+            "plan_kind": "docs",
             "plan_revision": plan_revision,
             "title": payload.title,
             "status": "draft",
@@ -284,6 +285,7 @@ def _build_plan_document_from_payload(
         }
     else:
         metadata = dict(existing_metadata)
+        metadata["plan_kind"] = "docs"
         metadata["plan_revision"] = plan_revision
         metadata["title"] = payload.title
         metadata["status"] = "draft"

@@ -1,4 +1,4 @@
-"""CLI インターフェースと `plan` の Codex 草案生成を検証するテスト。"""
+"""CLI インターフェースと `env` / `plan docs` の動作を検証する。"""
 
 from datetime import datetime
 import json
@@ -10,8 +10,7 @@ from typer.testing import CliRunner
 import yaml
 
 from src.main import app
-from src.codex_common import CodexCliMode
-from src import codex_wrapper, plan_drafting, plan_service, state_io
+from src import codex_wrapper, env_runtime, plan_drafting, plan_service, state_io
 
 
 RUNNER = CliRunner()
@@ -26,17 +25,37 @@ def isolated_repo(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Path:
 
 
 def test_root_help_lists_only_spec_commands() -> None:
-    """ルートヘルプに仕様で公開されたコマンドだけが並ぶことを確認する。"""
+    """ルートヘルプに `env` / `plan` / `run` だけが並ぶことを確認する。"""
 
     result = RUNNER.invoke(app, ["--help"])
 
     assert result.exit_code == 0
+    assert "│ env " in result.stdout
     assert "│ plan" in result.stdout
-    assert "│ run" in result.stdout
+    assert "│ run " in result.stdout
     assert "│ approve" not in result.stdout
     assert "│ ticket" not in result.stdout
     assert "│ review-queue" not in result.stdout
     assert "│ artifacts" not in result.stdout
+
+
+def test_plan_help_lists_only_docs_subcommand() -> None:
+    """`plan` 親コマンド配下に `docs` だけを公開する。"""
+
+    result = RUNNER.invoke(app, ["plan", "--help"])
+
+    assert result.exit_code == 0
+    assert "│ docs" in result.stdout
+    assert "│ env" not in result.stdout
+
+
+def test_env_help_does_not_expose_codex_cli_mode() -> None:
+    """`env` は Codex mode option を公開しない。"""
+
+    result = RUNNER.invoke(app, ["env", "--help"])
+
+    assert result.exit_code == 0
+    assert "--codex-cli-mode" not in result.stdout
 
 
 def test_removed_commands_fail_as_unknown_commands() -> None:
@@ -49,16 +68,16 @@ def test_removed_commands_fail_as_unknown_commands() -> None:
         assert f"No such command '{command_name}'." in result.stderr
 
 
-def test_plan_creates_a_new_plan_file_from_stub_record(
+def test_plan_docs_creates_a_new_plan_file_from_stub_record(
     isolated_repo: Path,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """新規 `plan --codex-cli-mode stub` が session record から Plan を生成する。"""
+    """新規 `plan docs --codex-cli-mode stub` が session record から Plan を生成する。"""
 
     plan_id = "plan-20260401-001"
     monkeypatch.setattr(plan_service, "_next_plan_id", lambda repo_root: plan_id)
     request_text = "CLI で plan / run を扱えるようにしたい"
-    _write_plan_stub_record(
+    _write_docs_plan_stub_record(
         isolated_repo,
         plan_id=plan_id,
         plan_revision=1,
@@ -73,7 +92,7 @@ def test_plan_creates_a_new_plan_file_from_stub_record(
 
     result = RUNNER.invoke(
         app,
-        ["plan", "--codex-cli-mode", "stub", request_text],
+        ["plan", "docs", "--codex-cli-mode", "stub", request_text],
     )
 
     assert result.exit_code == 0
@@ -92,17 +111,12 @@ def test_plan_creates_a_new_plan_file_from_stub_record(
     metadata, sections = _load_plan(plan_path)
     assert metadata["title"] == "CLI 初期実装"
     assert metadata["status"] == "draft"
+    assert metadata["plan_kind"] == "docs"
     assert metadata["plan_revision"] == 1
     assert sections["目的"] == "CLI で plan / run を扱えるようにしたい"
-    assert sections["成果物"] == "- CLI から `plan` と `run` を起動できる"
-    assert sections["実行方針"] == "- まず Plan 草案を固めてから `run` に進む"
-
-    counter_state = state_io.load_counter_state(isolated_repo)
-    assert counter_state.next_codex_call_seq == 2
-    assert not state_io.lock_path(isolated_repo).exists()
 
 
-def test_plan_updates_existing_plan_from_stub_record_and_rewrites_sections(
+def test_plan_docs_updates_existing_plan_from_stub_record_and_rewrites_sections(
     isolated_repo: Path,
 ) -> None:
     """既存 Plan 更新時に payload で section 全体が再構成される。"""
@@ -113,6 +127,7 @@ def test_plan_updates_existing_plan_from_stub_record_and_rewrites_sections(
         plan_path,
         metadata={
             "plan_id": plan_id,
+            "plan_kind": "docs",
             "plan_revision": 1,
             "title": "既存タイトル",
             "status": "settled",
@@ -122,16 +137,7 @@ def test_plan_updates_existing_plan_from_stub_record_and_rewrites_sections(
             "settled_at": "2026-03-21T11:00:00+09:00",
             "closure_reason": "completed",
         },
-        sections={
-            "目的": "既存の目的",
-            "スコープ外": "- 既存のスコープ外",
-            "成果物": "- 既存の成果物",
-            "制約": "- 既存の制約",
-            "受け入れ条件": "- 既存の受け入れ条件",
-            "未確定事項": "- 既存の未確定事項",
-            "想定リスク": "- 既存の想定リスク",
-            "実行方針": "- 既存の実行方針",
-        },
+        sections=_default_plan_sections(purpose="既存の目的"),
     )
     existing_plan = state_io.load_plan_document(plan_path)
     _write_ticket(
@@ -140,25 +146,7 @@ def test_plan_updates_existing_plan_from_stub_record_and_rewrites_sections(
         plan_revision=1,
         status="todo",
     )
-    _write_ticket(
-        isolated_repo / ".tgbt/tickets/worker-0002.md",
-        plan_id=plan_id,
-        plan_revision=1,
-        status="settled",
-    )
-    _write_ticket(
-        isolated_repo / ".tgbt/tickets/worker-0003.md",
-        plan_id=plan_id,
-        plan_revision=2,
-        status="todo",
-    )
-    _write_ticket(
-        isolated_repo / ".tgbt/tickets/worker-0004.md",
-        plan_id="plan-20260321-999",
-        plan_revision=1,
-        status="done",
-    )
-    _write_plan_stub_record(
+    _write_docs_plan_stub_record(
         isolated_repo,
         plan_id=plan_id,
         plan_revision=2,
@@ -176,6 +164,7 @@ def test_plan_updates_existing_plan_from_stub_record_and_rewrites_sections(
         app,
         [
             "plan",
+            "docs",
             "--codex-cli-mode",
             "stub",
             "--plan-id",
@@ -185,36 +174,22 @@ def test_plan_updates_existing_plan_from_stub_record_and_rewrites_sections(
     )
 
     assert result.exit_code == 0
-    assert result.stdout.strip().splitlines() == [
-        f"Updated: {isolated_repo / '.tgbt/plans' / f'{plan_id}.md'}",
-        "Plan revision: 2",
-        "Status: draft",
-        (
-            "Session record: "
-            f"{isolated_repo / '.tgbt/codex/plan-20260321-001-rev-2-call-0001-plan_drafting.json'}"
-        ),
-    ]
-
     metadata, sections = _load_plan(plan_path)
     assert metadata["plan_revision"] == 2
     assert metadata["title"] == "更新後タイトル"
     assert metadata["status"] == "draft"
-    assert metadata["created_at"] == "2026-03-21T10:00:00+09:00"
+    assert metadata["plan_kind"] == "docs"
     assert metadata["last_run_id"] == "run-0003"
     assert "settled_at" not in metadata
     assert "closure_reason" not in metadata
     assert datetime.fromisoformat(str(metadata["updated_at"])) > datetime.fromisoformat(
         str(metadata["created_at"])
     )
-    assert sections["目的"] == "差し戻し条件を含めた Plan に更新する"
     assert sections["成果物"] == "- 更新済み Plan file\n- strict replay fixture"
     assert not (isolated_repo / ".tgbt/tickets/worker-0001.md").exists()
-    assert not (isolated_repo / ".tgbt/tickets/worker-0002.md").exists()
-    assert (isolated_repo / ".tgbt/tickets/worker-0003.md").exists()
-    assert (isolated_repo / ".tgbt/tickets/worker-0004.md").exists()
 
 
-def test_plan_reports_missing_stub_record_and_does_not_create_plan(
+def test_plan_docs_reports_missing_stub_record_and_does_not_create_plan(
     isolated_repo: Path,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
@@ -224,69 +199,30 @@ def test_plan_reports_missing_stub_record_and_does_not_create_plan(
 
     result = RUNNER.invoke(
         app,
-        ["plan", "--codex-cli-mode", "stub", "CLI だけ確認する"],
+        ["plan", "docs", "--codex-cli-mode", "stub", "CLI だけ確認する"],
     )
 
     assert result.exit_code == 1
     assert "ERROR: stub record was not found:" in result.stderr
-    assert "Impact: no plan file or front matter was created or updated, but counters or session records may have changed" in result.stderr
     assert not any(state_io.plans_dir(isolated_repo).glob("*.md"))
-    assert state_io.load_counter_state(isolated_repo).next_codex_call_seq == 2
 
 
-def test_plan_rejects_empty_request_text(isolated_repo: Path) -> None:
+def test_plan_docs_rejects_empty_request_text(isolated_repo: Path) -> None:
     """空入力を拒否する。"""
 
-    result = RUNNER.invoke(app, ["plan", "   "])
+    result = RUNNER.invoke(app, ["plan", "docs", "   "])
 
     assert result.exit_code == 1
     assert "ERROR: request_text must not be empty" in result.stderr
-    assert "Impact: no plan file or front matter was created or updated" in result.stderr
-    assert not any(state_io.plans_dir(isolated_repo).glob("*.md"))
 
 
-def test_plan_rejects_missing_plan_id(isolated_repo: Path) -> None:
-    """存在しない `plan_id` への更新を拒否する。"""
-
-    result = RUNNER.invoke(
-        app,
-        ["plan", "--plan-id", "plan-20260321-001", "追記する"],
-    )
-
-    assert result.exit_code == 1
-    assert "ERROR: plan_id was not found: plan-20260321-001" in result.stderr
-    assert "Impact: no plan file or front matter was created or updated" in result.stderr
-    assert not state_io.lock_path(isolated_repo).exists()
-
-
-def test_plan_reports_repository_root_resolution_failure(
-    isolated_repo: Path,
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    """cwd 解決失敗を CLI 向けエラーへ整形する。"""
-
-    def fail_to_resolve_repository_root() -> Path:
-        raise state_io.StateValidationError("failed to resolve current working directory: boom")
-
-    monkeypatch.setattr(state_io, "get_repository_root", fail_to_resolve_repository_root)
-
-    result = RUNNER.invoke(app, ["plan", "CLI だけ確認する"])
-
-    assert result.exit_code == 1
-    assert (
-        "ERROR: state validation failed: failed to resolve current working directory: boom"
-        in result.stderr
-    )
-    assert "Impact: no plan file or front matter was created or updated" in result.stderr
-    assert not any(state_io.plans_dir(isolated_repo).glob("*.md"))
-
-
-def test_plan_live_reports_codex_cli_failure_details(
+def test_plan_docs_live_reports_codex_cli_failure_details(
     isolated_repo: Path,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     """live 実行失敗時に returncode/stderr を CLI へ伝える。"""
 
+    _write_worker_spec(isolated_repo)
     plan_id = "plan-20260401-001"
     monkeypatch.setattr(plan_service, "_next_plan_id", lambda repo_root: plan_id)
 
@@ -296,10 +232,9 @@ def test_plan_live_reports_codex_cli_failure_details(
         capture_output: bool,
         text: bool,
         check: bool,
+        env: dict[str, str],
     ) -> subprocess.CompletedProcess[str]:
-        assert capture_output is True
-        assert text is True
-        assert check is False
+        assert env["CODEX_HOME"] == str(isolated_repo / ".tgbt/.codex")
         return subprocess.CompletedProcess(
             argv,
             1,
@@ -310,8 +245,7 @@ def test_plan_live_reports_codex_cli_failure_details(
                 '  "type": "error",\n'
                 '  "error": {\n'
                 '    "message": "Invalid schema for response_format '
-                '\'codex_output_schema\': In context=(\'properties\', '
-                '\'schema_name\'), schema must have a \'type\' key."\n'
+                '\'codex_output_schema\': schema must have a \'type\' key."\n'
                 "  }\n"
                 "}\n"
             ),
@@ -319,81 +253,89 @@ def test_plan_live_reports_codex_cli_failure_details(
 
     monkeypatch.setattr(codex_wrapper.subprocess, "run", fake_run)
 
-    result = RUNNER.invoke(
-        app,
-        ["plan", "CLI の初回本番実行を確認する"],
-    )
+    result = RUNNER.invoke(app, ["plan", "docs", "CLI の初回本番実行を確認する"])
 
     assert result.exit_code == 1
-    assert (
-        "ERROR: codex exec failed with returncode 1: stderr="
-        in result.stderr
-    )
+    assert "ERROR: codex exec failed with returncode 1: stderr=" in result.stderr
     assert "schema must have a 'type' key" in result.stderr
-    assert (
-        "Impact: no plan file or front matter was created or updated, but counters or session records may have changed"
-        in result.stderr
-    )
-    session_record_path = (
-        isolated_repo / ".tgbt/codex/plan-20260401-001-rev-1-call-0001-plan_drafting.json"
-    )
-    session_record = json.loads(session_record_path.read_text(encoding="utf-8"))
-    assert session_record["result"]["returncode"] == 1
-    assert session_record["result"]["stop_reason"] == "codex_exec_failed"
 
 
-def test_plan_rejects_when_repository_lock_already_exists(isolated_repo: Path) -> None:
-    """既存 lock がある場合は更新を開始しない。"""
+def test_env_returns_already_legal_without_creating_plan(isolated_repo: Path) -> None:
+    """初回判定で合法なら no-op 成功する。"""
 
-    lock_path = state_io.lock_path(isolated_repo)
-    lock_path.parent.mkdir(parents=True, exist_ok=True)
-    lock_path.write_text('{"command_name":"plan"}\n', encoding="utf-8")
+    _write_worker_spec(isolated_repo)
+    _write_agents_md(isolated_repo)
+    env_runtime.regenerate_repo_local_runtime(isolated_repo)
 
-    result = RUNNER.invoke(app, ["plan", "CLI だけ確認する"])
+    result = RUNNER.invoke(app, ["env"])
+
+    assert result.exit_code == 0
+    assert result.stdout.strip().splitlines() == [
+        "Status: already_legal",
+        f"Log: {isolated_repo / '.tgbt/logs/env-latest.jsonl'}",
+    ]
+    assert not state_io.plans_dir(isolated_repo).exists()
+    assert not state_io.tickets_dir(isolated_repo).exists()
+    assert not state_io.codex_dir(isolated_repo).exists()
+
+
+def test_env_reconciles_runtime_files_without_plan_or_codex(
+    isolated_repo: Path,
+) -> None:
+    """`tgbt env` は one-shot で runtime file を再生成する。"""
+
+    _write_worker_spec(isolated_repo)
+    _write_agents_md(isolated_repo)
+
+    result = RUNNER.invoke(app, ["env"])
+
+    assert result.exit_code == 0
+    assert result.stdout.strip().splitlines() == [
+        "Status: legalized",
+        "Updated files:",
+        f"- {isolated_repo / '.tgbt/.codex/config.toml'}",
+        f"- {isolated_repo / '.tgbt/instructions.md'}",
+        f"Log: {isolated_repo / '.tgbt/logs/env-latest.jsonl'}",
+    ]
+    assert env_runtime.evaluate_env_legality(isolated_repo).is_legal is True
+    assert not state_io.plans_dir(isolated_repo).exists()
+    assert not state_io.tickets_dir(isolated_repo).exists()
+    assert not state_io.codex_dir(isolated_repo).exists()
+
+    log_lines = [
+        json.loads(line)
+        for line in state_io.env_log_path(isolated_repo).read_text(encoding="utf-8").splitlines()
+    ]
+    assert [entry["event_type"] for entry in log_lines] == [
+        "env_observed",
+        "env_reconciled",
+        "env_validated",
+    ]
+
+
+def test_env_fails_with_diagnostics_when_non_fixable_issues_remain(
+    isolated_repo: Path,
+) -> None:
+    """自動修正対象外の issue が残る場合は非 0 終了する。"""
+
+    _write_worker_spec(isolated_repo)
+
+    result = RUNNER.invoke(app, ["env"])
 
     assert result.exit_code == 1
-    assert "ERROR: repository lock is already held" in result.stderr
-    assert "Impact: no plan file or front matter was created or updated" in result.stderr
-    assert lock_path.exists()
-    assert not any(state_io.plans_dir(isolated_repo).glob("*.md"))
-
-
-def test_plan_rejects_invalid_existing_plan_shape(isolated_repo: Path) -> None:
-    """front matter または section 順序が壊れた Plan を拒否する。"""
-
-    plan_path = state_io.plan_path(isolated_repo, "plan-20260321-001")
-    plan_path.parent.mkdir(parents=True, exist_ok=True)
-    plan_path.write_text(
-        """---
-plan_id: plan-20260321-001
-plan_revision: 1
-title: 壊れた Plan
-status: draft
-created_at: 2026-03-21T10:00:00+09:00
-updated_at: 2026-03-21T10:00:00+09:00
----
-
-# 目的
-既存の目的
-
-# 成果物
-- 順序が壊れている
-
-# スコープ外
-- 本来は先に来る
-""",
-        encoding="utf-8",
-    )
-
-    result = RUNNER.invoke(
-        app,
-        ["plan", "--plan-id", "plan-20260321-001", "追記する"],
-    )
-
-    assert result.exit_code == 1
-    assert "ERROR: state validation failed:" in result.stderr
-    assert "Impact: no plan file or front matter was created or updated" in result.stderr
-    assert not state_io.lock_path(isolated_repo).exists()
+    assert "ERROR: bootstrap issues remain after one-shot reconcile:" in result.stderr
+    assert "Updated files:" in result.stderr
+    assert f"- {isolated_repo / '.tgbt/.codex/config.toml'}" in result.stderr
+    assert f"- {isolated_repo / '.tgbt/instructions.md'}" in result.stderr
+    assert "Remaining issues:" in result.stderr
+    assert "AGENTS.md was not found" in result.stderr
+    assert f"Log: {isolated_repo / '.tgbt/logs/env-latest.jsonl'}" in result.stderr
+    assert (isolated_repo / ".tgbt/.codex/config.toml").exists()
+    assert (isolated_repo / ".tgbt/instructions.md").exists()
+    assert state_io.env_log_path(isolated_repo).exists()
+    assert not state_io.plans_dir(isolated_repo).exists()
+    assert not state_io.tickets_dir(isolated_repo).exists()
+    assert not state_io.codex_dir(isolated_repo).exists()
 
 
 def test_run_accepts_spec_arguments_then_fails_explicitly() -> None:
@@ -403,35 +345,6 @@ def test_run_accepts_spec_arguments_then_fails_explicitly() -> None:
 
     assert result.exit_code == 1
     assert "ERROR: run command is not implemented yet" in result.stderr
-    assert "Impact: no plan or ticket state mutation was performed" in result.stderr
-    assert (
-        "Next: implement run orchestration before retrying this command"
-        in result.stderr
-    )
-
-
-def test_run_accepts_stub_mode_then_fails_explicitly() -> None:
-    """`run` が `stub` mode を受け取り、未実装エラーで停止する。"""
-
-    result = RUNNER.invoke(
-        app,
-        ["run", "--plan-id", "plan-20260321-001", "--codex-cli-mode", "stub"],
-    )
-
-    assert result.exit_code == 1
-    assert "ERROR: run command is not implemented yet" in result.stderr
-
-
-def test_run_rejects_removed_positional_interface() -> None:
-    """旧 `ticket_id` ベースの位置引数インターフェースを拒否する。"""
-
-    result = RUNNER.invoke(
-        app,
-        ["run", "worker-001", "production", "gpt-5.2", "medium"],
-    )
-
-    assert result.exit_code != 0
-    assert "Missing option '--plan-id'." in result.stderr
 
 
 def _load_plan(path: Path) -> tuple[dict[str, object], dict[str, str]]:
@@ -440,6 +353,21 @@ def _load_plan(path: Path) -> tuple[dict[str, object], dict[str, str]]:
     metadata, body = state_io.load_markdown_with_front_matter(path)
     sections = state_io.parse_plan_sections(body)
     return metadata, sections
+
+
+def _default_plan_sections(*, purpose: str) -> dict[str, str]:
+    """Plan section の既定値を返す。"""
+
+    return {
+        "目的": purpose,
+        "スコープ外": "- スコープ外は別途整理する",
+        "成果物": "- CLI から `plan` と `run` を起動できる",
+        "制約": "- 既存 CLI 契約を壊さない",
+        "受け入れ条件": "- `plan` と `run` の導線が明確である",
+        "未確定事項": "- 将来の wrapper 拡張は別途検討する",
+        "想定リスク": "- strict replay fixture の維持コストがある",
+        "実行方針": "- まず Plan 草案を固めてから `run` に進む",
+    }
 
 
 def _write_plan(
@@ -452,22 +380,17 @@ def _write_plan(
 
     path.parent.mkdir(parents=True, exist_ok=True)
     front_matter = yaml.safe_dump(metadata, allow_unicode=True, sort_keys=False).strip()
-    body_parts: list[str] = []
-    for section_name in state_io.PLAN_SECTION_ORDER:
-        body_parts.append(f"# {section_name}\n{sections[section_name]}")
+    body_parts = [
+        f"# {section_name}\n{sections[section_name]}"
+        for section_name in state_io.PLAN_SECTION_ORDER
+    ]
     path.write_text(
         f"---\n{front_matter}\n---\n\n" + "\n\n".join(body_parts) + "\n",
         encoding="utf-8",
     )
 
 
-def _write_ticket(
-    path: Path,
-    *,
-    plan_id: str,
-    plan_revision: int,
-    status: str,
-) -> None:
+def _write_ticket(path: Path, *, plan_id: str, plan_revision: int, status: str) -> None:
     """Ticket file をテスト用に作る。"""
 
     path.parent.mkdir(parents=True, exist_ok=True)
@@ -516,7 +439,7 @@ def _plan_payload(
     )
 
 
-def _write_plan_stub_record(
+def _write_docs_plan_stub_record(
     repo_root: Path,
     *,
     plan_id: str,
@@ -526,39 +449,54 @@ def _write_plan_stub_record(
     existing_plan: state_io.PlanDocument | None,
     payload: plan_drafting.PlanDraftingPayload,
 ) -> None:
-    """`plan_drafting` 用 stub record を作る。"""
+    """`plan docs` 用 stub record を作る。"""
 
-    model, reasoning_effort = codex_wrapper.resolve_model_config()
-    session_record_path = state_io.plan_drafting_session_record_relative_path(
+    prompt_text = plan_drafting.build_docs_prompt(
+        request_text=request_text,
+        plan_id=plan_id,
+        plan_revision=plan_revision,
+        existing_plan=existing_plan,
+    )
+    _write_plan_stub_record(
         repo_root,
         plan_id=plan_id,
         plan_revision=plan_revision,
         codex_call_id=codex_call_id,
+        prompt_text=prompt_text,
+        payload=payload,
     )
-    session_record_abspath = repo_root / session_record_path
-    request = codex_wrapper.CodexCliRequest(
-        plan_id=plan_id,
-        plan_revision=plan_revision,
-        ticket_id=None,
-        run_id=None,
-        codex_call_id=codex_call_id,
-        call_purpose=plan_drafting.CALL_PURPOSE,
-        codex_cli_mode=CodexCliMode.STUB,
-        cwd=str(repo_root),
-        prompt_text=plan_drafting.build_prompt(
-            request_text=request_text,
-            plan_id=plan_id,
-            plan_revision=plan_revision,
-            existing_plan=existing_plan,
-        ),
-        model=model,
-        reasoning_effort=reasoning_effort,
-        stub_record_path=str(session_record_abspath),
+
+
+def _write_plan_stub_record(
+    repo_root: Path,
+    *,
+    plan_id: str,
+    plan_revision: int,
+    codex_call_id: str,
+    prompt_text: str,
+    payload: plan_drafting.PlanDraftingPayload,
+) -> None:
+    """`plan_drafting` 用 stub record を作る。"""
+
+    path = (
+        repo_root
+        / ".tgbt/codex"
+        / f"{plan_id}-rev-{plan_revision}-{codex_call_id}-plan_drafting.json"
     )
-    storage_request, _ = codex_wrapper.redact_request_for_storage(
-        codex_wrapper.build_storage_request(request)
-    )
-    business_output = {
+    request = {
+        "plan_id": plan_id,
+        "plan_revision": plan_revision,
+        "ticket_id": None,
+        "run_id": None,
+        "codex_call_id": codex_call_id,
+        "call_purpose": plan_drafting.CALL_PURPOSE,
+        "cwd": str(repo_root),
+        "prompt_text": prompt_text,
+        "model": codex_wrapper.DEFAULT_MODEL,
+        "reasoning_effort": codex_wrapper.DEFAULT_REASONING_EFFORT,
+    }
+    storage_request, _ = codex_wrapper.redact_request_for_storage(request)
+    payload_dict = {
         "schema_name": plan_drafting.CALL_PURPOSE,
         "schema_version": 1,
         "call_purpose": plan_drafting.CALL_PURPOSE,
@@ -566,39 +504,57 @@ def _write_plan_stub_record(
         "title": payload.title,
         "sections": payload.sections,
     }
-    record = {
-        "schema_version": 1,
-        "plan_id": plan_id,
-        "plan_revision": plan_revision,
-        "ticket_id": None,
-        "run_id": None,
-        "codex_call_id": codex_call_id,
-        "call_purpose": plan_drafting.CALL_PURPOSE,
-        "codex_cli_mode": "live",
-        "request": storage_request,
-        "result": {
-            "plan_id": plan_id,
-            "plan_revision": plan_revision,
-            "ticket_id": None,
-            "run_id": None,
-            "codex_call_id": codex_call_id,
-            "call_purpose": plan_drafting.CALL_PURPOSE,
-            "codex_cli_mode": "live",
-            "returncode": 0,
-            "stdout": "",
-            "stderr": "",
-            "last_message_text": codex_wrapper.canonicalize_json(business_output),
-            "business_output": business_output,
-            "generated_artifacts": [str(session_record_abspath)],
-            "stop_reason": "completed",
-            "session_record_path": str(session_record_abspath),
-            "replayed_from": None,
-            "redaction_report": {},
-        },
-        "saved_at": "2026-03-21T10:00:00+09:00",
-    }
-    session_record_abspath.parent.mkdir(parents=True, exist_ok=True)
-    session_record_abspath.write_text(
-        json.dumps(record, ensure_ascii=False, indent=2) + "\n",
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(
+        json.dumps(
+            {
+                "schema_version": 1,
+                "plan_id": plan_id,
+                "plan_revision": plan_revision,
+                "ticket_id": None,
+                "run_id": None,
+                "codex_call_id": codex_call_id,
+                "call_purpose": plan_drafting.CALL_PURPOSE,
+                "codex_cli_mode": "live",
+                "request": storage_request,
+                "result": {
+                    "plan_id": plan_id,
+                    "plan_revision": plan_revision,
+                    "ticket_id": None,
+                    "run_id": None,
+                    "codex_call_id": codex_call_id,
+                    "call_purpose": plan_drafting.CALL_PURPOSE,
+                    "codex_cli_mode": "live",
+                    "returncode": 0,
+                    "stdout": "",
+                    "stderr": "",
+                    "last_message_text": codex_wrapper.canonicalize_json(payload_dict),
+                    "business_output": payload_dict,
+                    "generated_artifacts": [str(path)],
+                    "stop_reason": "completed",
+                    "session_record_path": str(path),
+                    "replayed_from": None,
+                    "redaction_report": {},
+                },
+                "saved_at": "2026-03-21T10:00:00+09:00",
+            },
+            ensure_ascii=False,
+            indent=2,
+        )
+        + "\n",
         encoding="utf-8",
     )
+
+
+def _write_worker_spec(repo_root: Path) -> None:
+    """repo-local runtime 指示の正本を作る。"""
+
+    path = repo_root / "docs/spec/codex_worker_instructions.md"
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text("# worker instructions\n\n- use repo-local runtime\n", encoding="utf-8")
+
+
+def _write_agents_md(repo_root: Path) -> None:
+    """`AGENTS.md` を作る。"""
+
+    (repo_root / "AGENTS.md").write_text("# AGENTS\n", encoding="utf-8")

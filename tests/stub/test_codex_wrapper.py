@@ -8,7 +8,7 @@ from typing import cast
 import pytest
 
 from src.codex_common import CodexCliMode
-from src import codex_wrapper, plan_drafting, state_io
+from src import codex_wrapper, env_runtime, plan_drafting, state_io
 
 
 def test_execute_live_builds_expected_argv_and_saves_redacted_session_record(
@@ -17,6 +17,7 @@ def test_execute_live_builds_expected_argv_and_saves_redacted_session_record(
 ) -> None:
     """live 実行が argv を組み立て、redacted session record を保存する。"""
 
+    _write_worker_spec(tmp_path)
     request = codex_wrapper.CodexCliRequest(
         plan_id="plan-20260401-001",
         plan_revision=1,
@@ -38,11 +39,15 @@ def test_execute_live_builds_expected_argv_and_saves_redacted_session_record(
         capture_output: bool,
         text: bool,
         check: bool,
+        env: dict[str, str],
     ) -> subprocess.CompletedProcess[str]:
         assert capture_output is True
         assert text is True
         assert check is False
+        assert env["CODEX_HOME"] == str(tmp_path / ".tgbt/.codex")
         seen_argv[:] = argv
+        assert "--profile" in argv
+        assert argv[argv.index("--profile") + 1] == env_runtime.CODEX_PROFILE_NAME
         assert "--model" in argv
         assert "-c" in argv
         assert 'reasoning.effort="high"' in argv
@@ -86,6 +91,12 @@ def test_execute_live_builds_expected_argv_and_saves_redacted_session_record(
     result = codex_wrapper.execute(request)
 
     assert seen_argv[0:2] == ["codex", "exec"]
+    assert (tmp_path / ".tgbt/.codex/config.toml").read_text(encoding="utf-8") == (
+        env_runtime.render_runtime_config(tmp_path)
+    )
+    assert (tmp_path / ".tgbt/instructions.md").read_text(encoding="utf-8") == (
+        env_runtime.render_runtime_instructions(tmp_path)
+    )
     assert result.codex_cli_mode is CodexCliMode.LIVE
     assert result.session_record_path == str(
         tmp_path / ".tgbt/codex/plan-20260401-001-rev-1-call-0001-plan_drafting.json"
@@ -110,6 +121,7 @@ def test_execute_live_surfaces_cli_failure_before_payload_validation(
 ) -> None:
     """非 0 終了時は JSON 不在より先に CLI failure を報告する。"""
 
+    _write_worker_spec(tmp_path)
     request = codex_wrapper.CodexCliRequest(
         plan_id="plan-20260401-001",
         plan_revision=1,
@@ -130,10 +142,12 @@ def test_execute_live_surfaces_cli_failure_before_payload_validation(
         capture_output: bool,
         text: bool,
         check: bool,
+        env: dict[str, str],
     ) -> subprocess.CompletedProcess[str]:
         assert capture_output is True
         assert text is True
         assert check is False
+        assert env["CODEX_HOME"] == str(tmp_path / ".tgbt/.codex")
         return subprocess.CompletedProcess(
             argv,
             1,
@@ -308,3 +322,11 @@ def _write_stub_record(
         + "\n",
         encoding="utf-8",
     )
+
+
+def _write_worker_spec(repo_root: Path) -> None:
+    """repo-local runtime 指示の正本を作る。"""
+
+    path = repo_root / "docs/spec/codex_worker_instructions.md"
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text("# worker instructions\n\n- use repo-local runtime\n", encoding="utf-8")

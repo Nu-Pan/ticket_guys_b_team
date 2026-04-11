@@ -42,6 +42,7 @@ def test_bin_tgbt_shows_help_from_repo_root(isolated_launcher_root: Path) -> Non
     assert result.returncode == 0
     assert "Usage: tgbt" in result.stdout
     assert "ticket_guys_b_team command line interface." in result.stdout
+    assert "env" in result.stdout
     assert "plan" in result.stdout
     assert "run" in result.stdout
     assert "review-queue" not in result.stdout
@@ -115,6 +116,7 @@ def test_bin_tgbt_uses_invocation_cwd_as_target_repository(
         [
             str(cli_path),
             "plan",
+            "docs",
             "--plan-id",
             plan_id,
             "--codex-cli-mode",
@@ -176,7 +178,7 @@ def _write_stub_record(
             "execution_strategy": "- stub fixture から再構成する",
         },
     }
-    prompt_text = plan_drafting.build_prompt(
+    prompt_text = plan_drafting.build_docs_prompt(
         request_text=request_text,
         plan_id=plan_id,
         plan_revision=2,

@@ -70,14 +70,14 @@ class PlanDraftingPayload:
     sections: dict[str, str]
 
 
-def build_prompt(
+def build_docs_prompt(
     *,
     request_text: str,
     plan_id: str,
     plan_revision: int,
     existing_plan: state_io.PlanDocument | None,
 ) -> str:
-    """Codex へ渡す `plan_drafting` prompt を構築する。"""
+    """`tgbt plan docs` 用の prompt を構築する。"""
 
     context = {
         "plan_id": plan_id,
@@ -92,16 +92,36 @@ def build_prompt(
             "sections": existing_plan.sections,
         }
 
+    return _render_prompt(context=context)
+
+
+def build_prompt(
+    *,
+    request_text: str,
+    plan_id: str,
+    plan_revision: int,
+    existing_plan: state_io.PlanDocument | None,
+) -> str:
+    """既存の docs 用 prompt builder を後方互換で残す。"""
+
+    return build_docs_prompt(
+        request_text=request_text,
+        plan_id=plan_id,
+        plan_revision=plan_revision,
+        existing_plan=existing_plan,
+    )
+
+
+def _render_prompt(*, context: dict[str, object]) -> str:
+    """共通の prompt envelope を render する。"""
+
     schema = {
         "schema_name": CALL_PURPOSE,
         "schema_version": 1,
         "call_purpose": CALL_PURPOSE,
         "summary": "short summary",
         "title": "plan title",
-        "sections": {
-            key: "string"
-            for key in SECTION_KEY_ORDER
-        },
+        "sections": {key: "string" for key in SECTION_KEY_ORDER},
     }
 
     prompt = {
@@ -112,7 +132,7 @@ def build_prompt(
             "call_purpose は必ず plan_drafting にすること。",
             "canonical markdown 全文を返さず、title と sections proposal のみ返すこと。",
             "sections は purpose, out_of_scope, deliverables, constraints, acceptance_criteria, open_questions, risks, execution_strategy の 8 keys をすべて含めること。",
-            "既存 Plan がある場合は、今回の更新指示を反映した Plan 全体を再構成すること。",
+            "既存 Plan または前回 iteration 情報がある場合は、それを踏まえて Plan 全体を再構成すること。",
             "内容は日本語で記述すること。",
         ],
         "required_output_schema": schema,

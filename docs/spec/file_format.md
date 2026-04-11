@@ -176,6 +176,31 @@ call-NNNN
 * `<repo-root>/.tgbt/instructions.md` は `docs/spec/codex_worker_instructions.md` を正本として runtime 生成される
 * worker runtime は `~/.codex` と `<repo-root>/.codex` に依存してはならない
 
+MVP では、`tgbt` が意味論上管理する worker runtime input path は以下に限定する。
+
+* `<repo-root>/.tgbt/.codex/config.toml`
+* `<repo-root>/.tgbt/instructions.md`
+
+`<repo-root>/.tgbt/.codex/` 配下に他の file や directory が存在しても、それらは Codex CLI private state として扱う。
+`tgbt` は、それらを bootstrap 整合判定、repo-local runtime 検証、worker 実行方針の入力として読んではならない。
+
+### 4.9 Ticket file discovery の共通ルール
+
+`.tgbt/tickets/` 配下で Ticket file として発見対象に含めてよいのは、canonical filename に一致する file のみとする。
+
+canonical filename:
+
+```text
+worker-NNNN.md
+```
+
+要件:
+
+* active Ticket 集合の構築、依存解決、実行候補選択、既存 Ticket 読み取りの discovery では、basename が `worker-NNNN.md` に一致する file だけを走査対象に含めてよい
+* canonical filename に一致しない file は、`.tgbt/tickets/` 配下に残っていても Ticket file discovery の対象に含めてはならない
+* canonical filename に一致する file については、front matter の `ticket_id` が filename 由来の `ticket_id` と一致しなければならない
+* canonical filename に一致する file の parse や validation に失敗した場合は、無視ではなく Ticket 不整合として失敗しなければならない
+
 ---
 
 ## 5. Plan File Format
@@ -209,6 +234,7 @@ Plan file の YAML front matter は最低限以下を含む。
 
 必要に応じて以下を追加してよい。
 
+* `plan_kind`
 * `last_run_id`
 * `settled_at`
 * `closure_reason`

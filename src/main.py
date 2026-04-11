@@ -9,39 +9,37 @@ import typer
 
 if __package__ in {None, ""}:
     sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+    import src.env_service as env_service
     import src.plan_service as plan_service
     from src.codex_common import CodexCliMode
 else:
-    from . import plan_service
+    from . import env_service, plan_service
     from .codex_common import CodexCliMode
 
 
-# CLI の公開形をここで固定する。
 app = typer.Typer(
     name="tgbt",
     help="ticket_guys_b_team command line interface.",
     no_args_is_help=True,
 )
+plan_app = typer.Typer(
+    help="Plan-related commands.",
+    no_args_is_help=True,
+)
+app.add_typer(plan_app, name="plan")
 
 
 def _raise_not_implemented(*, command_name: str, impact: str, next_step: str) -> None:
-    """未実装コマンドの共通エラー出力を行って終了する。
+    """未実装コマンドの共通エラー出力を行って終了する。"""
 
-    Args:
-        command_name: 未実装として扱うコマンド名。
-        impact: 今回の呼び出しで起きていない影響範囲。
-        next_step: 次に取るべき行動。
-    """
-
-    # NOTE: 未実装コマンドを成功扱いにすると利用者が state mutation 済みと誤認する。
     typer.echo(f"ERROR: {command_name} command is not implemented yet", err=True)
     typer.echo(f"Impact: {impact}", err=True)
     typer.echo(f"Next: {next_step}", err=True)
     raise typer.Exit(code=1)
 
 
-def _raise_command_error(error: plan_service.PlanCommandError) -> None:
-    """業務コマンドのエラーを CLI 向けに整形して終了する。"""
+def _raise_plan_command_error(error: plan_service.PlanCommandError) -> None:
+    """docs Plan エラーを CLI 向けに整形して終了する。"""
 
     typer.echo(f"ERROR: {error.cause}", err=True)
     typer.echo(f"Impact: {error.impact}", err=True)
@@ -49,8 +47,48 @@ def _raise_command_error(error: plan_service.PlanCommandError) -> None:
     raise typer.Exit(code=1)
 
 
+def _raise_env_command_error(error: env_service.EnvCommandError) -> None:
+    """env エラーを CLI 向けに整形して終了する。"""
+
+    typer.echo(f"ERROR: {error.cause}", err=True)
+    if error.updated_files:
+        typer.echo("Updated files:", err=True)
+        for path in error.updated_files:
+            typer.echo(f"- {path}", err=True)
+    if error.remaining_issues:
+        typer.echo("Remaining issues:", err=True)
+        for issue in error.remaining_issues:
+            typer.echo(f"- {issue}", err=True)
+    if error.log_path is not None:
+        typer.echo(f"Log: {error.log_path}", err=True)
+    typer.echo(f"Impact: {error.impact}", err=True)
+    typer.echo(f"Next: {error.next_step}", err=True)
+    raise typer.Exit(code=1)
+
+
 @app.command()
-def plan(
+def env() -> None:
+    """repo-local Codex runtime を one-shot で合法状態へ整える。"""
+
+    try:
+        result = env_service.ensure_legal_env()
+    except env_service.EnvCommandError as error:
+        _raise_env_command_error(error)
+    else:
+        typer.echo(f"Status: {result.status}")
+        if result.updated_files:
+            typer.echo("Updated files:")
+            for path in result.updated_files:
+                typer.echo(f"- {path}")
+        if result.remaining_issues:
+            typer.echo("Remaining issues:")
+            for issue in result.remaining_issues:
+                typer.echo(f"- {issue}")
+        typer.echo(f"Log: {result.log_path}")
+
+
+@plan_app.command("docs")
+def plan_docs(
     request_text: Annotated[
         str,
         typer.Argument(help="Plan generation request text."),
@@ -64,7 +102,7 @@ def plan(
         typer.Option("--codex-cli-mode", help="Codex CLI execution mode."),
     ] = CodexCliMode.LIVE,
 ) -> None:
-    """Plan 草案の生成または更新を受け付ける。"""
+    """docs 修正用 Plan 草案の生成または更新を受け付ける。"""
 
     try:
         result = plan_service.create_or_update_plan(
@@ -73,7 +111,7 @@ def plan(
             codex_cli_mode=codex_cli_mode,
         )
     except plan_service.PlanCommandError as error:
-        _raise_command_error(error)
+        _raise_plan_command_error(error)
     else:
         typer.echo(f"Updated: {result.updated_path}")
         typer.echo(f"Plan revision: {result.plan_revision}")

@@ -84,6 +84,12 @@ def codex_dir(repo_root: Path) -> Path:
     return artifacts_root(repo_root) / "codex"
 
 
+def logs_dir(repo_root: Path) -> Path:
+    """実行ログ保存先を返す。"""
+
+    return artifacts_root(repo_root) / "logs"
+
+
 def tickets_dir(repo_root: Path) -> Path:
     """Ticket 保存先を返す。"""
 
@@ -108,10 +114,52 @@ def counters_path(repo_root: Path) -> Path:
     return artifacts_root(repo_root) / "system" / "counters.json"
 
 
+def repo_local_codex_home(repo_root: Path) -> Path:
+    """repo-local な `CODEX_HOME` の保存先を返す。"""
+
+    return artifacts_root(repo_root) / ".codex"
+
+
+def repo_local_codex_config_path(repo_root: Path) -> Path:
+    """repo-local Codex config の保存先を返す。"""
+
+    return repo_local_codex_home(repo_root) / "config.toml"
+
+
+def runtime_instructions_path(repo_root: Path) -> Path:
+    """worker runtime 指示の保存先を返す。"""
+
+    return artifacts_root(repo_root) / "instructions.md"
+
+
+def repo_root_codex_dir(repo_root: Path) -> Path:
+    """repository 直下 `.codex/` の canonical path を返す。"""
+
+    return repo_root / ".codex"
+
+
+def agents_md_path(repo_root: Path) -> Path:
+    """`AGENTS.md` の canonical path を返す。"""
+
+    return repo_root / "AGENTS.md"
+
+
 def plan_path(repo_root: Path, plan_id: str) -> Path:
     """Plan file のパスを返す。"""
 
     return plans_dir(repo_root) / f"{plan_id}.md"
+
+
+def run_log_path(repo_root: Path, *, plan_id: str, run_id: str) -> Path:
+    """run log の保存先を返す。"""
+
+    return logs_dir(repo_root) / f"{plan_id}-{run_id}.jsonl"
+
+
+def env_log_path(repo_root: Path) -> Path:
+    """`tgbt env` の canonical log path を返す。"""
+
+    return logs_dir(repo_root) / "env-latest.jsonl"
 
 
 def ensure_plan_storage(repo_root: Path) -> None:
@@ -120,7 +168,17 @@ def ensure_plan_storage(repo_root: Path) -> None:
     plans_dir(repo_root).mkdir(parents=True, exist_ok=True)
     tickets_dir(repo_root).mkdir(parents=True, exist_ok=True)
     codex_dir(repo_root).mkdir(parents=True, exist_ok=True)
+    logs_dir(repo_root).mkdir(parents=True, exist_ok=True)
     locks_dir(repo_root).mkdir(parents=True, exist_ok=True)
+    repo_local_codex_home(repo_root).mkdir(parents=True, exist_ok=True)
+
+
+def ensure_env_storage(repo_root: Path) -> None:
+    """`env` 実行に必要な directory を作成する。"""
+
+    logs_dir(repo_root).mkdir(parents=True, exist_ok=True)
+    locks_dir(repo_root).mkdir(parents=True, exist_ok=True)
+    repo_local_codex_home(repo_root).mkdir(parents=True, exist_ok=True)
 
 
 def current_timestamp() -> str:
@@ -354,6 +412,31 @@ def allocate_codex_call_id(repo_root: Path) -> str:
     return codex_call_id
 
 
+def allocate_run_id(repo_root: Path) -> str:
+    """`run_id` を採番し、`counters.json` へ反映する。"""
+
+    counter_state = load_counter_state(repo_root)
+    run_id = f"run-{counter_state.next_run_seq:04d}"
+    updated_state = CounterState(
+        next_ticket_seq=counter_state.next_ticket_seq,
+        next_run_seq=counter_state.next_run_seq + 1,
+        next_codex_call_seq=counter_state.next_codex_call_seq,
+        updated_at=current_timestamp(),
+    )
+    write_counter_state(repo_root, updated_state)
+    return run_id
+
+
+def write_jsonl_log(path: Path, entries: list[dict[str, object]]) -> None:
+    """JSONL 形式の execution log を保存する。"""
+
+    content = "".join(
+        json.dumps(entry, ensure_ascii=False, sort_keys=True) + "\n"
+        for entry in entries
+    )
+    write_text_atomically(path, content, create_only=False)
+
+
 def plan_drafting_session_record_relative_path(
     repo_root: Path,
     *,
@@ -427,7 +510,7 @@ def repository_lock(
 ) -> Iterator[None]:
     """repository-wide lock を保持する。"""
 
-    ensure_plan_storage(repo_root)
+    locks_dir(repo_root).mkdir(parents=True, exist_ok=True)
 
     payload = {
         "command_name": command_name,
