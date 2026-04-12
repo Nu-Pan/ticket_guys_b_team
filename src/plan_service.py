@@ -236,7 +236,6 @@ def _build_codex_request(
 ) -> codex_wrapper.CodexCliRequest:
     """Codex wrapper request を構築する。"""
 
-    model, reasoning_effort = codex_wrapper.resolve_model_config()
     return codex_wrapper.CodexCliRequest(
         plan_id=plan_id,
         plan_revision=plan_revision,
@@ -252,8 +251,6 @@ def _build_codex_request(
             plan_revision=plan_revision,
             existing_plan=existing_plan,
         ),
-        model=model,
-        reasoning_effort=reasoning_effort,
         stub_record_path=(
             state_io.absolute_path_string(repo_root / session_record_relative_path)
             if codex_cli_mode is CodexCliMode.STUB

@@ -20,7 +20,7 @@
 * **Ticket**: Plan 実行中に AI が必要に応じて作成する作業単位
 * **Run**: Ticket 生成と Ticket 実行を反復する top-level オーケストレーション
 * **Codex CLI Wrapper**: `codex exec` を `plan` / `run` から抽象化する境界
-* **Repo-Local Runtime**: `<repo-root>/.tgbt/.codex` と `.tgbt/instructions.md` に固定される Codex 実行環境
+* **Repo-Local Runtime**: `<repo-root>/.tgbt/.codex/config.toml` の required profile set と `.tgbt/instructions.md` に固定される Codex 実行環境
 
 MVP では独立した `approve` コマンドを持たない。`tgbt run --plan-id ...` が Plan 実行開始を表す。
 

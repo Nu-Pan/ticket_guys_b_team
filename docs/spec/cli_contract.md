@@ -233,6 +233,7 @@ current invocation の env audit log を保存できなかった場合、`.tgbt/
 
 * `tgbt env` は bootstrap repair command であり、AI orchestration command ではない
 * 適合性判定対象は `.tgbt/.codex/config.toml` と `.tgbt/instructions.md` の 2 要素に限定する
+* `.tgbt/.codex/config.toml` は required profile set `tgbt-drafting` / `tgbt-worker` / `tgbt-review` を deterministic に create-or-replace しなければならない
 * `.tgbt/instructions.md` は `tgbt env` が create-or-replace する repo-local runtime file とし、人間向け文書として扱わない
 * `AGENTS.md` と repository 直下 `.codex/` は bootstrap 観測対象だが、blocking issue や自動修正対象には含めない
 
@@ -242,6 +243,8 @@ current invocation の env audit log を保存できなかった場合、`.tgbt/
 * 現時点で公開する子コマンドは `docs` のみとする
 * `plan` 配下の実行サブコマンドは、共通 option として `--codex-cli-mode {live|stub}` を受け付ける
 * `plan` 配下の `--codex-cli-mode` 既定値は `live` とする
+* `plan` / `run` 系の内部 Codex 呼び出しは、サブコマンド名と 1:1 対応する profile を自由選択してはならず、wrapper 契約で定義した call purpose 別 profile set へ写像しなければならない
+* サブコマンドや内部 phase の拡充で既存 profile set では表現できない新シナリオが増える場合、profile set も仕様、`tgbt env` の生成責務、runtime validation と一体で拡充しなければならない
 * `tgbt plan` 単独実行は入力不正として扱い、usage を表示して非 0 終了する
 
 ### 6.3 `tgbt plan docs`
@@ -297,6 +300,7 @@ Session record: <repo-root>/.tgbt/codex/plan-20260321-001-rev-2-call-0001-plan_d
 * 既存 Plan を更新した場合、`plan_revision` は 1 増加する
 * 既存 Plan を更新して active Ticket 集合を破棄または退避する処理は、repository lock を取得したときにのみ行ってよい
 * `plan_drafting` payload を proposal として扱い、application が canonical Plan markdown を render する
+* `tgbt plan docs` の live 実行は internal call purpose `plan_drafting` に対応する profile `tgbt-drafting` を使う
 
 #### 6.3.5 Plan 内容制約
 

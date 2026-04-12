@@ -1,13 +1,18 @@
 """`tgbt env` 向けの runtime 生成と合法性判定を扱う。"""
 
+from collections.abc import Mapping
 from dataclasses import dataclass
 import tomllib
 from pathlib import Path
 
+from .codex_common import VALID_REASONING_EFFORTS
 from . import state_io
 
 
-CODEX_PROFILE_NAME = "tgbt-worker"
+DEFAULT_PROFILE_MODEL = "gpt-5.2-codex"
+PROFILE_DRAFTING = "tgbt-drafting"
+PROFILE_WORKER = "tgbt-worker"
+PROFILE_REVIEW = "tgbt-review"
 RUNTIME_INSTRUCTIONS_TEMPLATE = """# tgbt Codex Runtime Instructions
 
 - Treat the task instruction passed from `tgbt` as the highest-priority work instruction.
@@ -18,6 +23,49 @@ RUNTIME_INSTRUCTIONS_TEMPLATE = """# tgbt Codex Runtime Instructions
 - Treat the repo-local runtime under `.tgbt/` as the authoritative Codex CLI configuration.
 - `AGENTS.md` may be read as bootstrap context, but it is not the authoritative source for runtime instructions.
 """
+
+
+@dataclass(frozen=True)
+class CodexProfileSpec:
+    """repo-local runtime が要求する Codex profile 定義。"""
+
+    name: str
+    model: str
+    model_reasoning_effort: str
+    approval_policy: str
+    sandbox_mode: str
+
+
+PROFILE_SPECS = (
+    CodexProfileSpec(
+        name=PROFILE_DRAFTING,
+        model=DEFAULT_PROFILE_MODEL,
+        model_reasoning_effort="high",
+        approval_policy="never",
+        sandbox_mode="read-only",
+    ),
+    CodexProfileSpec(
+        name=PROFILE_WORKER,
+        model=DEFAULT_PROFILE_MODEL,
+        model_reasoning_effort="high",
+        approval_policy="never",
+        sandbox_mode="workspace-write",
+    ),
+    CodexProfileSpec(
+        name=PROFILE_REVIEW,
+        model=DEFAULT_PROFILE_MODEL,
+        model_reasoning_effort="high",
+        approval_policy="never",
+        sandbox_mode="read-only",
+    ),
+)
+PROFILE_SPECS_BY_NAME = {profile.name: profile for profile in PROFILE_SPECS}
+CALL_PURPOSE_TO_PROFILE_NAME = {
+    "plan_drafting": PROFILE_DRAFTING,
+    "ticket_planning": PROFILE_DRAFTING,
+    "ticket_execution": PROFILE_WORKER,
+    "followup_planning": PROFILE_REVIEW,
+}
 
 
 @dataclass(frozen=True)
@@ -80,6 +128,22 @@ class EnvLegalityReport:
         return not self.blocking_issues
 
 
+def resolve_profile_name_for_call_purpose(call_purpose: str) -> str:
+    """`call_purpose` から canonical profile 名を解決する。"""
+
+    try:
+        return CALL_PURPOSE_TO_PROFILE_NAME[call_purpose]
+    except KeyError as error:
+        raise ValueError(f"unsupported call_purpose: {call_purpose}") from error
+
+
+def resolve_profile_spec_for_call_purpose(call_purpose: str) -> CodexProfileSpec:
+    """`call_purpose` に対応する profile 定義を返す。"""
+
+    profile_name = resolve_profile_name_for_call_purpose(call_purpose)
+    return PROFILE_SPECS_BY_NAME[profile_name]
+
+
 def render_runtime_instructions(repo_root: Path) -> str:
     """runtime 指示の canonical content を返す。"""
 
@@ -93,10 +157,21 @@ def render_runtime_config(repo_root: Path) -> str:
     instructions_path = state_io.absolute_path_string(
         state_io.runtime_instructions_path(repo_root)
     )
-    return (
-        f"[profiles.{CODEX_PROFILE_NAME}]\n"
-        f'model_instructions_file = "{instructions_path}"\n'
-    )
+    blocks: list[str] = []
+    for profile in PROFILE_SPECS:
+        blocks.append(
+            "\n".join(
+                (
+                    f"[profiles.{profile.name}]",
+                    f'model = "{profile.model}"',
+                    f'model_reasoning_effort = "{profile.model_reasoning_effort}"',
+                    f'approval_policy = "{profile.approval_policy}"',
+                    f'sandbox_mode = "{profile.sandbox_mode}"',
+                    f'model_instructions_file = "{instructions_path}"',
+                )
+            )
+        )
+    return "\n\n".join(blocks) + "\n"
 
 
 def regenerate_repo_local_runtime(repo_root: Path) -> list[EnvRepairAction]:
@@ -158,7 +233,7 @@ def evaluate_env_legality(repo_root: Path) -> EnvLegalityReport:
                 severity="diagnostic",
                 subject="repo_root_codex_dir",
                 path=repo_root_codex_dir,
-                message="repository root .codex/ exists and is ignored by tgbt worker runtime",
+                message="repository root .codex/ exists and is ignored by tgbt repo-local runtime profiles",
                 repair_policy="observe_only",
             )
         )
@@ -205,7 +280,11 @@ def evaluate_env_legality(repo_root: Path) -> EnvLegalityReport:
         )
     else:
         actual_config = config_path.read_text(encoding="utf-8")
-        if actual_config != expected_config:
+        semantic_issues = _validate_runtime_config(
+            config_path=config_path,
+            actual_config=actual_config,
+        )
+        if actual_config != expected_config and not semantic_issues:
             blocking_issues.append(
                 _build_issue(
                     code="mismatched_repo_local_codex_config",
@@ -216,13 +295,7 @@ def evaluate_env_legality(repo_root: Path) -> EnvLegalityReport:
                     repair_policy="auto_repair",
                 )
             )
-        else:
-            blocking_issues.extend(
-                _validate_runtime_config(
-                    config_path=config_path,
-                    actual_config=actual_config,
-                )
-            )
+        blocking_issues.extend(semantic_issues)
 
     return EnvLegalityReport(
         blocking_issues=blocking_issues,
@@ -302,28 +375,79 @@ def _validate_runtime_config(*, config_path: Path, actual_config: str) -> list[E
             )
         ]
 
-    worker_profile = profiles.get(CODEX_PROFILE_NAME)
-    if not isinstance(worker_profile, dict):
+    expected_path = state_io.absolute_path_string(config_path.parents[1] / "instructions.md")
+    for profile in PROFILE_SPECS:
+        issues.extend(
+            _validate_profile_config(
+                config_path=config_path,
+                profile_payload=profiles.get(profile.name),
+                profile_spec=profile,
+                expected_instructions_path=expected_path,
+            )
+        )
+    return issues
+
+
+def _validate_profile_config(
+    *,
+    config_path: Path,
+    profile_payload: object,
+    profile_spec: CodexProfileSpec,
+    expected_instructions_path: str,
+) -> list[EnvIssue]:
+    """required profile 1 件の意味論を検証する。"""
+
+    if not isinstance(profile_payload, Mapping):
         return [
             _build_issue(
-                code="missing_repo_local_codex_worker_profile",
+                code="missing_repo_local_codex_profile",
                 severity="blocking",
                 subject="repo_local_codex_config",
                 path=config_path,
-                message=".tgbt/.codex/config.toml does not define profiles.tgbt-worker",
+                message=(
+                    ".tgbt/.codex/config.toml does not define "
+                    f"profiles.{profile_spec.name}"
+                ),
                 repair_policy="auto_repair",
             )
         ]
 
-    expected_path = state_io.absolute_path_string(config_path.parents[1] / "instructions.md")
-    if worker_profile.get("model_instructions_file") != expected_path:
+    issues: list[EnvIssue] = []
+    expected_values = {
+        "model": profile_spec.model,
+        "model_reasoning_effort": profile_spec.model_reasoning_effort,
+        "approval_policy": profile_spec.approval_policy,
+        "sandbox_mode": profile_spec.sandbox_mode,
+        "model_instructions_file": expected_instructions_path,
+    }
+    for field_name, expected_value in expected_values.items():
+        if profile_payload.get(field_name) != expected_value:
+            issues.append(
+                _build_issue(
+                    code=f"incorrect_profile_{field_name}",
+                    severity="blocking",
+                    subject="repo_local_codex_config",
+                    path=config_path,
+                    message=(
+                        f"profiles.{profile_spec.name}.{field_name} does not match "
+                        "the canonical tgbt runtime profile"
+                    ),
+                    repair_policy="auto_repair",
+                )
+            )
+
+    reasoning_effort = profile_payload.get("model_reasoning_effort")
+    if reasoning_effort not in VALID_REASONING_EFFORTS:
         issues.append(
             _build_issue(
-                code="incorrect_model_instructions_file",
+                code="invalid_profile_model_reasoning_effort",
                 severity="blocking",
                 subject="repo_local_codex_config",
                 path=config_path,
-                message="profiles.tgbt-worker.model_instructions_file does not point to .tgbt/instructions.md",
+                message=(
+                    f"profiles.{profile_spec.name}.model_reasoning_effort must be one "
+                    "of minimal|low|medium|high|xhigh"
+                ),
                 repair_policy="auto_repair",
             )
         )

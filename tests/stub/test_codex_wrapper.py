@@ -28,8 +28,6 @@ def test_execute_live_builds_expected_argv_and_saves_redacted_session_record(
         codex_cli_mode=CodexCliMode.LIVE,
         cwd=str(tmp_path),
         prompt_text="Authorization: Bearer sk-abcdefghijklmnopqrstuvwxyz123456",
-        model="gpt-5.2-codex",
-        reasoning_effort="high",
     )
     seen_argv: list[str] = []
 
@@ -47,10 +45,9 @@ def test_execute_live_builds_expected_argv_and_saves_redacted_session_record(
         assert env["CODEX_HOME"] == str(tmp_path / ".tgbt/.codex")
         seen_argv[:] = argv
         assert "--profile" in argv
-        assert argv[argv.index("--profile") + 1] == env_runtime.CODEX_PROFILE_NAME
-        assert "--model" in argv
-        assert "-c" in argv
-        assert 'reasoning.effort="high"' in argv
+        assert argv[argv.index("--profile") + 1] == env_runtime.PROFILE_DRAFTING
+        assert "--model" not in argv
+        assert "-c" not in argv
         assert "--output-schema" in argv
         assert "--output-last-message" in argv
         assert "--cd" in argv
@@ -98,6 +95,9 @@ def test_execute_live_builds_expected_argv_and_saves_redacted_session_record(
         env_runtime.render_runtime_instructions(tmp_path)
     )
     assert result.codex_cli_mode is CodexCliMode.LIVE
+    assert result.codex_profile == env_runtime.PROFILE_DRAFTING
+    assert result.resolved_model == env_runtime.DEFAULT_PROFILE_MODEL
+    assert result.resolved_reasoning_effort == "high"
     assert result.session_record_path == str(
         tmp_path / ".tgbt/codex/plan-20260401-001-rev-1-call-0001-plan_drafting.json"
     )
@@ -109,7 +109,13 @@ def test_execute_live_builds_expected_argv_and_saves_redacted_session_record(
 
     session_record = json.loads(Path(result.session_record_path).read_text(encoding="utf-8"))
     assert session_record["request"]["prompt_text"] == "<REDACTED:AUTH_CREDENTIAL>"
+    assert session_record["request"]["codex_profile"] == env_runtime.PROFILE_DRAFTING
+    assert session_record["request"]["resolved_model"] == env_runtime.DEFAULT_PROFILE_MODEL
+    assert session_record["request"]["resolved_reasoning_effort"] == "high"
     assert "<REDACTED:SECRET>" in session_record["result"]["stderr"]
+    assert session_record["result"]["codex_profile"] == env_runtime.PROFILE_DRAFTING
+    assert session_record["result"]["resolved_model"] == env_runtime.DEFAULT_PROFILE_MODEL
+    assert session_record["result"]["resolved_reasoning_effort"] == "high"
     assert session_record["result"]["returncode"] == 0
     assert session_record["result"]["session_record_path"] == result.session_record_path
     assert session_record["result"]["generated_artifacts"] == [result.session_record_path]
@@ -132,8 +138,6 @@ def test_execute_live_surfaces_cli_failure_before_payload_validation(
         codex_cli_mode=CodexCliMode.LIVE,
         cwd=str(tmp_path),
         prompt_text="live prompt",
-        model="gpt-5.2-codex",
-        reasoning_effort="high",
     )
 
     def fake_run(
@@ -198,8 +202,6 @@ def test_execute_live_fails_fast_when_repo_local_runtime_is_illegal(
         codex_cli_mode=CodexCliMode.LIVE,
         cwd=str(tmp_path),
         prompt_text="live prompt",
-        model="gpt-5.2-codex",
-        reasoning_effort="high",
     )
 
     def fail_run(*args: object, **kwargs: object) -> subprocess.CompletedProcess[str]:
@@ -278,8 +280,6 @@ def _build_request(tmp_path: Path, *, prompt_text: str, codex_call_id: str) -> c
         codex_cli_mode=CodexCliMode.STUB,
         cwd=str(tmp_path),
         prompt_text=prompt_text,
-        model=codex_wrapper.DEFAULT_MODEL,
-        reasoning_effort=codex_wrapper.DEFAULT_REASONING_EFFORT,
         stub_record_path=str(
             tmp_path / ".tgbt/codex/plan-20260401-001-rev-1-call-0001-plan_drafting.json"
         ),
@@ -335,6 +335,9 @@ def _write_stub_record(
                     "codex_call_id": request.codex_call_id,
                     "call_purpose": request.call_purpose,
                     "codex_cli_mode": "live",
+                    "codex_profile": env_runtime.PROFILE_DRAFTING,
+                    "resolved_model": env_runtime.DEFAULT_PROFILE_MODEL,
+                    "resolved_reasoning_effort": "high",
                     "returncode": 0,
                     "stdout": "",
                     "stderr": "",

@@ -432,7 +432,7 @@ def test_env_reports_repo_root_codex_dir_as_diagnostics(isolated_repo: Path) -> 
     assert result.stdout.strip().splitlines() == [
         "Status: already_legal",
         "Diagnostics:",
-        "- repository root .codex/ exists and is ignored by tgbt worker runtime",
+        "- repository root .codex/ exists and is ignored by tgbt repo-local runtime profiles",
         f"Log: {isolated_repo / '.tgbt/logs/env-latest.jsonl'}",
     ]
     log_lines = _load_env_log_entries(isolated_repo)
@@ -442,9 +442,51 @@ def test_env_reports_repo_root_codex_dir_as_diagnostics(isolated_repo: Path) -> 
             "severity": "diagnostic",
             "subject": "repo_root_codex_dir",
             "path": str(isolated_repo / ".codex"),
-            "message": "repository root .codex/ exists and is ignored by tgbt worker runtime",
+            "message": "repository root .codex/ exists and is ignored by tgbt repo-local runtime profiles",
             "repair_policy": "observe_only",
         }
+    ]
+
+
+def test_env_detects_missing_required_profile_in_repo_local_config(
+    isolated_repo: Path,
+) -> None:
+    """required profile set の欠落を blocking issue として検出する。"""
+
+    _write_agents_md(isolated_repo)
+    state_io.repo_local_codex_config_path(isolated_repo).parent.mkdir(parents=True, exist_ok=True)
+    state_io.runtime_instructions_path(isolated_repo).parent.mkdir(parents=True, exist_ok=True)
+    state_io.runtime_instructions_path(isolated_repo).write_text(
+        env_runtime.render_runtime_instructions(isolated_repo),
+        encoding="utf-8",
+    )
+    state_io.repo_local_codex_config_path(isolated_repo).write_text(
+        "\n\n".join(
+            [
+                f"[profiles.{env_runtime.PROFILE_DRAFTING}]",
+                f'model = "{env_runtime.DEFAULT_PROFILE_MODEL}"',
+                'model_reasoning_effort = "high"',
+                'approval_policy = "never"',
+                'sandbox_mode = "read-only"',
+                f'model_instructions_file = "{isolated_repo / ".tgbt/instructions.md"}"',
+                "",
+                f"[profiles.{env_runtime.PROFILE_WORKER}]",
+                f'model = "{env_runtime.DEFAULT_PROFILE_MODEL}"',
+                'model_reasoning_effort = "high"',
+                'approval_policy = "never"',
+                'sandbox_mode = "workspace-write"',
+                f'model_instructions_file = "{isolated_repo / ".tgbt/instructions.md"}"',
+                "",
+            ]
+        ),
+        encoding="utf-8",
+    )
+
+    report = env_runtime.evaluate_env_legality(isolated_repo)
+
+    assert report.is_legal is False
+    assert [issue.message for issue in report.blocking_issues] == [
+        ".tgbt/.codex/config.toml does not define profiles.tgbt-review",
     ]
 
 
@@ -707,8 +749,9 @@ def _write_plan_stub_record(
         "call_purpose": plan_drafting.CALL_PURPOSE,
         "cwd": str(repo_root),
         "prompt_text": prompt_text,
-        "model": codex_wrapper.DEFAULT_MODEL,
-        "reasoning_effort": codex_wrapper.DEFAULT_REASONING_EFFORT,
+        "codex_profile": env_runtime.PROFILE_DRAFTING,
+        "resolved_model": env_runtime.DEFAULT_PROFILE_MODEL,
+        "resolved_reasoning_effort": "high",
     }
     storage_request, _ = codex_wrapper.redact_request_for_storage(request)
     payload_dict = {
@@ -740,6 +783,9 @@ def _write_plan_stub_record(
                     "codex_call_id": codex_call_id,
                     "call_purpose": plan_drafting.CALL_PURPOSE,
                     "codex_cli_mode": "live",
+                    "codex_profile": env_runtime.PROFILE_DRAFTING,
+                    "resolved_model": env_runtime.DEFAULT_PROFILE_MODEL,
+                    "resolved_reasoning_effort": "high",
                     "returncode": 0,
                     "stdout": "",
                     "stderr": "",

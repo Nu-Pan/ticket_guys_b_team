@@ -9,12 +9,10 @@ import re
 import subprocess
 import tempfile
 
-from .codex_common import CodexCliMode, VALID_REASONING_EFFORTS
+from .codex_common import CodexCliMode
 from . import env_runtime, plan_drafting, state_io
 
 
-DEFAULT_MODEL = "gpt-5.2-codex"
-DEFAULT_REASONING_EFFORT = "high"
 SESSION_RECORD_SCHEMA_VERSION = 1
 
 
@@ -31,8 +29,6 @@ class CodexCliRequest:
     codex_cli_mode: CodexCliMode
     cwd: str
     prompt_text: str
-    model: str
-    reasoning_effort: str
     stub_record_path: str | None = None
 
 
@@ -47,6 +43,9 @@ class CodexCliResult:
     codex_call_id: str
     call_purpose: str
     codex_cli_mode: CodexCliMode
+    codex_profile: str
+    resolved_model: str
+    resolved_reasoning_effort: str
     returncode: int
     stdout: str
     stderr: str
@@ -99,27 +98,10 @@ class IllegalRuntimeError(CodexWrapperError):
     """repo-local runtime が live 実行要件を満たさない。"""
 
 
-def resolve_model_config() -> tuple[str, str]:
-    """model と reasoning_effort を解決する。"""
-
-    model = os.getenv("TGBT_CODEX_MODEL", DEFAULT_MODEL).strip()
-    reasoning_effort = os.getenv(
-        "TGBT_CODEX_REASONING_EFFORT",
-        DEFAULT_REASONING_EFFORT,
-    ).strip()
-    if reasoning_effort not in VALID_REASONING_EFFORTS:
-        raise CodexBusinessOutputError(
-            "invalid reasoning_effort override; expected one of "
-            "minimal|low|medium|high|xhigh"
-        )
-    if not model:
-        raise CodexBusinessOutputError("model must not be empty")
-    return model, reasoning_effort
-
-
 def build_storage_request(request: CodexCliRequest) -> dict[str, object]:
     """保存用 canonical request を構築する。"""
 
+    profile_spec = _resolve_profile_spec(request.call_purpose)
     return {
         "plan_id": request.plan_id,
         "plan_revision": request.plan_revision,
@@ -129,8 +111,9 @@ def build_storage_request(request: CodexCliRequest) -> dict[str, object]:
         "call_purpose": request.call_purpose,
         "cwd": request.cwd,
         "prompt_text": request.prompt_text,
-        "model": request.model,
-        "reasoning_effort": request.reasoning_effort,
+        "codex_profile": profile_spec.name,
+        "resolved_model": profile_spec.model,
+        "resolved_reasoning_effort": profile_spec.model_reasoning_effort,
     }
 
 
@@ -154,18 +137,18 @@ def _validate_request(request: CodexCliRequest) -> None:
         raise CodexBusinessOutputError("plan_drafting requires ticket_id=None")
     if request.run_id is not None:
         raise CodexBusinessOutputError("plan_drafting requires run_id=None")
-    if request.reasoning_effort not in VALID_REASONING_EFFORTS:
-        raise CodexBusinessOutputError("reasoning_effort is invalid")
     if request.codex_cli_mode is CodexCliMode.STUB and not request.stub_record_path:
         raise StubRecordRequiredError("stub_record_path is required in stub mode")
     if request.stub_record_path is not None and not Path(request.stub_record_path).is_absolute():
         raise CodexBusinessOutputError("stub_record_path must be an absolute path")
+    _resolve_profile_spec(request.call_purpose)
 
 
 def _execute_live(request: CodexCliRequest) -> CodexCliResult:
     """live 実行を行う。"""
 
     repo_root = Path(request.cwd)
+    profile_spec = _resolve_profile_spec(request.call_purpose)
     try:
         env_runtime.require_legal_live_runtime(repo_root)
     except RuntimeError as error:
@@ -192,11 +175,7 @@ def _execute_live(request: CodexCliRequest) -> CodexCliResult:
             "codex",
             "exec",
             "--profile",
-            env_runtime.CODEX_PROFILE_NAME,
-            "--model",
-            request.model,
-            "-c",
-            f'reasoning.effort="{request.reasoning_effort}"',
+            profile_spec.name,
             "--output-schema",
             str(schema_path),
             "--output-last-message",
@@ -342,6 +321,15 @@ def _execute_stub(request: CodexCliRequest) -> CodexCliResult:
     redaction_report = source_result.get("redaction_report")
     if not isinstance(redaction_report, dict):
         raise StubRecordSchemaError("stub record redaction_report must be an object")
+    profile_spec = _resolve_profile_spec(request.call_purpose)
+    if source_result.get("codex_profile") != profile_spec.name:
+        raise StubRecordSchemaError("stub record codex_profile is invalid")
+    if source_result.get("resolved_model") != profile_spec.model:
+        raise StubRecordSchemaError("stub record resolved_model is invalid")
+    if source_result.get("resolved_reasoning_effort") != profile_spec.model_reasoning_effort:
+        raise StubRecordSchemaError(
+            "stub record resolved_reasoning_effort is invalid"
+        )
 
     stdout = source_result.get("stdout")
     stderr = source_result.get("stderr")
@@ -359,6 +347,9 @@ def _execute_stub(request: CodexCliRequest) -> CodexCliResult:
         codex_call_id=request.codex_call_id,
         call_purpose=request.call_purpose,
         codex_cli_mode=CodexCliMode.STUB,
+        codex_profile=profile_spec.name,
+        resolved_model=profile_spec.model,
+        resolved_reasoning_effort=profile_spec.model_reasoning_effort,
         returncode=int(source_result.get("returncode", 0)),
         stdout=stdout,
         stderr=stderr,
@@ -390,6 +381,7 @@ def _build_success_result(
 ) -> CodexCliResult:
     """成功 result を構築する。"""
 
+    profile_spec = _resolve_profile_spec(request.call_purpose)
     business_output = {
         "schema_name": plan_drafting.CALL_PURPOSE,
         "schema_version": 1,
@@ -416,6 +408,9 @@ def _build_success_result(
         codex_call_id=request.codex_call_id,
         call_purpose=request.call_purpose,
         codex_cli_mode=request.codex_cli_mode,
+        codex_profile=profile_spec.name,
+        resolved_model=profile_spec.model,
+        resolved_reasoning_effort=profile_spec.model_reasoning_effort,
         returncode=0,
         stdout=redacted_stdout,
         stderr=redacted_stderr,
@@ -442,6 +437,7 @@ def _write_session_record(
 ) -> None:
     """session record を保存する。"""
 
+    profile_spec = _resolve_profile_spec(request.call_purpose)
     redacted_request, request_report = redact_request_for_storage(build_storage_request(request))
     redacted_stdout, stdout_report = redact_text(stdout)
     redacted_stderr, stderr_report = redact_text(stderr)
@@ -475,6 +471,9 @@ def _write_session_record(
             "codex_call_id": request.codex_call_id,
             "call_purpose": request.call_purpose,
             "codex_cli_mode": request.codex_cli_mode.value,
+            "codex_profile": profile_spec.name,
+            "resolved_model": profile_spec.model,
+            "resolved_reasoning_effort": profile_spec.model_reasoning_effort,
             "returncode": returncode,
             "stdout": redacted_stdout,
             "stderr": redacted_stderr,
@@ -687,3 +686,12 @@ def _parse_json_object(text: str) -> dict[str, object]:
     if not isinstance(parsed, dict):
         raise json.JSONDecodeError("top-level JSON must be an object", text, 0)
     return parsed
+
+
+def _resolve_profile_spec(call_purpose: str) -> env_runtime.CodexProfileSpec:
+    """wrapper 実行に使う canonical profile を返す。"""
+
+    try:
+        return env_runtime.resolve_profile_spec_for_call_purpose(call_purpose)
+    except ValueError as error:
+        raise CodexBusinessOutputError(str(error)) from error

@@ -61,8 +61,10 @@ MVP で `tgbt` が意味論上管理する runtime input path は以下に限定
 
 `<repo-root>/.tgbt/.codex/config.toml` は少なくとも以下を満たさなければならない。
 
-* profile `tgbt-worker` を定義する
-* profile `tgbt-worker` は `model_instructions_file = "<repo-root>/.tgbt/instructions.md"` を持つ
+* required profile set `tgbt-drafting` / `tgbt-worker` / `tgbt-review` を定義する
+* required profile set の各 profile は `model_instructions_file = "<repo-root>/.tgbt/instructions.md"` を持つ
+* required profile set の各 profile は少なくとも `model`、`model_reasoning_effort`、`approval_policy`、`sandbox_mode` を明示する
+* `plan_drafting` / `ticket_planning` は `tgbt-drafting`、`ticket_execution` は `tgbt-worker`、`followup_planning` は `tgbt-review` を使う前提と整合しなければならない
 
 ### 3.3 `.tgbt/instructions.md` の内容契約
 
@@ -572,8 +574,9 @@ MVP では以下のみを使用する。
 * `codex_cli_mode`
 * `cwd`
 * `prompt_text`
-* `model`
-* `reasoning_effort`
+* `codex_profile`
+* `resolved_model`
+* `resolved_reasoning_effort`
 
 ここで `request` は保存用 canonical request とする。strict replay 比較に使われる正規化・redaction 後の値を保存する。raw request を lossless に保存することは要件としない。
 
@@ -586,6 +589,9 @@ MVP では以下のみを使用する。
 * `codex_call_id`
 * `call_purpose`
 * `codex_cli_mode`
+* `codex_profile`
+* `resolved_model`
+* `resolved_reasoning_effort`
 * `returncode`
 * `stdout`
 * `stderr`
@@ -604,6 +610,7 @@ MVP では以下のみを使用する。
 * live 実行の session record は、そのまま stub source として利用できること
 * stub 実行時に元 record を破壊してはならないこと
 * strict replay では、source record の `request` と current request を同じ正規化・redaction 関数に通した結果が、`codex_cli_mode` と `stub_record_path` を除いて一致しなければならないこと
+* strict replay の request 同一性には `codex_profile` / `resolved_model` / `resolved_reasoning_effort` が含まれること
 * `plan_drafting` では `run_id = null` を許容すること
 * `last_message_text` は、4 つの call purpose については redaction 後 `business_output` の canonical JSON serialization であることが望ましい
 

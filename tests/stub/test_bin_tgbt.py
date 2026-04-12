@@ -8,7 +8,7 @@ import subprocess
 import pytest
 import yaml
 
-from src import codex_wrapper, plan_drafting, state_io
+from src import codex_wrapper, env_runtime, plan_drafting, state_io
 
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
@@ -193,8 +193,9 @@ def _write_stub_record(
         "call_purpose": plan_drafting.CALL_PURPOSE,
         "cwd": str(repo_root),
         "prompt_text": prompt_text,
-        "model": codex_wrapper.DEFAULT_MODEL,
-        "reasoning_effort": codex_wrapper.DEFAULT_REASONING_EFFORT,
+        "codex_profile": env_runtime.PROFILE_DRAFTING,
+        "resolved_model": env_runtime.DEFAULT_PROFILE_MODEL,
+        "resolved_reasoning_effort": "high",
     }
     storage_request, _ = codex_wrapper.redact_request_for_storage(request)
     path.parent.mkdir(parents=True, exist_ok=True)
@@ -218,6 +219,9 @@ def _write_stub_record(
                     "codex_call_id": "call-0001",
                     "call_purpose": plan_drafting.CALL_PURPOSE,
                     "codex_cli_mode": "live",
+                    "codex_profile": env_runtime.PROFILE_DRAFTING,
+                    "resolved_model": env_runtime.DEFAULT_PROFILE_MODEL,
+                    "resolved_reasoning_effort": "high",
                     "returncode": 0,
                     "stdout": "",
                     "stderr": "",

@@ -113,10 +113,12 @@ strict replay では、現在の request と source record の request が、保
 `tgbt` が Codex CLI を起動する実行では、runtime を repo-local に固定しなければならない。
 
 * `CODEX_HOME` は `<repo-root>/.tgbt/.codex` を指す
-* `codex exec` は profile `tgbt-worker` を明示指定する
-* `model_instructions_file` は `<repo-root>/.tgbt/instructions.md` を参照する
+* `<repo-root>/.tgbt/.codex/config.toml` は required profile set `tgbt-drafting` / `tgbt-worker` / `tgbt-review` を定義しなければならない
+* `codex exec` は call ごとに required profile set のいずれかを明示指定する
+* `plan_drafting` / `ticket_planning` は `tgbt-drafting`、`ticket_execution` は `tgbt-worker`、`followup_planning` は `tgbt-review` を使う
+* required profile set の各 profile は `model_instructions_file = "<repo-root>/.tgbt/instructions.md"` を参照する
 * `~/.codex` と repository 直下 `.codex/` に依存してはならない
-* `tgbt env` は `<repo-root>/.tgbt/instructions.md` を create-or-replace する
+* `tgbt env` は `<repo-root>/.tgbt/.codex/config.toml` の required profile set と `<repo-root>/.tgbt/instructions.md` を create-or-replace する
 * `tgbt` が Codex CLI を起動する実行では skills と sub agent を使用してはならない
 
 repo-local runtime file の内容契約は `operational_artifacts.md` を参照する。
