@@ -12,7 +12,7 @@
 * 複数ファイル mutation の扱い
 * 異常終了時の失敗モデル
 
-本書は「どう保存するか」を扱う。ファイル schema は `file_format.md`、状態遷移そのものは `state_machine.md`、Codex 呼び出しの request / result 契約は `codex_cli_wrapper.md` を参照する。
+本書は「どう保存するか」を扱う。共通前提は `common_invariants.md`、Plan / Ticket file format は `file_format.md`、運用 artifact は `operational_artifacts.md`、状態遷移は `state_machine.md`、Codex request / result 契約は `codex_cli_wrapper.md` を参照する。
 
 ---
 
@@ -24,9 +24,7 @@
 * authoritative mutable file の公開は validate 済み candidate に対する atomic write-replace でのみ行う
 * 複数ファイル更新に対する論理的 atomicity は提供しない
 * execution log、env audit log、session record は監査証跡であり、rollback 対象として扱わない
-* `tgbt` の非 0 終了またはプロセス中断後の repository state は未定義であり、以後の state-mutating command の前にユーザーが既知の安全な snapshot へ restore しなければならない
-
-ここでいう safe snapshot とは、少なくとも Plan / Ticket / `counters.json` / lock file を含む repository 全体が整合していた時点へ戻せる外部スナップショットを指す。MVP では git による restore を主な運用として想定する。
+* state-mutating command の失敗後の扱いは `common_invariants.md` の restore 契約に従う
 
 ---
 
@@ -260,7 +258,7 @@ state-mutating command が非 0 終了した場合、またはプロセスが中
 3. bootstrap audit phase
    * `.tgbt/logs/env-latest.jsonl`
 
-`env-latest.jsonl` は `docs/spec/file_format.md` の `Env Audit Log File Format` に従う bootstrap audit artifact とする。
+`env-latest.jsonl` は `docs/spec/operational_artifacts.md` の `Env Audit Log File Format` に従う bootstrap audit artifact とする。
 これは `run` 用 execution log や session record ではなく、`tgbt env` の観測・補修・検証結果だけを publish するために使う。
 より新しい invocation が開始された後に前回 invocation の file を canonical path に残してはならず、current invocation の audit artifact を保存できなかった場合は path が不在でもよい。
 
@@ -311,7 +309,7 @@ avoidable failure を減らすため、active Ticket 群の削除または退避
 * `run_started` を含む execution log
 * Plan の `status=running` 更新
 
-### 8.4 Ticket 生成
+### 8.5 Ticket 生成
 
 Ticket 生成では、少なくとも以下を扱う。
 
@@ -319,7 +317,7 @@ Ticket 生成では、少なくとも以下を扱う。
 * 新規 Ticket file
 * 必要に応じて execution log
 
-### 8.5 Ticket 実行結果反映
+### 8.6 Ticket 実行結果反映
 
 Ticket 実行の完了後は、少なくとも以下を扱う。
 
@@ -330,7 +328,7 @@ Ticket 実行の完了後は、少なくとも以下を扱う。
 
 このとき `Artifacts` に反映する path は absolute path として扱う。
 
-### 8.6 follow-up 整理
+### 8.7 follow-up 整理
 
 follow-up 整理では、少なくとも以下を扱う。
 
