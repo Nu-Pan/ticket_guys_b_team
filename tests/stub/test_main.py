@@ -274,6 +274,23 @@ def test_env_returns_already_legal_without_creating_plan(isolated_repo: Path) ->
         "Status: already_legal",
         f"Log: {isolated_repo / '.tgbt/logs/env-latest.jsonl'}",
     ]
+    log_lines = _load_env_log_entries(isolated_repo)
+    assert [entry["event_type"] for entry in log_lines] == [
+        "env_observed",
+        "env_reconciled",
+        "env_validated",
+    ]
+    _assert_env_base_event(log_lines[0], isolated_repo, "env_observed")
+    _assert_env_base_event(log_lines[1], isolated_repo, "env_reconciled")
+    _assert_env_base_event(log_lines[2], isolated_repo, "env_validated")
+    assert log_lines[0]["blocking_issues"] == []
+    assert log_lines[0]["diagnostics"] == []
+    assert log_lines[1]["repair_attempted"] is False
+    assert log_lines[1]["actions"] == []
+    assert log_lines[2]["outcome"] == "already_legal"
+    assert log_lines[2]["goal_reached"] is True
+    assert log_lines[2]["blocking_issues"] == []
+    assert log_lines[2]["diagnostics"] == []
     assert not state_io.plans_dir(isolated_repo).exists()
     assert not state_io.tickets_dir(isolated_repo).exists()
     assert not state_io.codex_dir(isolated_repo).exists()
@@ -302,15 +319,50 @@ def test_env_reconciles_runtime_files_without_plan_or_codex(
     assert not state_io.tickets_dir(isolated_repo).exists()
     assert not state_io.codex_dir(isolated_repo).exists()
 
-    log_lines = [
-        json.loads(line)
-        for line in state_io.env_log_path(isolated_repo).read_text(encoding="utf-8").splitlines()
-    ]
+    log_lines = _load_env_log_entries(isolated_repo)
     assert [entry["event_type"] for entry in log_lines] == [
         "env_observed",
         "env_reconciled",
         "env_validated",
     ]
+    assert log_lines[0]["blocking_issues"] == [
+        {
+            "code": "missing_runtime_instructions",
+            "severity": "blocking",
+            "subject": "runtime_instructions",
+            "path": str(isolated_repo / ".tgbt/instructions.md"),
+            "message": ".tgbt/instructions.md was not found",
+            "repair_policy": "auto_repair",
+        },
+        {
+            "code": "missing_repo_local_codex_config",
+            "severity": "blocking",
+            "subject": "repo_local_codex_config",
+            "path": str(isolated_repo / ".tgbt/.codex/config.toml"),
+            "message": ".tgbt/.codex/config.toml was not found",
+            "repair_policy": "auto_repair",
+        },
+    ]
+    assert log_lines[1]["repair_attempted"] is True
+    assert log_lines[1]["actions"] == [
+        {
+            "subject": "repo_local_codex_config",
+            "path": str(isolated_repo / ".tgbt/.codex/config.toml"),
+            "action_type": "create_or_replace_file",
+            "result": "updated",
+            "message": "regenerated repo-local Codex config",
+        },
+        {
+            "subject": "runtime_instructions",
+            "path": str(isolated_repo / ".tgbt/instructions.md"),
+            "action_type": "create_or_replace_file",
+            "result": "updated",
+            "message": "regenerated runtime instructions from worker spec",
+        },
+    ]
+    assert log_lines[2]["outcome"] == "legalized"
+    assert log_lines[2]["goal_reached"] is True
+    assert log_lines[2]["blocking_issues"] == []
 
 
 def test_env_reports_missing_agents_md_as_diagnostics_and_still_succeeds(
@@ -335,6 +387,19 @@ def test_env_reports_missing_agents_md_as_diagnostics_and_still_succeeds(
     assert (isolated_repo / ".tgbt/.codex/config.toml").exists()
     assert (isolated_repo / ".tgbt/instructions.md").exists()
     assert state_io.env_log_path(isolated_repo).exists()
+    log_lines = _load_env_log_entries(isolated_repo)
+    assert log_lines[0]["diagnostics"] == [
+        {
+            "code": "missing_agents_md",
+            "severity": "diagnostic",
+            "subject": "agents_md",
+            "path": str(isolated_repo / "AGENTS.md"),
+            "message": "AGENTS.md was not found",
+            "repair_policy": "observe_only",
+        }
+    ]
+    assert log_lines[2]["outcome"] == "legalized"
+    assert log_lines[2]["diagnostics"] == log_lines[0]["diagnostics"]
     assert not state_io.plans_dir(isolated_repo).exists()
     assert not state_io.tickets_dir(isolated_repo).exists()
     assert not state_io.codex_dir(isolated_repo).exists()
@@ -357,6 +422,17 @@ def test_env_reports_repo_root_codex_dir_as_diagnostics(isolated_repo: Path) -> 
         "- repository root .codex/ exists and is ignored by tgbt worker runtime",
         f"Log: {isolated_repo / '.tgbt/logs/env-latest.jsonl'}",
     ]
+    log_lines = _load_env_log_entries(isolated_repo)
+    assert log_lines[0]["diagnostics"] == [
+        {
+            "code": "repo_root_codex_dir_present",
+            "severity": "diagnostic",
+            "subject": "repo_root_codex_dir",
+            "path": str(isolated_repo / ".codex"),
+            "message": "repository root .codex/ exists and is ignored by tgbt worker runtime",
+            "repair_policy": "observe_only",
+        }
+    ]
 
 
 def test_env_fails_when_blocking_runtime_issue_remains_after_reconcile(
@@ -377,6 +453,68 @@ def test_env_fails_when_blocking_runtime_issue_remains_after_reconcile(
     assert ".tgbt/.codex/config.toml was not found" in result.stderr
     assert ".tgbt/instructions.md was not found" in result.stderr
     assert f"Log: {isolated_repo / '.tgbt/logs/env-latest.jsonl'}" in result.stderr
+    log_lines = _load_env_log_entries(isolated_repo)
+    assert log_lines[2]["event_type"] == "env_validated"
+    assert log_lines[2]["outcome"] == "illegal"
+    assert log_lines[2]["goal_reached"] is False
+    assert [issue["message"] for issue in log_lines[2]["blocking_issues"]] == [
+        ".tgbt/instructions.md was not found",
+        ".tgbt/.codex/config.toml was not found",
+    ]
+
+
+def test_env_writes_env_failed_when_observation_fails_after_invalidation(
+    isolated_repo: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """observation failure は current invocation の `env_failed` を残す。"""
+
+    _write_worker_spec(isolated_repo)
+    _write_agents_md(isolated_repo)
+    state_io.env_log_path(isolated_repo).parent.mkdir(parents=True, exist_ok=True)
+    state_io.env_log_path(isolated_repo).write_text("stale\n", encoding="utf-8")
+
+    def fail_observation(repo_root: Path) -> env_runtime.EnvLegalityReport:
+        raise OSError("worker spec could not be read")
+
+    monkeypatch.setattr(env_runtime, "evaluate_env_legality", fail_observation)
+
+    result = RUNNER.invoke(app, ["env"])
+
+    assert result.exit_code == 1
+    assert "ERROR: bootstrap observation failed: worker spec could not be read" in result.stderr
+    assert f"Log: {isolated_repo / '.tgbt/logs/env-latest.jsonl'}" in result.stderr
+    log_lines = _load_env_log_entries(isolated_repo)
+    assert len(log_lines) == 1
+    assert log_lines[0]["event_type"] == "env_failed"
+    assert log_lines[0]["failure_stage"] == "observation"
+    assert log_lines[0]["cause"] == "bootstrap observation failed: worker spec could not be read"
+    assert log_lines[0]["diagnostics"] == []
+
+
+def test_env_removes_stale_latest_when_log_publish_fails(
+    isolated_repo: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """current invocation の log 保存に失敗した場合、stale latest を残さない。"""
+
+    _write_worker_spec(isolated_repo)
+    _write_agents_md(isolated_repo)
+    env_runtime.regenerate_repo_local_runtime(isolated_repo)
+    state_io.env_log_path(isolated_repo).parent.mkdir(parents=True, exist_ok=True)
+    state_io.env_log_path(isolated_repo).write_text("stale\n", encoding="utf-8")
+
+    def fail_write_jsonl_log(path: Path, entries: list[dict[str, object]]) -> None:
+        raise OSError("disk full")
+
+    monkeypatch.setattr(state_io, "write_jsonl_log", fail_write_jsonl_log)
+
+    result = RUNNER.invoke(app, ["env"])
+
+    assert result.exit_code == 1
+    assert "ERROR: failed to persist env state: disk full" in result.stderr
+    assert f"Log: {isolated_repo / '.tgbt/logs/env-latest.jsonl'}" not in result.stderr
+    assert not state_io.env_log_path(isolated_repo).exists()
 
 
 def test_run_accepts_spec_arguments_then_fails_explicitly() -> None:
@@ -394,6 +532,30 @@ def _load_plan(path: Path) -> tuple[dict[str, object], dict[str, str]]:
     metadata, body = state_io.load_markdown_with_front_matter(path)
     sections = state_io.parse_plan_sections(body)
     return metadata, sections
+
+
+def _load_env_log_entries(repo_root: Path) -> list[dict[str, object]]:
+    """env audit log を JSONL として読み戻す。"""
+
+    return [
+        json.loads(line)
+        for line in state_io.env_log_path(repo_root).read_text(encoding="utf-8").splitlines()
+    ]
+
+
+def _assert_env_base_event(
+    entry: dict[str, object],
+    repo_root: Path,
+    event_type: str,
+) -> None:
+    """共通 env audit field を確認する。"""
+
+    assert entry["schema_name"] == "env_audit"
+    assert entry["schema_version"] == 1
+    assert entry["command_name"] == "env"
+    assert entry["repo_root"] == str(repo_root)
+    assert entry["event_type"] == event_type
+    assert isinstance(entry["timestamp"], str)
 
 
 def _default_plan_sections(*, purpose: str) -> dict[str, str]:

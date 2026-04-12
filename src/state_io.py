@@ -437,6 +437,15 @@ def write_jsonl_log(path: Path, entries: list[dict[str, object]]) -> None:
     write_text_atomically(path, content, create_only=False)
 
 
+def invalidate_env_log(repo_root: Path) -> None:
+    """stale な `env-latest.jsonl` を canonical path から取り除く。"""
+
+    path = env_log_path(repo_root)
+    path.unlink(missing_ok=True)
+    if path.parent.exists():
+        _fsync_directory(path.parent)
+
+
 def plan_drafting_session_record_relative_path(
     repo_root: Path,
     *,
