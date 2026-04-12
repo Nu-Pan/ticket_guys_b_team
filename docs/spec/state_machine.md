@@ -25,7 +25,7 @@
 
 * Plan の現在状態は Plan file の front matter を正本とする
 * Ticket の現在状態は Ticket file の front matter を正本とする
-* execution log と session record は監査証跡であり、状態の正本ではない
+* execution log、env audit log、session record は監査証跡であり、状態の正本ではない
 
 front matter と監査証跡が矛盾した場合、現在状態の解釈は front matter を優先する。
 

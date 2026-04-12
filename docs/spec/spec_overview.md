@@ -42,7 +42,7 @@
 
 * `product_vision.md`: 背景、解決したい問題、設計思想、人間と AI の役割分担、MVP で重視する価値
 * `state_machine.md`: Plan / Ticket の状態遷移、active Ticket の定義、Ticket 依存、`run` の反復モデル、`settled` の意味、異常終了時の扱い
-* `file_format.md`: Plan / Ticket / log / session record / counters / repository lock / Codex worker runtime file の形式、保存先、命名規則
+* `file_format.md`: Plan / Ticket / run log / env audit log / session record / counters / repository lock / Codex worker runtime file の形式、保存先、命名規則
 * `state_write_protocol.md`: front matter と state file の所有権、atomic write-replace、複数ファイル mutation の扱い、restore 前提の失敗契約
 * `cli_contract.md`: CLI の責務、コマンド体系、各コマンドの入力、出力、前提条件、失敗条件
 * `codex_cli_wrapper.md`: `codex exec` 呼び出しの抽象化、live / stub、strict replay、request / result モデル、業務レベル出力契約
@@ -124,7 +124,7 @@ MVP では、Plan 草案生成、Ticket 生成・Ticket 実行・実行結果の
 * Plan の現在状態は Plan file の front matter を正本とする
 * Ticket の現在状態は Ticket file の front matter を正本とする
 * `.tgbt/system/counters.json` は採番の正本とする
-* execution log と session record は監査証跡であり、状態の正本ではない
+* execution log、env audit log、session record は監査証跡であり、状態の正本ではない
 * authoritative mutable state の個別 publish は `state_write_protocol.md` の atomic write-replace に従う
 
 front matter と監査証跡が衝突した場合、現在状態の解釈は front matter を優先する。

@@ -16,6 +16,7 @@ class EnvCommandError(Exception):
     impact: str
     next_step: str
     updated_files: list[str]
+    diagnostics: list[str]
     remaining_issues: list[str]
     log_path: str | None = None
 
@@ -31,6 +32,7 @@ class EnvCommandResult:
 
     status: str
     updated_files: list[str]
+    diagnostics: list[str]
     remaining_issues: list[str]
     log_path: str
 
@@ -55,10 +57,8 @@ def ensure_legal_env() -> EnvCommandResult:
                     {
                         "timestamp": state_io.current_timestamp(),
                         "event_type": "env_observed",
-                        "issues": initial_report.issues,
-                        "repo_root_codex_dir_exists": state_io.repo_root_codex_dir(
-                            repo_root
-                        ).exists(),
+                        "blocking_issues": initial_report.blocking_issues,
+                        "diagnostics": initial_report.diagnostics,
                     },
                     {
                         "timestamp": state_io.current_timestamp(),
@@ -69,7 +69,8 @@ def ensure_legal_env() -> EnvCommandResult:
                         "timestamp": state_io.current_timestamp(),
                         "event_type": "env_validated",
                         "goal_reached": final_report.is_legal,
-                        "remaining_issues": final_report.issues,
+                        "diagnostics": final_report.diagnostics,
+                        "remaining_issues": final_report.blocking_issues,
                     },
                 ],
             )
@@ -78,6 +79,7 @@ def ensure_legal_env() -> EnvCommandResult:
                 return EnvCommandResult(
                     status="already_legal" if not updated_files else "legalized",
                     updated_files=updated_files,
+                    diagnostics=final_report.diagnostics,
                     remaining_issues=[],
                     log_path=state_io.absolute_path_string(log_path),
                 )
@@ -85,14 +87,15 @@ def ensure_legal_env() -> EnvCommandResult:
             raise EnvCommandError(
                 cause=(
                     "bootstrap issues remain after one-shot reconcile: "
-                    + "; ".join(final_report.issues)
+                    + "; ".join(final_report.blocking_issues)
                 ),
                 impact=ENV_IMPACT,
                 next_step=(
                     "fix the remaining issues reported by `tgbt env`, then rerun the command"
                 ),
                 updated_files=updated_files,
-                remaining_issues=final_report.issues,
+                diagnostics=final_report.diagnostics,
+                remaining_issues=final_report.blocking_issues,
                 log_path=state_io.absolute_path_string(log_path),
             )
     except FileExistsError as error:
@@ -103,6 +106,7 @@ def ensure_legal_env() -> EnvCommandResult:
                 "remove a stale repository lock after confirming no other tgbt process is running, then retry"
             ),
             updated_files=[],
+            diagnostics=[],
             remaining_issues=[],
         ) from error
     except state_io.StateValidationError as error:
@@ -111,6 +115,7 @@ def ensure_legal_env() -> EnvCommandResult:
             impact=ENV_IMPACT,
             next_step="restore a safe snapshot or fix the invalid state files before retrying",
             updated_files=[],
+            diagnostics=[],
             remaining_issues=[],
         ) from error
     except OSError as error:
@@ -119,5 +124,6 @@ def ensure_legal_env() -> EnvCommandResult:
             impact=ENV_IMPACT,
             next_step="check filesystem permissions and retry after restoring a safe snapshot if needed",
             updated_files=[],
+            diagnostics=[],
             remaining_issues=[],
         ) from error

@@ -113,7 +113,7 @@ Next: restore pre-run state and required session record under .tgbt/codex/
 * ログ保存自体に失敗した場合も、その失敗を標準エラー等へ可能な限り残す
 * 現在状態の正本は front matter とする
 * 採番の正本は `.tgbt/system/counters.json` とする
-* execution log と session record は監査証跡として扱う
+* execution log、env audit log、session record は監査証跡として扱う
 * authoritative mutable state の各 file commit は `state_write_protocol.md` に従う
 * 複数ファイル mutation の repository-wide atomicity は提供しない
 
@@ -207,34 +207,42 @@ application は repository bootstrap の現状をローカルに観測し、dete
 `tgbt env` は少なくとも以下を直列実行する。
 
 1. repository lock を取得する
-2. 現在状態の合法性を観測する
-3. 既に合法なら no-op で成功終了する
-4. 非合法なら自動修正対象の runtime file を deterministic に再生成する
-5. 合法性を再検証する
-6. 合法なら成功終了し、残件があれば diagnostics を出して失敗終了する
+2. 既存 `.tgbt/logs/env-latest.jsonl` があれば、より新しい invocation に対して stale な `latest` が残らないよう invalidation する
+3. 現在状態の runtime 合法性と bootstrap diagnostics を観測する
+4. 既に合法なら補修は行わず、current invocation の env audit log を publish した後に成功終了する
+5. 非合法なら自動修正対象の runtime file を deterministic に再生成する
+6. 合法性を再検証する
+7. `docs/spec/file_format.md` の `Env Audit Log File Format` に従って `.tgbt/logs/env-latest.jsonl` を publish する
+8. runtime が合法なら成功終了し、必要なら diagnostics を表示してよい
 
 `tgbt env` は一般的な loop orchestration や env Plan iteration を持たない。
 補修処理は 1 回だけ実行し、Plan file / Ticket file / session record / run log を生成してはならない。
+
+runtime の最終 verdict を判定できた invocation は、最終 record を `env_validated` としなければならない。
+env audit log 自体は publish できるが最終 verdict を保存できない failure は `env_failed` で表してよい。
+current invocation の env audit log を保存できなかった場合、`.tgbt/logs/env-latest.jsonl` が不在になることは許容するが、前回 invocation の artifact を stale な `latest` として残してはならない。
 
 #### 6.1.4 出力
 
 * 初回から合法なら `Status: already_legal` を表示して成功終了する
 * 補修後に合法化できた場合は `Status: legalized` を表示して成功終了する
 * file を更新した場合は `Updated files:` に absolute path を表示してよい
-* env 実行の記録先を `Log: <absolute path>` として表示する
-* 失敗時は diagnostics を表示し、必要なら `Updated files:`、`Remaining issues:`、`Log:` を伴ってよい
+* bootstrap 観測で利用者に伝えるべき事項があれば `Diagnostics:` を表示してよい
+* current invocation の env audit log を publish できた場合は、その記録先を `Log: <absolute path>` として表示する
+* 失敗時は diagnostics を表示し、必要なら `Updated files:`、`Diagnostics:`、`Remaining issues:`、`Log:` を伴ってよい
 
 #### 6.1.5 失敗条件
 
 * repository lock を取得できない
 * bootstrap 観測または runtime file 再生成に失敗した
-* one-shot の補修後も自動修正対象外の issue が残る
+* one-shot の補修後も repo-local runtime の blocking issue が残る
+* env audit log を保存できない
 
 #### 6.1.6 MVP 制約
 
 * `tgbt env` は bootstrap repair command であり、AI orchestration command ではない
-* legality 判定対象は `AGENTS.md`、`.tgbt/.codex/config.toml`、`.tgbt/instructions.md`、repository 直下 `.codex/` の 4 要素に限定する
-* `AGENTS.md` と repository 直下 `.codex/` は観測対象だが、自動修正対象には含めない
+* legality 判定対象は `.tgbt/.codex/config.toml` と `.tgbt/instructions.md` の 2 要素に限定する
+* `AGENTS.md` と repository 直下 `.codex/` は bootstrap 観測対象だが、blocking issue や自動修正対象には含めない
 
 ### 6.2 `tgbt plan`
 
@@ -316,7 +324,7 @@ MVP では以下を許容する。
 * active Ticket file を別保管先へ退避する
 
 ただし、どちらの場合でも ticket id 採番は巻き戻してはならない。
-execution log と session record は監査証跡として保持してよい。
+execution log、env audit log、session record は監査証跡として保持してよい。
 
 #### 6.3.7 失敗条件
 

@@ -9,6 +9,7 @@
 * Plan file
 * Ticket file
 * Execution log file
+* Env audit log file
 * Codex session record file
 * Codex worker runtime file
 * Counter state file
@@ -28,7 +29,7 @@
 * live 実行の記録は stub 実行にそのまま転用可能でなければならない
 * 現在状態の正本は Markdown front matter とする
 * `.tgbt/system/counters.json` は採番の正本とする
-* execution log と session record は監査証跡であり、状態の正本ではない
+* execution log、env audit log、session record は監査証跡であり、状態の正本ではない
 * repository lock は state mutation の直列化に使う control artifact である
 
 front matter と監査証跡が衝突した場合、現在状態の解釈は front matter を優先する。
@@ -58,7 +59,7 @@ front matter と監査証跡が衝突した場合、現在状態の解釈は fro
 
 * `.tgbt/plans/`: Plan file
 * `.tgbt/tickets/`: Ticket file
-* `.tgbt/logs/`: 実行ログ JSONL
+* `.tgbt/logs/`: `run` の execution log と `env` の audit log
 * `.tgbt/codex/`: Codex CLI wrapper の session record
 * `.tgbt/.codex/config.toml`: `CODEX_HOME` 配下の repo-local Codex CLI runtime 設定
 * `.tgbt/instructions.md`: worker 実行時に `model_instructions_file` から参照する runtime 指示
@@ -431,7 +432,7 @@ Plan 実行の起点となるコマンドを実装する。
 
 ---
 
-## 7. Execution Log File Format
+## 7. Run Execution Log File Format
 
 ### 7.1 保存先
 
@@ -440,6 +441,9 @@ Plan 実行の起点となるコマンドを実装する。
 ```text
 .tgbt/logs/<plan_id>-<run_id>.jsonl
 ```
+
+この section は `tgbt run` が保存する execution log にのみ適用する。
+`.tgbt/logs/env-latest.jsonl` の schema は **本 section ではなく** `8. Env Audit Log File Format` に従う。
 
 1 top-level `run` につき 1 ファイルを推奨する。
 
@@ -493,9 +497,375 @@ path を表す event field は filesystem absolute path とする。
 
 ---
 
-## 8. Codex Session Record File Format
+## 8. Env Audit Log File Format
 
 ### 8.1 保存先
+
+```text
+.tgbt/logs/env-latest.jsonl
+```
+
+`env-latest.jsonl` は履歴台帳ではなく、**最新の 1 回の `tgbt env` invocation** に対応する固定 path artifact とする。
+より新しい invocation が開始された後は、旧 invocation の file が canonical path に残存してはならない。
+最新 invocation の audit artifact を publish できなかった場合、canonical path が不在になることは許容する。
+
+### 8.2 目的
+
+`env-latest.jsonl` は、`tgbt env` が実施した bootstrap 観測、deterministic な補修試行、および最終検証結果を保存する audit artifact である。
+
+### 8.3 役割と境界
+
+* authoritative mutable state ではない
+* `tgbt run` の execution log ではない
+* Codex session record ではない
+* stub replay source ではない
+* 1 invocation の途中経過と最終 verdict を、human / machine の双方が追跡できることを目的とする
+* より新しい invocation が開始された後に、旧 invocation の stale artifact を `latest` として残す用途に使ってはならない
+
+front matter や runtime file の現在状態と audit artifact が衝突した場合、現在状態の解釈は authoritative mutable file を優先する。
+
+### 8.4 JSON Lines と event stream
+
+`env-latest.jsonl` は JSON Lines とし、1 行が 1 event を表す。
+
+1 回の `tgbt env` invocation は、同一 `repo_root` に属する record だけで構成されなければならない。
+複数 invocation の record を 1 ファイルへ混在させてはならない。
+より新しい invocation が開始された後に、その invocation の record を publish できないにもかかわらず、旧 invocation の record 群を canonical path に残してはならない。
+
+MVP の正常系では、record は次の決定的順序で並ばなければならない。
+
+1. `env_observed`
+2. `env_reconciled`
+3. `env_validated`
+
+`env_validated` は runtime を最終判定できた invocation の最終 record とする。
+`env_failed` は、env audit log 自体は publish できるが最終 validation verdict を記録できない失敗に限って使用してよく、その場合は最終 record でなければならない。
+
+### 8.5 共通 field
+
+各 record は最低限以下を含まなければならない。
+
+* `schema_name`
+* `schema_version`
+* `command_name`
+* `timestamp`
+* `repo_root`
+* `event_type`
+
+要件:
+
+* `schema_name` は `env_audit` でなければならない
+* `schema_version` は MVP では `1` とする
+* `command_name` は `env` でなければならない
+* `timestamp` はタイムゾーン付き ISO 8601 文字列でなければならない
+* `repo_root` は invocation current working directory に解決された filesystem absolute path でなければならない
+* path を表す field は filesystem absolute path とする
+
+### 8.6 Issue Object Schema
+
+`blocking_issues` と `diagnostics` の各要素は、自由形式文字列ではなく issue object として扱う。
+
+最低限以下を含まなければならない。
+
+* `code`
+* `severity`
+* `subject`
+* `path`
+* `message`
+* `repair_policy`
+
+MVP の `subject` は以下のみを使用する。
+
+* `repo_local_codex_config`
+* `runtime_instructions`
+* `agents_md`
+* `repo_root_codex_dir`
+
+MVP の `repair_policy` は以下のみを使用する。
+
+* `auto_repair`
+* `observe_only`
+
+### 8.7 Repair Action Object Schema
+
+`env_reconciled.actions` の各要素は repair action object とする。
+
+最低限以下を含まなければならない。
+
+* `subject`
+* `path`
+* `action_type`
+* `result`
+* `message`
+
+MVP では以下を要件とする。
+
+* `subject` は `repo_local_codex_config` または `runtime_instructions` のみ
+* `action_type` は `create_or_replace_file` のみ
+* `result` は `updated` または `unchanged` のみ
+
+### 8.8 Event Type ごとの要件
+
+`env_observed`:
+
+* 初回観測結果を表す
+* `blocking_issues` と `diagnostics` を必須とする
+* `blocking_issues` の item は `severity = blocking`、`diagnostics` の item は `severity = diagnostic` でなければならない
+
+`env_reconciled`:
+
+* 補修試行 phase を表す
+* `repair_attempted` と `actions` を必須とする
+* 初回から合法だった場合は `repair_attempted = false` かつ `actions = []` とする
+* 非合法だった場合は `repair_attempted = true` とし、auto-repair 対象に対して実施した action を `actions` に記録する
+
+`env_validated`:
+
+* 最終 validation verdict を表す
+* `outcome`、`goal_reached`、`blocking_issues`、`diagnostics` を必須とする
+* `outcome` は `already_legal`、`legalized`、`illegal` のいずれかでなければならない
+* `goal_reached = true` は `outcome != illegal` と整合しなければならない
+
+`env_failed`:
+
+* `env_validated` を保存できない failure を表す
+* `failure_stage`、`cause`、`diagnostics` を必須とする
+* `failure_stage` は `observation`、`repair`、`validation` のいずれかでなければならない
+* `env_failed` を publish できた場合、その file 全体は current invocation を表していなければならない
+
+### 8.9 Formal Schema
+
+schema:
+
+```json
+{
+  "type": "object",
+  "oneOf": [
+    { "$ref": "#/$defs/env_observed" },
+    { "$ref": "#/$defs/env_reconciled" },
+    { "$ref": "#/$defs/env_validated" },
+    { "$ref": "#/$defs/env_failed" }
+  ],
+  "$defs": {
+    "event_base": {
+      "type": "object",
+      "properties": {
+        "schema_name": { "type": "string", "const": "env_audit" },
+        "schema_version": { "type": "integer", "const": 1 },
+        "command_name": { "type": "string", "const": "env" },
+        "timestamp": { "type": "string", "format": "date-time" },
+        "repo_root": { "type": "string" },
+        "event_type": { "type": "string" }
+      },
+      "required": [
+        "schema_name",
+        "schema_version",
+        "command_name",
+        "timestamp",
+        "repo_root",
+        "event_type"
+      ]
+    },
+    "issue_base": {
+      "type": "object",
+      "properties": {
+        "code": { "type": "string" },
+        "severity": { "type": "string", "enum": ["blocking", "diagnostic"] },
+        "subject": {
+          "type": "string",
+          "enum": [
+            "repo_local_codex_config",
+            "runtime_instructions",
+            "agents_md",
+            "repo_root_codex_dir"
+          ]
+        },
+        "path": { "type": ["string", "null"] },
+        "message": { "type": "string" },
+        "repair_policy": {
+          "type": "string",
+          "enum": ["auto_repair", "observe_only"]
+        }
+      },
+      "required": [
+        "code",
+        "severity",
+        "subject",
+        "path",
+        "message",
+        "repair_policy"
+      ]
+    },
+    "blocking_issue": {
+      "allOf": [
+        { "$ref": "#/$defs/issue_base" },
+        {
+          "type": "object",
+          "properties": {
+            "severity": { "const": "blocking" }
+          },
+          "required": ["severity"]
+        }
+      ]
+    },
+    "diagnostic_issue": {
+      "allOf": [
+        { "$ref": "#/$defs/issue_base" },
+        {
+          "type": "object",
+          "properties": {
+            "severity": { "const": "diagnostic" }
+          },
+          "required": ["severity"]
+        }
+      ]
+    },
+    "repair_action": {
+      "type": "object",
+      "properties": {
+        "subject": {
+          "type": "string",
+          "enum": [
+            "repo_local_codex_config",
+            "runtime_instructions"
+          ]
+        },
+        "path": { "type": "string" },
+        "action_type": {
+          "type": "string",
+          "const": "create_or_replace_file"
+        },
+        "result": {
+          "type": "string",
+          "enum": ["updated", "unchanged"]
+        },
+        "message": { "type": "string" }
+      },
+      "required": [
+        "subject",
+        "path",
+        "action_type",
+        "result",
+        "message"
+      ]
+    },
+    "env_observed": {
+      "allOf": [
+        { "$ref": "#/$defs/event_base" },
+        {
+          "type": "object",
+          "properties": {
+            "event_type": { "const": "env_observed" },
+            "blocking_issues": {
+              "type": "array",
+              "items": { "$ref": "#/$defs/blocking_issue" }
+            },
+            "diagnostics": {
+              "type": "array",
+              "items": { "$ref": "#/$defs/diagnostic_issue" }
+            }
+          },
+          "required": ["event_type", "blocking_issues", "diagnostics"]
+        }
+      ]
+    },
+    "env_reconciled": {
+      "allOf": [
+        { "$ref": "#/$defs/event_base" },
+        {
+          "type": "object",
+          "properties": {
+            "event_type": { "const": "env_reconciled" },
+            "repair_attempted": { "type": "boolean" },
+            "actions": {
+              "type": "array",
+              "items": { "$ref": "#/$defs/repair_action" }
+            }
+          },
+          "required": ["event_type", "repair_attempted", "actions"]
+        }
+      ]
+    },
+    "env_validated": {
+      "allOf": [
+        { "$ref": "#/$defs/event_base" },
+        {
+          "type": "object",
+          "properties": {
+            "event_type": { "const": "env_validated" },
+            "outcome": {
+              "type": "string",
+              "enum": ["already_legal", "legalized", "illegal"]
+            },
+            "goal_reached": { "type": "boolean" },
+            "blocking_issues": {
+              "type": "array",
+              "items": { "$ref": "#/$defs/blocking_issue" }
+            },
+            "diagnostics": {
+              "type": "array",
+              "items": { "$ref": "#/$defs/diagnostic_issue" }
+            }
+          },
+          "required": [
+            "event_type",
+            "outcome",
+            "goal_reached",
+            "blocking_issues",
+            "diagnostics"
+          ]
+        }
+      ]
+    },
+    "env_failed": {
+      "allOf": [
+        { "$ref": "#/$defs/event_base" },
+        {
+          "type": "object",
+          "properties": {
+            "event_type": { "const": "env_failed" },
+            "failure_stage": {
+              "type": "string",
+              "enum": ["observation", "repair", "validation"]
+            },
+            "cause": { "type": "string" },
+            "diagnostics": {
+              "type": "array",
+              "items": { "$ref": "#/$defs/diagnostic_issue" }
+            }
+          },
+          "required": ["event_type", "failure_stage", "cause", "diagnostics"]
+        }
+      ]
+    }
+  }
+}
+```
+
+### 8.10 例
+
+```json
+{"schema_name":"env_audit","schema_version":1,"command_name":"env","timestamp":"2026-03-21T11:00:00+09:00","repo_root":"<repo-root>","event_type":"env_observed","blocking_issues":[{"code":"missing_runtime_instructions","severity":"blocking","subject":"runtime_instructions","path":"<repo-root>/.tgbt/instructions.md","message":".tgbt/instructions.md was not found","repair_policy":"auto_repair"}],"diagnostics":[{"code":"missing_agents_md","severity":"diagnostic","subject":"agents_md","path":"<repo-root>/AGENTS.md","message":"AGENTS.md was not found","repair_policy":"observe_only"}]}
+{"schema_name":"env_audit","schema_version":1,"command_name":"env","timestamp":"2026-03-21T11:00:01+09:00","repo_root":"<repo-root>","event_type":"env_reconciled","repair_attempted":true,"actions":[{"subject":"runtime_instructions","path":"<repo-root>/.tgbt/instructions.md","action_type":"create_or_replace_file","result":"updated","message":"regenerated runtime instructions from worker spec"}]}
+{"schema_name":"env_audit","schema_version":1,"command_name":"env","timestamp":"2026-03-21T11:00:02+09:00","repo_root":"<repo-root>","event_type":"env_validated","outcome":"legalized","goal_reached":true,"blocking_issues":[],"diagnostics":[{"code":"missing_agents_md","severity":"diagnostic","subject":"agents_md","path":"<repo-root>/AGENTS.md","message":"AGENTS.md was not found","repair_policy":"observe_only"}]}
+```
+
+### 8.11 要件
+
+* `env-latest.jsonl` は 1 回の `tgbt env` invocation に対して 1 ファイルでなければならない
+* invocation 完了後に残す record 群は、その invocation の phase を監査できる最小集合でなければならない
+* runtime の最終 verdict を判定できた場合、最終 record は `env_validated` でなければならない
+* `env_failed` を保存した場合、それは最終 record でなければならない
+* より新しい invocation が開始された後は、旧 invocation の `env-latest.jsonl` を stale artifact として canonical path に残してはならない
+* current invocation の env audit log を保存できなかった場合、canonical path が不在になることは許容する
+* `blocking_issues` と `diagnostics` は、CLI 表示だけのために情報を欠落させた自由形式文字列へ劣化させてはならない
+* `repair_action` は observe-only subject を含んではならない
+
+---
+
+## 9. Codex Session Record File Format
+
+### 9.1 保存先
 
 推奨保存先:
 
@@ -526,11 +896,11 @@ path を表す event field は filesystem absolute path とする。
 
 ここで示す保存先は repository root からの canonical relative path である。record 内に保存される `result.session_record_path` と `result.replayed_from` は、対応する filesystem absolute path とする。
 
-### 8.2 目的
+### 9.2 目的
 
 session record は 1 回の wrapper 呼び出しの request / response を保存する JSON artifact である。
 
-### 8.3 必須フィールド
+### 9.3 必須フィールド
 
 最低限以下を含むこと。
 
@@ -546,7 +916,7 @@ session record は 1 回の wrapper 呼び出しの request / response を保存
 * `result`
 * `saved_at`
 
-### 8.4 `call_purpose` の値
+### 9.4 `call_purpose` の値
 
 MVP では以下のみを使用する。
 
@@ -555,7 +925,7 @@ MVP では以下のみを使用する。
 * `ticket_execution`
 * `followup_planning`
 
-### 8.5 `request` に含めることが望ましい項目
+### 9.5 `request` に含めることが望ましい項目
 
 * `plan_id`
 * `plan_revision`
@@ -573,7 +943,7 @@ MVP では以下のみを使用する。
 すなわち、strict replay 比較に使われる正規化・redaction 後の値を保存する。
 raw request を lossless に保存することは要件としない。
 
-### 8.6 `result` に含めることが望ましい項目
+### 9.6 `result` に含めることが望ましい項目
 
 * `plan_id`
 * `plan_revision`
@@ -596,7 +966,7 @@ raw request を lossless に保存することは要件としない。
 `business_output` は、`call_purpose` ごとの業務レベル出力契約に従って parse / validate 済みの構造化 payload を保持する。
 `generated_artifacts` の各要素、`session_record_path`、`replayed_from` は filesystem absolute path とする。
 
-### 8.7 要件
+### 9.7 要件
 
 * live 実行の session record は、そのまま stub source として利用できること
 * stub 実行時に元 record を破壊してはならないこと
@@ -606,19 +976,19 @@ raw request を lossless に保存することは要件としない。
 
 ---
 
-## 9. Counter State File Format
+## 10. Counter State File Format
 
-### 9.1 保存先
+### 10.1 保存先
 
 ```text
 .tgbt/system/counters.json
 ```
 
-### 9.2 目的
+### 10.2 目的
 
 `ticket_id` / `run_id` / `codex_call_id` の単調増加採番を保証するための正本である。
 
-### 9.3 必須フィールド
+### 10.3 必須フィールド
 
 最低限以下を含むこと。
 
@@ -627,7 +997,7 @@ raw request を lossless に保存することは要件としない。
 * `next_codex_call_seq`
 * `updated_at`
 
-### 9.4 例
+### 10.4 例
 
 ```json
 {
@@ -638,7 +1008,7 @@ raw request を lossless に保存することは要件としない。
 }
 ```
 
-### 9.5 要件
+### 10.5 要件
 
 * 採番はこの file を正本として行うこと
 * `plan_id` 採番はこの file の責務に含めず、`4.5 plan_id` の規則に従うこと
@@ -657,26 +1027,26 @@ raw request を lossless に保存することは要件としない。
 ---
 
 
-## 10. Repository Lock File Format
+## 11. Repository Lock File Format
 
-### 10.1 保存先
+### 11.1 保存先
 
 ```text
 .tgbt/system/locks/repository.lock.json
 ```
 
-### 10.2 目的
+### 11.2 目的
 
 repository 全体に対する同時 state mutation を禁止するための lock artifact である。
 
-### 10.3 必須フィールド
+### 11.3 必須フィールド
 
 最低限以下を含むこと。
 
 * `command_name`
 * `acquired_at`
 
-### 10.4 推奨フィールド
+### 11.4 推奨フィールド
 
 必要に応じて以下を追加してよい。
 
@@ -686,7 +1056,7 @@ repository 全体に対する同時 state mutation を禁止するための lock
 * `hostname`
 * `command_line`
 
-### 10.5 例
+### 11.5 例
 
 ```json
 {
@@ -697,7 +1067,7 @@ repository 全体に対する同時 state mutation を禁止するための lock
 }
 ```
 
-### 10.6 要件
+### 11.6 要件
 
 * lock 取得は、最終 lock path に対する **原子的な non-overwrite create** で行わなければならない
 * 「存在確認してから作る」方式は禁止する

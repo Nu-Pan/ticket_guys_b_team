@@ -23,7 +23,7 @@
 * authoritative mutable file の in-place overwrite を禁止する
 * authoritative mutable file の公開は validate 済み candidate に対する atomic write-replace でのみ行う
 * 複数ファイル更新に対する論理的 atomicity は提供しない
-* execution log と session record は監査証跡であり、rollback 対象として扱わない
+* execution log、env audit log、session record は監査証跡であり、rollback 対象として扱わない
 * `tgbt` の非 0 終了またはプロセス中断後の repository state は未定義であり、以後の state-mutating command の前にユーザーが既知の安全な snapshot へ restore しなければならない
 
 ここでいう safe snapshot とは、少なくとも Plan / Ticket / `counters.json` / lock file を含む repository 全体が整合していた時点へ戻せる外部スナップショットを指す。MVP では git による restore を主な運用として想定する。
@@ -247,16 +247,22 @@ state-mutating command が非 0 終了した場合、またはプロセスが中
 
 `tgbt env` は Plan / Ticket の authoritative mutable state を更新してはならない。
 更新対象は bootstrap repair に必要な control artifact と audit artifact に限定する。
+`env-latest.jsonl` の freshness 制御のため、既存 audit artifact の invalidation や除去を伴ってよい。
 
 少なくとも以下の phase に分けて扱ってよい。
 
 1. bootstrap 前 phase
    * `repository.lock.json`
+   * 既存 `.tgbt/logs/env-latest.jsonl` の invalidation または除去
 2. bootstrap repair phase
    * `.tgbt/.codex/config.toml`
    * `.tgbt/instructions.md`
 3. bootstrap audit phase
    * `.tgbt/logs/env-latest.jsonl`
+
+`env-latest.jsonl` は `docs/spec/file_format.md` の `Env Audit Log File Format` に従う bootstrap audit artifact とする。
+これは `run` 用 execution log や session record ではなく、`tgbt env` の観測・補修・検証結果だけを publish するために使う。
+より新しい invocation が開始された後に前回 invocation の file を canonical path に残してはならず、current invocation の audit artifact を保存できなかった場合は path が不在でもよい。
 
 `AGENTS.md` と repository 直下 `.codex/` は観測対象だが、自動修正対象に含めてはならない。
 `tgbt env` は one-shot command として扱い、Plan file、Ticket file、session record、run log を publish してはならない。

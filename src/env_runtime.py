@@ -14,8 +14,14 @@ CODEX_PROFILE_NAME = "tgbt-worker"
 class EnvLegalityReport:
     """env の合法性判定結果。"""
 
-    is_legal: bool
-    issues: list[str]
+    blocking_issues: list[str]
+    diagnostics: list[str]
+
+    @property
+    def is_legal(self) -> bool:
+        """blocking issue がないかを返す。"""
+
+        return not self.blocking_issues
 
 
 def render_runtime_instructions(repo_root: Path) -> str:
@@ -61,37 +67,50 @@ def regenerate_repo_local_runtime(repo_root: Path) -> list[str]:
 def evaluate_env_legality(repo_root: Path) -> EnvLegalityReport:
     """`tgbt env` のゴール条件に照らして合法性を判定する。"""
 
-    issues: list[str] = []
+    blocking_issues: list[str] = []
+    diagnostics: list[str] = []
     agents_path = state_io.agents_md_path(repo_root)
     if not agents_path.exists():
-        issues.append("AGENTS.md was not found")
+        diagnostics.append("AGENTS.md was not found")
+
+    if state_io.repo_root_codex_dir(repo_root).exists():
+        diagnostics.append(
+            "repository root .codex/ exists and is ignored by tgbt worker runtime"
+        )
 
     instructions_path = state_io.runtime_instructions_path(repo_root)
     expected_instructions = render_runtime_instructions(repo_root)
     if not instructions_path.exists():
-        issues.append(".tgbt/instructions.md was not found")
+        blocking_issues.append(".tgbt/instructions.md was not found")
     else:
         actual_instructions = instructions_path.read_text(encoding="utf-8")
         if actual_instructions != expected_instructions:
-            issues.append(".tgbt/instructions.md does not match the generated runtime instructions")
+            blocking_issues.append(
+                ".tgbt/instructions.md does not match the generated runtime instructions"
+            )
 
     config_path = state_io.repo_local_codex_config_path(repo_root)
     expected_config = render_runtime_config(repo_root)
     if not config_path.exists():
-        issues.append(".tgbt/.codex/config.toml was not found")
+        blocking_issues.append(".tgbt/.codex/config.toml was not found")
     else:
         actual_config = config_path.read_text(encoding="utf-8")
         if actual_config != expected_config:
-            issues.append(".tgbt/.codex/config.toml does not match the generated runtime config")
+            blocking_issues.append(
+                ".tgbt/.codex/config.toml does not match the generated runtime config"
+            )
         else:
-            issues.extend(
+            blocking_issues.extend(
                 _validate_runtime_config(
                     repo_root=repo_root,
                     actual_config=actual_config,
                 )
             )
 
-    return EnvLegalityReport(is_legal=not issues, issues=issues)
+    return EnvLegalityReport(
+        blocking_issues=blocking_issues,
+        diagnostics=diagnostics,
+    )
 
 
 def reconcile_repo_local_runtime(repo_root: Path) -> list[str]:

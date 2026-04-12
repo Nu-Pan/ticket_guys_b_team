@@ -313,29 +313,70 @@ def test_env_reconciles_runtime_files_without_plan_or_codex(
     ]
 
 
-def test_env_fails_with_diagnostics_when_non_fixable_issues_remain(
+def test_env_reports_missing_agents_md_as_diagnostics_and_still_succeeds(
     isolated_repo: Path,
 ) -> None:
-    """自動修正対象外の issue が残る場合は非 0 終了する。"""
+    """runtime が合法なら AGENTS 欠落は diagnostics のみで扱う。"""
 
     _write_worker_spec(isolated_repo)
 
     result = RUNNER.invoke(app, ["env"])
 
-    assert result.exit_code == 1
-    assert "ERROR: bootstrap issues remain after one-shot reconcile:" in result.stderr
-    assert "Updated files:" in result.stderr
-    assert f"- {isolated_repo / '.tgbt/.codex/config.toml'}" in result.stderr
-    assert f"- {isolated_repo / '.tgbt/instructions.md'}" in result.stderr
-    assert "Remaining issues:" in result.stderr
-    assert "AGENTS.md was not found" in result.stderr
-    assert f"Log: {isolated_repo / '.tgbt/logs/env-latest.jsonl'}" in result.stderr
+    assert result.exit_code == 0
+    assert result.stdout.strip().splitlines() == [
+        "Status: legalized",
+        "Updated files:",
+        f"- {isolated_repo / '.tgbt/.codex/config.toml'}",
+        f"- {isolated_repo / '.tgbt/instructions.md'}",
+        "Diagnostics:",
+        "- AGENTS.md was not found",
+        f"Log: {isolated_repo / '.tgbt/logs/env-latest.jsonl'}",
+    ]
     assert (isolated_repo / ".tgbt/.codex/config.toml").exists()
     assert (isolated_repo / ".tgbt/instructions.md").exists()
     assert state_io.env_log_path(isolated_repo).exists()
     assert not state_io.plans_dir(isolated_repo).exists()
     assert not state_io.tickets_dir(isolated_repo).exists()
     assert not state_io.codex_dir(isolated_repo).exists()
+
+
+def test_env_reports_repo_root_codex_dir_as_diagnostics(isolated_repo: Path) -> None:
+    """repository 直下 `.codex/` は diagnostics のみで扱う。"""
+
+    _write_worker_spec(isolated_repo)
+    _write_agents_md(isolated_repo)
+    env_runtime.regenerate_repo_local_runtime(isolated_repo)
+    state_io.repo_root_codex_dir(isolated_repo).mkdir()
+
+    result = RUNNER.invoke(app, ["env"])
+
+    assert result.exit_code == 0
+    assert result.stdout.strip().splitlines() == [
+        "Status: already_legal",
+        "Diagnostics:",
+        "- repository root .codex/ exists and is ignored by tgbt worker runtime",
+        f"Log: {isolated_repo / '.tgbt/logs/env-latest.jsonl'}",
+    ]
+
+
+def test_env_fails_when_blocking_runtime_issue_remains_after_reconcile(
+    isolated_repo: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """補修後も runtime blocking issue が残れば非 0 終了する。"""
+
+    _write_worker_spec(isolated_repo)
+    _write_agents_md(isolated_repo)
+    monkeypatch.setattr(env_runtime, "reconcile_repo_local_runtime", lambda repo_root: [])
+
+    result = RUNNER.invoke(app, ["env"])
+
+    assert result.exit_code == 1
+    assert "ERROR: bootstrap issues remain after one-shot reconcile:" in result.stderr
+    assert "Remaining issues:" in result.stderr
+    assert ".tgbt/.codex/config.toml was not found" in result.stderr
+    assert ".tgbt/instructions.md was not found" in result.stderr
+    assert f"Log: {isolated_repo / '.tgbt/logs/env-latest.jsonl'}" in result.stderr
 
 
 def test_run_accepts_spec_arguments_then_fails_explicitly() -> None:

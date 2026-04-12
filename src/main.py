@@ -55,6 +55,10 @@ def _raise_env_command_error(error: env_service.EnvCommandError) -> None:
         typer.echo("Updated files:", err=True)
         for path in error.updated_files:
             typer.echo(f"- {path}", err=True)
+    if error.diagnostics:
+        typer.echo("Diagnostics:", err=True)
+        for message in error.diagnostics:
+            typer.echo(f"- {message}", err=True)
     if error.remaining_issues:
         typer.echo("Remaining issues:", err=True)
         for issue in error.remaining_issues:
@@ -80,6 +84,10 @@ def env() -> None:
             typer.echo("Updated files:")
             for path in result.updated_files:
                 typer.echo(f"- {path}")
+        if result.diagnostics:
+            typer.echo("Diagnostics:")
+            for message in result.diagnostics:
+                typer.echo(f"- {message}")
         if result.remaining_issues:
             typer.echo("Remaining issues:")
             for issue in result.remaining_issues:
