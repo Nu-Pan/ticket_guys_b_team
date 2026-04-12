@@ -17,7 +17,7 @@ def test_execute_live_builds_expected_argv_and_saves_redacted_session_record(
 ) -> None:
     """live 実行が argv を組み立て、redacted session record を保存する。"""
 
-    _write_worker_spec(tmp_path)
+    _ensure_repo_local_runtime(tmp_path)
     request = codex_wrapper.CodexCliRequest(
         plan_id="plan-20260401-001",
         plan_revision=1,
@@ -121,7 +121,7 @@ def test_execute_live_surfaces_cli_failure_before_payload_validation(
 ) -> None:
     """非 0 終了時は JSON 不在より先に CLI failure を報告する。"""
 
-    _write_worker_spec(tmp_path)
+    _ensure_repo_local_runtime(tmp_path)
     request = codex_wrapper.CodexCliRequest(
         plan_id="plan-20260401-001",
         plan_revision=1,
@@ -180,6 +180,38 @@ def test_execute_live_surfaces_cli_failure_before_payload_validation(
     assert session_record["result"]["returncode"] == 1
     assert session_record["result"]["stop_reason"] == "codex_exec_failed"
     assert "schema must have a 'type' key" in session_record["result"]["stderr"]
+
+
+def test_execute_live_fails_fast_when_repo_local_runtime_is_illegal(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """live 実行前に runtime 不正を検知し、subprocess を起動しない。"""
+
+    request = codex_wrapper.CodexCliRequest(
+        plan_id="plan-20260401-001",
+        plan_revision=1,
+        ticket_id=None,
+        run_id=None,
+        codex_call_id="call-0001",
+        call_purpose=plan_drafting.CALL_PURPOSE,
+        codex_cli_mode=CodexCliMode.LIVE,
+        cwd=str(tmp_path),
+        prompt_text="live prompt",
+        model="gpt-5.2-codex",
+        reasoning_effort="high",
+    )
+
+    def fail_run(*args: object, **kwargs: object) -> subprocess.CompletedProcess[str]:
+        raise AssertionError("subprocess.run must not be called")
+
+    monkeypatch.setattr(codex_wrapper.subprocess, "run", fail_run)
+
+    with pytest.raises(
+        codex_wrapper.IllegalRuntimeError,
+        match=r"repo-local Codex runtime is illegal; run `tgbt env` first:",
+    ):
+        codex_wrapper.execute(request)
 
 
 def test_execute_stub_replays_saved_record(tmp_path: Path) -> None:
@@ -324,9 +356,7 @@ def _write_stub_record(
     )
 
 
-def _write_worker_spec(repo_root: Path) -> None:
-    """repo-local runtime 指示の正本を作る。"""
+def _ensure_repo_local_runtime(repo_root: Path) -> None:
+    """live 実行用の repo-local runtime を合法状態で用意する。"""
 
-    path = repo_root / "docs/spec/codex_worker_instructions.md"
-    path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text("# worker instructions\n\n- use repo-local runtime\n", encoding="utf-8")
+    env_runtime.regenerate_repo_local_runtime(repo_root)

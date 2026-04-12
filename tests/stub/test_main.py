@@ -222,7 +222,7 @@ def test_plan_docs_live_reports_codex_cli_failure_details(
 ) -> None:
     """live 実行失敗時に returncode/stderr を CLI へ伝える。"""
 
-    _write_worker_spec(isolated_repo)
+    _ensure_repo_local_runtime(isolated_repo)
     plan_id = "plan-20260401-001"
     monkeypatch.setattr(plan_service, "_next_plan_id", lambda repo_root: plan_id)
 
@@ -260,12 +260,29 @@ def test_plan_docs_live_reports_codex_cli_failure_details(
     assert "schema must have a 'type' key" in result.stderr
 
 
+def test_plan_docs_live_requires_legal_repo_local_runtime(
+    isolated_repo: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """live 実行前に runtime 不正を検知し、`tgbt env` を案内する。"""
+
+    def fail_run(*args: object, **kwargs: object) -> subprocess.CompletedProcess[str]:
+        raise AssertionError("subprocess.run must not be called")
+
+    monkeypatch.setattr(codex_wrapper.subprocess, "run", fail_run)
+
+    result = RUNNER.invoke(app, ["plan", "docs", "CLI の初回本番実行を確認する"])
+
+    assert result.exit_code == 1
+    assert "ERROR: repo-local Codex runtime is illegal; run `tgbt env` first:" in result.stderr
+    assert "Next: run `tgbt env` to legalize the repo-local Codex runtime, then retry" in result.stderr
+
+
 def test_env_returns_already_legal_without_creating_plan(isolated_repo: Path) -> None:
     """初回判定で合法なら no-op 成功する。"""
 
-    _write_worker_spec(isolated_repo)
     _write_agents_md(isolated_repo)
-    env_runtime.regenerate_repo_local_runtime(isolated_repo)
+    _ensure_repo_local_runtime(isolated_repo)
 
     result = RUNNER.invoke(app, ["env"])
 
@@ -301,7 +318,6 @@ def test_env_reconciles_runtime_files_without_plan_or_codex(
 ) -> None:
     """`tgbt env` は one-shot で runtime file を再生成する。"""
 
-    _write_worker_spec(isolated_repo)
     _write_agents_md(isolated_repo)
 
     result = RUNNER.invoke(app, ["env"])
@@ -357,7 +373,7 @@ def test_env_reconciles_runtime_files_without_plan_or_codex(
             "path": str(isolated_repo / ".tgbt/instructions.md"),
             "action_type": "create_or_replace_file",
             "result": "updated",
-            "message": "regenerated runtime instructions from worker spec",
+            "message": "regenerated shared runtime instructions for tgbt Codex invocations",
         },
     ]
     assert log_lines[2]["outcome"] == "legalized"
@@ -369,8 +385,6 @@ def test_env_reports_missing_agents_md_as_diagnostics_and_still_succeeds(
     isolated_repo: Path,
 ) -> None:
     """runtime が合法なら AGENTS 欠落は diagnostics のみで扱う。"""
-
-    _write_worker_spec(isolated_repo)
 
     result = RUNNER.invoke(app, ["env"])
 
@@ -408,9 +422,8 @@ def test_env_reports_missing_agents_md_as_diagnostics_and_still_succeeds(
 def test_env_reports_repo_root_codex_dir_as_diagnostics(isolated_repo: Path) -> None:
     """repository 直下 `.codex/` は diagnostics のみで扱う。"""
 
-    _write_worker_spec(isolated_repo)
     _write_agents_md(isolated_repo)
-    env_runtime.regenerate_repo_local_runtime(isolated_repo)
+    _ensure_repo_local_runtime(isolated_repo)
     state_io.repo_root_codex_dir(isolated_repo).mkdir()
 
     result = RUNNER.invoke(app, ["env"])
@@ -441,7 +454,6 @@ def test_env_fails_when_blocking_runtime_issue_remains_after_reconcile(
 ) -> None:
     """補修後も runtime blocking issue が残れば非 0 終了する。"""
 
-    _write_worker_spec(isolated_repo)
     _write_agents_md(isolated_repo)
     monkeypatch.setattr(env_runtime, "reconcile_repo_local_runtime", lambda repo_root: [])
 
@@ -457,7 +469,9 @@ def test_env_fails_when_blocking_runtime_issue_remains_after_reconcile(
     assert log_lines[2]["event_type"] == "env_validated"
     assert log_lines[2]["outcome"] == "illegal"
     assert log_lines[2]["goal_reached"] is False
-    assert [issue["message"] for issue in log_lines[2]["blocking_issues"]] == [
+    blocking_issues = log_lines[2]["blocking_issues"]
+    assert isinstance(blocking_issues, list)
+    assert [issue["message"] for issue in blocking_issues] == [
         ".tgbt/instructions.md was not found",
         ".tgbt/.codex/config.toml was not found",
     ]
@@ -469,26 +483,25 @@ def test_env_writes_env_failed_when_observation_fails_after_invalidation(
 ) -> None:
     """observation failure は current invocation の `env_failed` を残す。"""
 
-    _write_worker_spec(isolated_repo)
     _write_agents_md(isolated_repo)
     state_io.env_log_path(isolated_repo).parent.mkdir(parents=True, exist_ok=True)
     state_io.env_log_path(isolated_repo).write_text("stale\n", encoding="utf-8")
 
     def fail_observation(repo_root: Path) -> env_runtime.EnvLegalityReport:
-        raise OSError("worker spec could not be read")
+        raise OSError("runtime instructions could not be rendered")
 
     monkeypatch.setattr(env_runtime, "evaluate_env_legality", fail_observation)
 
     result = RUNNER.invoke(app, ["env"])
 
     assert result.exit_code == 1
-    assert "ERROR: bootstrap observation failed: worker spec could not be read" in result.stderr
+    assert "ERROR: bootstrap observation failed: runtime instructions could not be rendered" in result.stderr
     assert f"Log: {isolated_repo / '.tgbt/logs/env-latest.jsonl'}" in result.stderr
     log_lines = _load_env_log_entries(isolated_repo)
     assert len(log_lines) == 1
     assert log_lines[0]["event_type"] == "env_failed"
     assert log_lines[0]["failure_stage"] == "observation"
-    assert log_lines[0]["cause"] == "bootstrap observation failed: worker spec could not be read"
+    assert log_lines[0]["cause"] == "bootstrap observation failed: runtime instructions could not be rendered"
     assert log_lines[0]["diagnostics"] == []
 
 
@@ -498,9 +511,8 @@ def test_env_removes_stale_latest_when_log_publish_fails(
 ) -> None:
     """current invocation の log 保存に失敗した場合、stale latest を残さない。"""
 
-    _write_worker_spec(isolated_repo)
     _write_agents_md(isolated_repo)
-    env_runtime.regenerate_repo_local_runtime(isolated_repo)
+    _ensure_repo_local_runtime(isolated_repo)
     state_io.env_log_path(isolated_repo).parent.mkdir(parents=True, exist_ok=True)
     state_io.env_log_path(isolated_repo).write_text("stale\n", encoding="utf-8")
 
@@ -749,12 +761,10 @@ def _write_plan_stub_record(
     )
 
 
-def _write_worker_spec(repo_root: Path) -> None:
-    """repo-local runtime 指示の正本を作る。"""
+def _ensure_repo_local_runtime(repo_root: Path) -> None:
+    """live 実行用の repo-local runtime を合法状態で用意する。"""
 
-    path = repo_root / "docs/spec/codex_worker_instructions.md"
-    path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text("# worker instructions\n\n- use repo-local runtime\n", encoding="utf-8")
+    env_runtime.regenerate_repo_local_runtime(repo_root)
 
 
 def _write_agents_md(repo_root: Path) -> None:

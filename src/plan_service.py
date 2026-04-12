@@ -312,7 +312,9 @@ def _delete_active_tickets(repo_root: Path, *, plan_id: str, plan_revision: int)
 def _translate_wrapper_error(error: codex_wrapper.CodexWrapperError) -> PlanCommandError:
     """wrapper エラーを CLI 向けエラーへ写像する。"""
 
-    if isinstance(
+    if isinstance(error, codex_wrapper.IllegalRuntimeError):
+        next_step = "run `tgbt env` to legalize the repo-local Codex runtime, then retry"
+    elif isinstance(
         error,
         (
             codex_wrapper.StubRecordRequiredError,

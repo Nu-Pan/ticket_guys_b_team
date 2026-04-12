@@ -95,6 +95,10 @@ class SessionRecordWriteError(CodexWrapperError):
     """session record 保存失敗。"""
 
 
+class IllegalRuntimeError(CodexWrapperError):
+    """repo-local runtime が live 実行要件を満たさない。"""
+
+
 def resolve_model_config() -> tuple[str, str]:
     """model と reasoning_effort を解決する。"""
 
@@ -162,6 +166,11 @@ def _execute_live(request: CodexCliRequest) -> CodexCliResult:
     """live 実行を行う。"""
 
     repo_root = Path(request.cwd)
+    try:
+        env_runtime.require_legal_live_runtime(repo_root)
+    except RuntimeError as error:
+        raise IllegalRuntimeError(str(error)) from error
+
     session_record_path = state_io.plan_drafting_session_record_relative_path(
         repo_root,
         plan_id=request.plan_id,
@@ -200,7 +209,6 @@ def _execute_live(request: CodexCliRequest) -> CodexCliResult:
         runtime_env["CODEX_HOME"] = state_io.absolute_path_string(
             state_io.repo_local_codex_home(repo_root)
         )
-        env_runtime.regenerate_repo_local_runtime(repo_root)
 
         try:
             completed = subprocess.run(
