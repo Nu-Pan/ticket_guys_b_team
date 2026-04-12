@@ -27,7 +27,9 @@
 - front matter、保存先、採番、artifact の形式に関わる変更: `docs/spec/file_format.md`
 - front matter の安全な書き換え、atomic write-replace、複数ファイル mutation の扱い、失敗後の restore 前提契約に関わる変更: `docs/spec/state_write_protocol.md`
 - `codex exec` 呼び出し、live / stub、strict replay に関わる変更: `docs/spec/codex_cli_wrapper.md`
-- worker 用の repo-local Codex runtime や `.tgbt/instructions.md` の正本に関わる変更: `docs/spec/codex_worker_instructions.md`
+- repo-local Codex runtime file や `.tgbt/instructions.md` の内容契約に関わる変更: `docs/spec/file_format.md`
+- `tgbt env` による `.tgbt/instructions.md` の生成責務に関わる変更: `docs/spec/cli_contract.md`
+- live 実行時の runtime 検証契約に関わる変更: `docs/spec/codex_cli_wrapper.md`
 - どの設計判断が MVP の意図に沿うか迷う: `docs/spec/product_vision.md`
 
 ## 3. 技術文書を必要な分だけ読む

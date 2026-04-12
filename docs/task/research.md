@@ -47,7 +47,9 @@
 - front matter や保存形式を確認したい: `docs/spec/file_format.md`
 - front matter の安全な書き換え、複数ファイル mutation の扱い、失敗後の restore 前提契約を確認したい: `docs/spec/state_write_protocol.md`
 - live / stub や strict replay を確認したい: `docs/spec/codex_cli_wrapper.md`
-- worker 用の repo-local Codex runtime や `.tgbt/instructions.md` の正本を確認したい: `docs/spec/codex_worker_instructions.md`
+- repo-local Codex runtime file や `.tgbt/instructions.md` の内容契約を確認したい: `docs/spec/file_format.md`
+- `tgbt env` による `.tgbt/instructions.md` の生成責務を確認したい: `docs/spec/cli_contract.md`
+- live 実行時の runtime 検証契約を確認したい: `docs/spec/codex_cli_wrapper.md`
 - 背景思想や MVP の意図を確認したい: `docs/spec/product_vision.md`
 
 # やってはいけないこと

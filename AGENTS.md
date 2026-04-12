@@ -5,8 +5,8 @@
 - プロダクト仕様の正本は `docs/spec/*.md` にある
 - この `AGENTS.md` は、AI エージェントが最初に読むブートストラップ兼ルータである
 - 詳細ルールは `docs/task/*.md` と `docs/tech/*.md` に分離している
-- `tgbt` が Codex CLI を worker として起動する際の基本指示の正本は `docs/spec/codex_worker_instructions.md` であり、runtime では `.tgbt/instructions.md` が生成される
-- `tgbt` worker 実行では skills と sub agent を使用しない
+- `.tgbt/instructions.md` は人間向け文書ではなく、`tgbt env` が生成する Codex CLI 用の repo-local runtime 指示である
+- `tgbt` が Codex CLI を起動する実行では skills と sub agent を使用しない
 - 「`ticket_guys_b_team` が実現する AI エージェントのワークフロー」と「`ticket_guys_b_team` 自体の開発中に遵守するべき AI エージェントの行動原則」は異なる
 
 # 絶対ルール
@@ -90,12 +90,15 @@
 
 必読:
 
-- `docs/spec/codex_worker_instructions.md`
+- `docs/spec/spec_overview.md`
 
 条件付き:
 
 - runtime 生成物の現状確認が必要なら `<repo-root>/.tgbt/.codex/config.toml`
 - runtime 指示の現状確認が必要なら `<repo-root>/.tgbt/instructions.md`
+- runtime file の位置づけや内容契約が必要なら `docs/spec/file_format.md`
+- `tgbt env` の生成責務が必要なら `docs/spec/cli_contract.md`
+- live 実行時の runtime 検証契約が必要なら `docs/spec/codex_cli_wrapper.md`
 - 変更対象の `.tgbt/.codex/**/*`
 
 通常は不要:
@@ -114,7 +117,9 @@
 - front matter の安全な書き換え、atomic write-replace、複数ファイル mutation の扱い、失敗後の restore 前提契約が必要なら `docs/spec/state_write_protocol.md`
 - CLI の入出力、失敗条件、コマンド責務が必要なら `docs/spec/cli_contract.md`
 - `codex exec` の live / stub、strict replay、request/result モデルが必要なら `docs/spec/codex_cli_wrapper.md`
-- worker 用の repo-local runtime と `.tgbt/instructions.md` の正本を確認したいなら `docs/spec/codex_worker_instructions.md`
+- repo-local runtime file の位置づけと `.tgbt/instructions.md` の内容契約が必要なら `docs/spec/file_format.md`
+- `tgbt env` による `.tgbt/instructions.md` の生成契約が必要なら `docs/spec/cli_contract.md`
+- live 実行時の runtime 検証契約が必要なら `docs/spec/codex_cli_wrapper.md`
 
 # 作業完了時の最低要件
 

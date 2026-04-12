@@ -9,5 +9,6 @@
 
 - [AGENTS.md](AGENTS.md)
 - Codex CLI の worker runtime は `CODEX_HOME=<repo-root>/.tgbt/.codex` を前提とする
-- worker 指示の仕様正本は [docs/spec/codex_worker_instructions.md](docs/spec/codex_worker_instructions.md)
 - runtime 生成物は `.tgbt/.codex/config.toml` と `.tgbt/instructions.md`
+- `.tgbt/instructions.md` は人間向け文書ではなく、Codex CLI に読ませる repo-local runtime 指示である
+- `tgbt env` が `.tgbt/.codex/config.toml` と `.tgbt/instructions.md` を自動生成・合法化する
