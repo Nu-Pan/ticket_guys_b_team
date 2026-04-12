@@ -27,26 +27,25 @@
 * **Repository Lock**: 同一 repository に対する state mutation を 1 本に直列化する排他制御
 * **State Write Protocol**: front matter と state file を安全に commit するための atomic write-replace と、異常終了後は外部 snapshot へ restore する失敗契約
 * **Codex CLI Wrapper**: `codex exec` 呼び出しを `plan` / `run` の双方から live / stub で抽象化し、構造化された業務出力を返す境界
-* **Codex Worker Runtime**: `CODEX_HOME=<repo-root>/.tgbt/.codex`、profile `tgbt-worker`、`.tgbt/instructions.md` によって固定される repo-local な Codex CLI 実行環境
+* **Codex Runtime**: `CODEX_HOME=<repo-root>/.tgbt/.codex`、profile `tgbt-worker`、`tgbt env` が生成する `.tgbt/instructions.md` によって固定される repo-local な Codex CLI 実行環境
 
 重要な点は、MVP では独立した `approve` コマンドを持たないこと、そして `tgbt run --plan-id ...` が Plan の実行開始と Ticket オーケストレーションをまとめて担うことである。
 
 また、本仕様では run と wrapper 呼び出しを **直列実行のみ** とし、並列 Ticket 実行は採用しない。
-同様に、`tgbt` worker 実行では skills と sub agent を採用しない。
+同様に、`tgbt` が Codex CLI を起動する実行では skills と sub agent を採用しない。
 
 ---
 
 ## 3. 仕様文書マップ
 
-現在、一次参照先として扱う仕様文書は以下の 7 本である。
+現在、一次参照先として扱う仕様文書は以下の 6 本である。
 
 * `product_vision.md`: 背景、解決したい問題、設計思想、人間と AI の役割分担、MVP で重視する価値
 * `state_machine.md`: Plan / Ticket の状態遷移、active Ticket の定義、Ticket 依存、`run` の反復モデル、`settled` の意味、異常終了時の扱い
-* `file_format.md`: Plan / Ticket / run log / env audit log / session record / counters / repository lock / Codex worker runtime file の形式、保存先、命名規則
+* `file_format.md`: Plan / Ticket / run log / env audit log / session record / counters / repository lock / Codex runtime file の形式、保存先、命名規則
 * `state_write_protocol.md`: front matter と state file の所有権、atomic write-replace、複数ファイル mutation の扱い、restore 前提の失敗契約
 * `cli_contract.md`: CLI の責務、コマンド体系、各コマンドの入力、出力、前提条件、失敗条件
 * `codex_cli_wrapper.md`: `codex exec` 呼び出しの抽象化、live / stub、strict replay、request / result モデル、業務レベル出力契約
-* `codex_worker_instructions.md`: `tgbt` が worker として Codex CLI を起動する際の repo-local runtime 契約と、runtime 生成される `.tgbt/instructions.md` の正本
 
 責務分離の原則は次の通りとする。
 
@@ -57,8 +56,6 @@
 * `state_write_protocol.md` は安全な保存手順と restore 前提の失敗モデルを担う
 * `cli_contract.md` は CLI 契約だけを担う
 * `codex_cli_wrapper.md` は Codex 呼び出し抽象化と出力契約だけを担う
-* `codex_worker_instructions.md` は worker 用 Codex 指示と runtime 生成規約だけを担う
-
 既存コードを読むときは、実装がこの正本仕様に追従しているかを確認するための参照として扱うこと。
 実装の現状から逆算して仕様を読み替えてはならない。
 
@@ -73,8 +70,7 @@
 3. `file_format.md`
 4. `state_write_protocol.md`
 5. `codex_cli_wrapper.md`
-6. `codex_worker_instructions.md`
-7. 必要に応じて `product_vision.md`
+6. 必要に応じて `product_vision.md`
 
 ### 4.2 永続化層から先に作る場合
 
@@ -82,9 +78,8 @@
 2. `state_write_protocol.md`
 3. `state_machine.md`
 4. `codex_cli_wrapper.md`
-5. `codex_worker_instructions.md`
-6. `cli_contract.md`
-7. 必要に応じて `product_vision.md`
+5. `cli_contract.md`
+6. 必要に応じて `product_vision.md`
 
 ### 4.3 実行オーケストレーションから先に作る場合
 
@@ -93,8 +88,7 @@
 3. `file_format.md`
 4. `state_write_protocol.md`
 5. `codex_cli_wrapper.md`
-6. `codex_worker_instructions.md`
-7. 必要に応じて `product_vision.md`
+6. 必要に応じて `product_vision.md`
 
 ---
 
@@ -110,7 +104,7 @@ MVP では、以下を意図的に削る。
 * transaction journal / preimage backup / rollback-first recovery
 * stub manifest による任意 record 割り当て
 * call purpose ごとの model / reasoning 最適化
-* `tgbt` worker 実行における skills / sub agent 利用
+* `tgbt` の Codex CLI 実行における skills / sub agent 利用
 * 進捗不変ループ検出のような高度な停止判定
 
 MVP では、Plan 草案生成、Ticket 生成・Ticket 実行・実行結果の要約保存・フォローアップ Ticket 生成の流れを最優先で固める。
@@ -163,5 +157,6 @@ live 実行の Codex runtime は repository-local に固定する。
 * `CODEX_HOME` は `<repo-root>/.tgbt/.codex` を指さなければならない
 * `codex exec` は profile `tgbt-worker` を明示指定しなければならない
 * `<repo-root>/.tgbt/.codex/config.toml` は `model_instructions_file` で `<repo-root>/.tgbt/instructions.md` を参照しなければならない
-* `<repo-root>/.tgbt/instructions.md` は `docs/spec/codex_worker_instructions.md` を正本として runtime 生成される
-* `tgbt` worker 実行では skills と sub agent を使用してはならない
+* `<repo-root>/.tgbt/instructions.md` は人間向け文書ではなく、`tgbt env` が自動生成する repo-local runtime file でなければならない
+* `<repo-root>/.tgbt/instructions.md` には、`tgbt` の各サブコマンドから起動される Codex CLI に共通する基礎的指示を含めなければならない
+* `tgbt` が Codex CLI を起動する実行では skills と sub agent を使用してはならない

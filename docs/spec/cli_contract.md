@@ -210,7 +210,7 @@ application は repository bootstrap の現状をローカルに観測し、dete
 2. 既存 `.tgbt/logs/env-latest.jsonl` があれば、より新しい invocation に対して stale な `latest` が残らないよう invalidation する
 3. 現在状態の runtime 合法性と bootstrap diagnostics を観測する
 4. 既に合法なら補修は行わず、current invocation の env audit log を publish した後に成功終了する
-5. 非合法なら自動修正対象の runtime file を deterministic に再生成する
+5. 非合法なら自動修正対象の runtime file を deterministic に再生成する。`.tgbt/instructions.md` は `tgbt` 管理下の内容契約から生成し、追跡対象の単一 Markdown file をそのまま copy してはならない
 6. 合法性を再検証する
 7. `docs/spec/file_format.md` の `Env Audit Log File Format` に従って `.tgbt/logs/env-latest.jsonl` を publish する
 8. runtime が合法なら成功終了し、必要なら diagnostics を表示してよい
@@ -242,6 +242,7 @@ current invocation の env audit log を保存できなかった場合、`.tgbt/
 
 * `tgbt env` は bootstrap repair command であり、AI orchestration command ではない
 * legality 判定対象は `.tgbt/.codex/config.toml` と `.tgbt/instructions.md` の 2 要素に限定する
+* `.tgbt/instructions.md` は `tgbt env` が create-or-replace する repo-local runtime file とし、人間向け文書として扱わない
 * `AGENTS.md` と repository 直下 `.codex/` は bootstrap 観測対象だが、blocking issue や自動修正対象には含めない
 
 ### 6.2 `tgbt plan`

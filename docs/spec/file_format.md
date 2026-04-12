@@ -11,7 +11,7 @@
 * Execution log file
 * Env audit log file
 * Codex session record file
-* Codex worker runtime file
+* Codex runtime file
 * Counter state file
 * Repository lock file
 
@@ -62,7 +62,7 @@ front matter と監査証跡が衝突した場合、現在状態の解釈は fro
 * `.tgbt/logs/`: `run` の execution log と `env` の audit log
 * `.tgbt/codex/`: Codex CLI wrapper の session record
 * `.tgbt/.codex/config.toml`: `CODEX_HOME` 配下の repo-local Codex CLI runtime 設定
-* `.tgbt/instructions.md`: worker 実行時に `model_instructions_file` から参照する runtime 指示
+* `.tgbt/instructions.md`: `tgbt` が Codex CLI を起動する際に `model_instructions_file` から参照する repo-local runtime 指示。人間向け文書ではない
 * `.tgbt/system/counters.json`: 採番の正本
 * `.tgbt/system/locks/`: repository 全体の state mutation を禁止する lock artifact
 
@@ -167,23 +167,35 @@ call-NNNN
 一方、ファイル内容や JSON field に格納される path 文字列は、特に別記がない限り filesystem absolute path とする。
 本書中の absolute path 例示は `<repo-root>/...` を用いる。
 
-### 4.8 Codex worker runtime の共通ルール
+### 4.8 Codex runtime の共通ルール
 
-`tgbt` が Codex CLI を worker として起動する場合、runtime file は少なくとも以下を満たさなければならない。
+`tgbt` が Codex CLI を起動する場合、runtime file は少なくとも以下を満たさなければならない。
 
 * `CODEX_HOME` は `<repo-root>/.tgbt/.codex` を指す
 * `<repo-root>/.tgbt/.codex/config.toml` は profile `tgbt-worker` を定義する
 * profile `tgbt-worker` は `model_instructions_file = "<repo-root>/.tgbt/instructions.md"` を持つ
-* `<repo-root>/.tgbt/instructions.md` は `docs/spec/codex_worker_instructions.md` を正本として runtime 生成される
-* worker runtime は `~/.codex` と `<repo-root>/.codex` に依存してはならない
+* `tgbt env` は `<repo-root>/.tgbt/instructions.md` を deterministic に create-or-replace しなければならない
+* `<repo-root>/.tgbt/instructions.md` は人間向け文書ではなく、`tgbt` の各サブコマンドから起動される Codex CLI に共通で適用する基礎指示の runtime file でなければならない
+* `<repo-root>/.tgbt/instructions.md` は追跡対象 Markdown をそのまま copy したものではなく、本仕様の内容契約を満たす application 生成物でなければならない
+* Codex runtime は `~/.codex` と `<repo-root>/.codex` に依存してはならない
 
-MVP では、`tgbt` が意味論上管理する worker runtime input path は以下に限定する。
+`.tgbt/instructions.md` は少なくとも以下を明示しなければならない。
+
+* `tgbt` から渡される task 指示を最優先の作業指示として扱うこと
+* repository 内の関連文書を読むときは `docs/` 配下を正本として扱うこと
+* skills を使用してはならないこと
+* sub agent を使用してはならないこと
+* `~/.codex` や repository 直下 `.codex/` に依存してはならないこと
+* Codex CLI の設定正本は repo-local runtime であること
+* `AGENTS.md` は repository bootstrap の参照物として読んでよいが、runtime 指示の正本ではないこと
+
+MVP では、`tgbt` が意味論上管理する runtime input path は以下に限定する。
 
 * `<repo-root>/.tgbt/.codex/config.toml`
 * `<repo-root>/.tgbt/instructions.md`
 
 `<repo-root>/.tgbt/.codex/` 配下に他の file や directory が存在しても、それらは Codex CLI private state として扱う。
-`tgbt` は、それらを bootstrap 整合判定、repo-local runtime 検証、worker 実行方針の入力として読んではならない。
+`tgbt` は、それらを bootstrap 整合判定、repo-local runtime 検証、Codex 実行方針の入力として読んではならない。
 
 ### 4.9 Ticket file discovery の共通ルール
 
@@ -846,7 +858,7 @@ schema:
 
 ```json
 {"schema_name":"env_audit","schema_version":1,"command_name":"env","timestamp":"2026-03-21T11:00:00+09:00","repo_root":"<repo-root>","event_type":"env_observed","blocking_issues":[{"code":"missing_runtime_instructions","severity":"blocking","subject":"runtime_instructions","path":"<repo-root>/.tgbt/instructions.md","message":".tgbt/instructions.md was not found","repair_policy":"auto_repair"}],"diagnostics":[{"code":"missing_agents_md","severity":"diagnostic","subject":"agents_md","path":"<repo-root>/AGENTS.md","message":"AGENTS.md was not found","repair_policy":"observe_only"}]}
-{"schema_name":"env_audit","schema_version":1,"command_name":"env","timestamp":"2026-03-21T11:00:01+09:00","repo_root":"<repo-root>","event_type":"env_reconciled","repair_attempted":true,"actions":[{"subject":"runtime_instructions","path":"<repo-root>/.tgbt/instructions.md","action_type":"create_or_replace_file","result":"updated","message":"regenerated runtime instructions from worker spec"}]}
+{"schema_name":"env_audit","schema_version":1,"command_name":"env","timestamp":"2026-03-21T11:00:01+09:00","repo_root":"<repo-root>","event_type":"env_reconciled","repair_attempted":true,"actions":[{"subject":"runtime_instructions","path":"<repo-root>/.tgbt/instructions.md","action_type":"create_or_replace_file","result":"updated","message":"regenerated shared runtime instructions for tgbt Codex invocations"}]}
 {"schema_name":"env_audit","schema_version":1,"command_name":"env","timestamp":"2026-03-21T11:00:02+09:00","repo_root":"<repo-root>","event_type":"env_validated","outcome":"legalized","goal_reached":true,"blocking_issues":[],"diagnostics":[{"code":"missing_agents_md","severity":"diagnostic","subject":"agents_md","path":"<repo-root>/AGENTS.md","message":"AGENTS.md was not found","repair_policy":"observe_only"}]}
 ```
 
