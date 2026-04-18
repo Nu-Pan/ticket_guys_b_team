@@ -1,0 +1,4 @@
+interface:
+  display_name: "Docs Refactor"
+  short_description: "docs再編とリンク修復を安全に進める"
+  default_prompt: "Use $refactor-docs to reorganize docs/, rebuild routing, and repair stale references."

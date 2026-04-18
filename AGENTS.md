@@ -1,129 +1,49 @@
 # 前提
 
-- このリポジトリでは `ticket_guys_b_team` を開発する
-- 人間向けの説明は `README.md` に書いてある
-- プロダクト仕様の正本は `docs/spec/*.md` にある
-- この `AGENTS.md` は、AI エージェントが最初に読むブートストラップ兼ルータである
-- 詳細ルールは `docs/task/*.md` と `docs/tech/*.md` に分離している
-- `.tgbt/instructions.md` は人間向け文書ではなく、`tgbt env` が生成する Codex CLI 用の repo-local runtime 指示である
-- `tgbt` が Codex CLI を起動する実行では skills と sub agent を使用しない
-- 「`ticket_guys_b_team` が実現する AI エージェントのワークフロー」と「`ticket_guys_b_team` 自体の開発中に遵守するべき AI エージェントの行動原則」は異なる
+- このリポジトリでは `ticket_guys_b_team` (`tgbt`) を開発する
+- `tgbt` は AI 主導開発を実現する CLI ツールである
 
-# 絶対ルール
+# 基本的なエージェント行動原則
 
-## 禁止事項
+- 人間への応答は日本語で行ってください
 
-- 明示的な許可指示が無い状況で `AGENTS.md` を AI エージェントが編集すること
-- 明示的な許可指示が無い状況で `docs/**/*.md` を AI エージェントが編集すること
-- 未承認の仕様から直接実装を始めること
-- 必要な文書を読まずに、推測だけで仕様判断を行うこと
+# ドキュメント原則
 
-# 最初にやること
+## `README.md`
 
-- まず、今回の依頼が何の作業かを判定すること
-    - 調査
-    - 実装
-    - テスト修正・追加
-    - 開発環境整備
-    - Codex 自己改善
-- 以後は、その作業に必要な文書だけを読むこと
-- `docs/spec/spec_overview.md` は、プロダクト仕様を読み始める入口として扱うこと
+- 人間が読むものであって AI が読むものではない
+- AI による編集は禁止
 
-# 作業タイプごとの必読文書
+## `oracle` 配下
 
-## 1. 調査
+- `tgbt` の仕様の正本
+- 100% 人間が編集し、内容に責任を持つ
+- 人間が現実的にメンテ可能な規模に抑えるために、仕様は断片的にのみ記述される
+- AI による編集は禁止
 
-必読:
+## `memo` 配下
 
-- `docs/task/research.md`
+- 人間用のワークスペース
+- AI による編集・閲覧共に禁止
 
-条件付き:
+## `AGENTS.md`
 
-- 仕様確認が必要なら `docs/spec/spec_overview.md`
-- その後、必要な仕様文書だけを追加で読む
-- コード実行やテスト実行を伴う調査に進む場合だけ `docs/tech/python.md` と `docs/tech/test_policy.md`
+- AI エージェントが最初に読むブートストラップ兼ルータ
+- AI による編集は禁止
 
-通常は不要:
+## `docs` 配下
 
-- `docs/tech/dev_environment.md`
-- 実装向けの詳細規約一式
+- `tgbt` の開発に必要な詳細情報が構造化されている
+- `docs` 配下のドキュメントの内訳については `docs/ROUTING.md` を参照
+- AI によってメンテナンスされることを前提とする
+- `tgbt` の仕様の記述は禁止
 
-## 2. 実装
+# `tgbt` 自体の開発は「人間主導」で行う
 
-必読:
-
-- `docs/task/implementation.md`
-- `docs/spec/spec_overview.md`
-
-条件付き:
-
-- 変更対象に関係する仕様文書のみ
-- Python コードを編集するなら `docs/tech/python.md`
-- テストを追加・修正するなら `docs/tech/test_policy.md`
-- 環境構築や依存追加が必要なら `docs/tech/dev_environment.md`
-
-## 3. テスト修正・追加
-
-必読:
-
-- `docs/tech/test_policy.md`
-
-条件付き:
-
-- 対象機能の仕様確認に必要な `docs/spec/*.md`
-- Python テストを編集するなら `docs/tech/python.md`
-- 環境依存の操作が必要なら `docs/tech/dev_environment.md`
-
-## 4. 開発環境整備
-
-必読:
-
-- `docs/tech/dev_environment.md`
-
-条件付き:
-
-- Python パッケージやコード変更を伴うなら `docs/tech/python.md`
-- テスト実行まで行うなら `docs/tech/test_policy.md`
-- 作業対象の意味を確認する必要がある場合のみ `docs/spec/spec_overview.md`
-
-## 5. Codex 自己改善
-
-必読:
-
-- `docs/spec/spec_overview.md`
-
-条件付き:
-
-- runtime 生成物の現状確認が必要なら `<repo-root>/.tgbt/.codex/config.toml`
-- runtime 指示の現状確認が必要なら `<repo-root>/.tgbt/instructions.md`
-- runtime file の位置づけや内容契約が必要なら `docs/spec/file_format.md`
-- `tgbt env` の生成責務が必要なら `docs/spec/cli_contract.md`
-- live 実行時の runtime 検証契約が必要なら `docs/spec/codex_cli_wrapper.md`
-- 変更対象の `.tgbt/.codex/**/*`
-
-通常は不要:
-
-- `docs/spec/*.md`
-- `docs/tech/*.md`
-- `ticket_guys_b_team` 本体実装向けの文書一式
-
-# 仕様文書の選び方
-
-`docs/spec/spec_overview.md` を読んだ後は、必要なものだけ読むこと。
-
-- 背景・設計思想・MVP の価値判断が必要なら `docs/spec/product_vision.md`
-- 状態遷移や `settled` / active の意味が必要なら `docs/spec/state_machine.md`
-- 保存先、front matter、命名規則、採番規則が必要なら `docs/spec/file_format.md`
-- front matter の安全な書き換え、atomic write-replace、複数ファイル mutation の扱い、失敗後の restore 前提契約が必要なら `docs/spec/state_write_protocol.md`
-- CLI の入出力、失敗条件、コマンド責務が必要なら `docs/spec/cli_contract.md`
-- `codex exec` の live / stub、strict replay、request/result モデルが必要なら `docs/spec/codex_cli_wrapper.md`
-- repo-local runtime file の位置づけと `.tgbt/instructions.md` の内容契約が必要なら `docs/spec/file_format.md`
-- `tgbt env` による `.tgbt/instructions.md` の生成契約が必要なら `docs/spec/cli_contract.md`
-- live 実行時の runtime 検証契約が必要なら `docs/spec/codex_cli_wrapper.md`
-
-# 作業完了時の最低要件
-
-- 実施したことを報告すること
-- 完了と判断した根拠を報告すること
-- 未解決事項、制約、未知の失敗があれば必ず報告すること
-- 実装と `docs/spec/*.md` の間に差異を見つけた場合は、その内容を報告すること
+- tgbt の正本仕様は人間の頭の中に有る
+- `oracle` 配下に文章化されているのは仕様の一部であり、全体像ではない
+- つまり、AI は完全な仕様文章にアクセスすることは出来ないということである
+- よって、完全な仕様を実現するのに必要なあれこれを詳細・具体的な作業にブレークダウンするのは人間の責任である
+- 結局何を言いたいかというと、実装系作業については、
+  - プロダクトビジョン・設計などの抽象的なレイヤーは人間が担う
+  - 関数・クラスの実装・修正などの具体的・限定的な一部分のみを AI が担う

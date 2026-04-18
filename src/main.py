@@ -7,6 +7,7 @@ from typing import Annotated
 import typer
 
 
+
 if __package__ in {None, ""}:
     sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
     import src.env_service as env_service
@@ -149,10 +150,7 @@ def run(
 
 
 def main() -> None:
-    """CLI アプリケーションを起動する。"""
-
     app(prog_name="tgbt")
-
 
 if __name__ == "__main__":
     main()
