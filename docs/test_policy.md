@@ -42,9 +42,9 @@ Codex CLI の利用有無で 2 系統のテストを用意する。
 
 - 変更内容に対応するテストを追加または更新する
 - テスト変更だけで仕様差分を吸収しようとせず、まず仕様と実装のどちらが正なのかを確認する
-- `docs/spec/*.md` と既存テストが矛盾する場合、既存テストを正本扱いして仕様を読み替えない
-- live / stub の違いが論点になる場合は、必要に応じて `docs/spec/codex_cli_wrapper.md` を読み直す
-- 状態遷移が論点になる場合は、必要に応じて `docs/spec/state_machine.md` を読み直す
+- この `docs/` 配下の文書と既存テストが矛盾する場合、既存テストを正本扱いし、文書記述だけを根拠に挙動を決めない
+- live / stub の違いが論点になる場合は、必要に応じて `src/codex_wrapper.py` と `tests/stub/test_codex_wrapper.py` を読み直す
+- Plan 更新や関連する状態変化が論点になる場合は、必要に応じて `src/plan_service.py` と `tests/stub/test_main.py` を読み直す
 - stub テストを追加・修正する場合、必要な replay data と state はテストのスコープ内で閉じる
 - stub テストのために実リポジトリの既存 state へ依存する設計を新たに持ち込まない
 - strict replay の前提条件が必要でも、それを満たす責務は通常テストではテストハーネス側に置く
