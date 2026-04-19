@@ -9,8 +9,12 @@ import re
 import subprocess
 import tempfile
 
-from .codex_common import CodexCliMode
-from . import env_runtime, plan_drafting, state_io
+from ..cmd.plan.docs import drafting
+
+from ..cmd.init import runtime
+
+from .agent_wrapper import CodexCliMode
+from ..state import io
 
 
 SESSION_RECORD_SCHEMA_VERSION = 1
@@ -129,7 +133,7 @@ def execute(request: CodexCliRequest) -> CodexCliResult:
 def _validate_request(request: CodexCliRequest) -> None:
     """request の基本妥当性を検証する。"""
 
-    if request.call_purpose != plan_drafting.CALL_PURPOSE:
+    if request.call_purpose != drafting.CALL_PURPOSE:
         raise CodexBusinessOutputError("unsupported call_purpose")
     if not Path(request.cwd).is_absolute():
         raise CodexBusinessOutputError("cwd must be an absolute path")
@@ -150,11 +154,11 @@ def _execute_live(request: CodexCliRequest) -> CodexCliResult:
     repo_root = Path(request.cwd)
     profile_spec = _resolve_profile_spec(request.call_purpose)
     try:
-        env_runtime.require_legal_live_runtime(repo_root)
+        runtime.require_legal_live_runtime(repo_root)
     except RuntimeError as error:
         raise IllegalRuntimeError(str(error)) from error
 
-    session_record_path = state_io.plan_drafting_session_record_relative_path(
+    session_record_path = io.plan_drafting_session_record_relative_path(
         repo_root,
         plan_id=request.plan_id,
         plan_revision=request.plan_revision,
@@ -167,7 +171,7 @@ def _execute_live(request: CodexCliRequest) -> CodexCliResult:
         schema_path = temp_dir / "plan_drafting.schema.json"
         last_message_path = temp_dir / "last_message.json"
         schema_path.write_text(
-            json.dumps(plan_drafting.JSON_SCHEMA, ensure_ascii=False, indent=2) + "\n",
+            json.dumps(drafting.JSON_SCHEMA, ensure_ascii=False, indent=2) + "\n",
             encoding="utf-8",
         )
 
@@ -185,8 +189,8 @@ def _execute_live(request: CodexCliRequest) -> CodexCliResult:
             request.prompt_text,
         ]
         runtime_env = dict(os.environ)
-        runtime_env["CODEX_HOME"] = state_io.absolute_path_string(
-            state_io.repo_local_codex_home(repo_root)
+        runtime_env["CODEX_HOME"] = io.absolute_path_string(
+            io.repo_local_codex_home(repo_root)
         )
 
         try:
@@ -204,11 +208,11 @@ def _execute_live(request: CodexCliRequest) -> CodexCliResult:
         if last_message_path.exists():
             raw_last_message = last_message_path.read_text(encoding="utf-8").strip()
 
-        payload: plan_drafting.PlanDraftingPayload | None = None
-        payload_error: json.JSONDecodeError | plan_drafting.PlanDraftingValidationError | None = None
+        payload: drafting.PlanDraftingPayload | None = None
+        payload_error: json.JSONDecodeError | drafting.PlanDraftingValidationError | None = None
         try:
-            payload = plan_drafting.validate_payload(_parse_json_object(raw_last_message))
-        except (json.JSONDecodeError, plan_drafting.PlanDraftingValidationError) as error:
+            payload = drafting.validate_payload(_parse_json_object(raw_last_message))
+        except (json.JSONDecodeError, drafting.PlanDraftingValidationError) as error:
             payload_error = error
 
         if completed.returncode != 0:
@@ -252,7 +256,7 @@ def _execute_live(request: CodexCliRequest) -> CodexCliResult:
             stdout=completed.stdout,
             stderr=completed.stderr,
             payload=payload,
-            session_record_path=state_io.absolute_path_string(session_record_abspath),
+            session_record_path=io.absolute_path_string(session_record_abspath),
             replayed_from=None,
         )
         _write_session_record(
@@ -312,8 +316,8 @@ def _execute_stub(request: CodexCliRequest) -> CodexCliResult:
             )
 
     try:
-        payload = plan_drafting.validate_payload(source_result.get("business_output"))
-    except plan_drafting.PlanDraftingValidationError as error:
+        payload = drafting.validate_payload(source_result.get("business_output"))
+    except drafting.PlanDraftingValidationError as error:
         raise StubRecordSchemaError(
             "stub record business_output is invalid"
         ) from error
@@ -355,16 +359,16 @@ def _execute_stub(request: CodexCliRequest) -> CodexCliResult:
         stderr=stderr,
         last_message_text=last_message_text,
         business_output={
-            "schema_name": plan_drafting.CALL_PURPOSE,
+            "schema_name": drafting.CALL_PURPOSE,
             "schema_version": 1,
-            "call_purpose": plan_drafting.CALL_PURPOSE,
+            "call_purpose": drafting.CALL_PURPOSE,
             "summary": payload.summary,
             "title": payload.title,
             "sections": payload.sections,
         },
-        session_record_path=state_io.absolute_path_string(stub_record_abspath),
-        replayed_from=state_io.absolute_path_string(stub_record_abspath),
-        generated_artifacts=[state_io.absolute_path_string(stub_record_abspath)],
+        session_record_path=io.absolute_path_string(stub_record_abspath),
+        replayed_from=io.absolute_path_string(stub_record_abspath),
+        generated_artifacts=[io.absolute_path_string(stub_record_abspath)],
         stop_reason=str(source_result.get("stop_reason", "stub_replay")),
         redaction_report={str(key): int(value) for key, value in redaction_report.items()},
     )
@@ -375,7 +379,7 @@ def _build_success_result(
     request: CodexCliRequest,
     stdout: str,
     stderr: str,
-    payload: plan_drafting.PlanDraftingPayload,
+    payload: drafting.PlanDraftingPayload,
     session_record_path: str,
     replayed_from: str | None,
 ) -> CodexCliResult:
@@ -383,9 +387,9 @@ def _build_success_result(
 
     profile_spec = _resolve_profile_spec(request.call_purpose)
     business_output = {
-        "schema_name": plan_drafting.CALL_PURPOSE,
+        "schema_name": drafting.CALL_PURPOSE,
         "schema_version": 1,
-        "call_purpose": plan_drafting.CALL_PURPOSE,
+        "call_purpose": drafting.CALL_PURPOSE,
         "summary": payload.summary,
         "title": payload.title,
         "sections": payload.sections,
@@ -480,18 +484,18 @@ def _write_session_record(
             "last_message_text": redacted_last_message,
             "business_output": redacted_output,
             "generated_artifacts": [
-                state_io.absolute_path_string(session_record_abspath)
+                io.absolute_path_string(session_record_abspath)
             ],
             "stop_reason": stop_reason,
-            "session_record_path": state_io.absolute_path_string(session_record_abspath),
+            "session_record_path": io.absolute_path_string(session_record_abspath),
             "replayed_from": None,
             "redaction_report": redaction_report,
         },
-        "saved_at": state_io.current_timestamp(),
+        "saved_at": io.current_timestamp(),
     }
 
     try:
-        state_io.write_text_atomically(
+        io.write_text_atomically(
             session_record_abspath,
             json.dumps(record, ensure_ascii=False, indent=2) + "\n",
             create_only=True,
@@ -562,16 +566,16 @@ def merge_redaction_reports(*reports: dict[str, int]) -> dict[str, int]:
 
 
 def _payload_to_business_output(
-    payload: plan_drafting.PlanDraftingPayload | None,
+    payload: drafting.PlanDraftingPayload | None,
 ) -> dict[str, object] | None:
     """payload を session record 保存用 dict へ戻す。"""
 
     if payload is None:
         return None
     return {
-        "schema_name": plan_drafting.CALL_PURPOSE,
+        "schema_name": drafting.CALL_PURPOSE,
         "schema_version": 1,
-        "call_purpose": plan_drafting.CALL_PURPOSE,
+        "call_purpose": drafting.CALL_PURPOSE,
         "summary": payload.summary,
         "title": payload.title,
         "sections": payload.sections,
@@ -582,7 +586,7 @@ def _format_execution_error(
     *,
     returncode: int,
     stderr: str,
-    payload_error: json.JSONDecodeError | plan_drafting.PlanDraftingValidationError | None,
+    payload_error: json.JSONDecodeError | drafting.PlanDraftingValidationError | None,
 ) -> str:
     """Codex CLI 実行失敗を人間向けに要約する。"""
 
@@ -688,10 +692,10 @@ def _parse_json_object(text: str) -> dict[str, object]:
     return parsed
 
 
-def _resolve_profile_spec(call_purpose: str) -> env_runtime.CodexProfileSpec:
+def _resolve_profile_spec(call_purpose: str) -> runtime.CodexProfileSpec:
     """wrapper 実行に使う canonical profile を返す。"""
 
     try:
-        return env_runtime.resolve_profile_spec_for_call_purpose(call_purpose)
+        return runtime.resolve_profile_spec_for_call_purpose(call_purpose)
     except ValueError as error:
         raise CodexBusinessOutputError(str(error)) from error

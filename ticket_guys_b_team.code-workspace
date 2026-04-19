@@ -10,6 +10,10 @@
 			"**/*.egg-info": true,
 			"**/.pytest_cache": true,
 			"**/*.Identifier": true,
+		},
+		"[python]": {
+			"editor.defaultFormatter": "ms-python.black-formatter",
+			"editor.formatOnSave": true
 		}
 	},
 	"extensions": {

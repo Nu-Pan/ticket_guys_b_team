@@ -3,7 +3,7 @@
 from dataclasses import dataclass
 import json
 
-from . import state_io
+from ...state import state_io
 
 
 CALL_PURPOSE = "plan_drafting"

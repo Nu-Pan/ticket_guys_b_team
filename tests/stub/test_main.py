@@ -9,8 +9,12 @@ import pytest
 from typer.testing import CliRunner
 import yaml
 
+from agent_wrapper import codex_wrapper_live
+from cmd.init import runtime
+from cmd.plan.docs import service
+from cmd.plan.docs import drafting
 from src.main import app
-from src import codex_wrapper, env_runtime, plan_drafting, plan_service, state_io
+from state import io
 
 
 RUNNER = CliRunner()
@@ -75,7 +79,7 @@ def test_plan_docs_creates_a_new_plan_file_from_stub_record(
     """新規 `plan docs --codex-cli-mode stub` が session record から Plan を生成する。"""
 
     plan_id = "plan-20260401-001"
-    monkeypatch.setattr(plan_service, "_next_plan_id", lambda repo_root: plan_id)
+    monkeypatch.setattr(service, "_next_plan_id", lambda repo_root: plan_id)
     request_text = "CLI で plan / run を扱えるようにしたい"
     _write_docs_plan_stub_record(
         isolated_repo,
@@ -107,7 +111,7 @@ def test_plan_docs_creates_a_new_plan_file_from_stub_record(
         ),
     ]
 
-    plan_path = state_io.plan_path(isolated_repo, plan_id)
+    plan_path = io.plan_path(isolated_repo, plan_id)
     metadata, sections = _load_plan(plan_path)
     assert metadata["title"] == "CLI 初期実装"
     assert metadata["status"] == "draft"
@@ -122,7 +126,7 @@ def test_plan_docs_updates_existing_plan_from_stub_record_and_rewrites_sections(
     """既存 Plan 更新時に payload で section 全体が再構成される。"""
 
     plan_id = "plan-20260321-001"
-    plan_path = state_io.plan_path(isolated_repo, plan_id)
+    plan_path = io.plan_path(isolated_repo, plan_id)
     _write_plan(
         plan_path,
         metadata={
@@ -139,7 +143,7 @@ def test_plan_docs_updates_existing_plan_from_stub_record_and_rewrites_sections(
         },
         sections=_default_plan_sections(purpose="既存の目的"),
     )
-    existing_plan = state_io.load_plan_document(plan_path)
+    existing_plan = io.load_plan_document(plan_path)
     _write_ticket(
         isolated_repo / ".tgbt/tickets/worker-0001.md",
         plan_id=plan_id,
@@ -195,7 +199,7 @@ def test_plan_docs_reports_missing_stub_record_and_does_not_create_plan(
 ) -> None:
     """stub source が無い場合は wrapper failure で停止する。"""
 
-    monkeypatch.setattr(plan_service, "_next_plan_id", lambda repo_root: "plan-20260401-001")
+    monkeypatch.setattr(service, "_next_plan_id", lambda repo_root: "plan-20260401-001")
 
     result = RUNNER.invoke(
         app,
@@ -204,7 +208,7 @@ def test_plan_docs_reports_missing_stub_record_and_does_not_create_plan(
 
     assert result.exit_code == 1
     assert "ERROR: stub record was not found:" in result.stderr
-    assert not any(state_io.plans_dir(isolated_repo).glob("*.md"))
+    assert not any(io.plans_dir(isolated_repo).glob("*.md"))
 
 
 def test_plan_docs_rejects_empty_request_text(isolated_repo: Path) -> None:
@@ -224,7 +228,7 @@ def test_plan_docs_live_reports_codex_cli_failure_details(
 
     _ensure_repo_local_runtime(isolated_repo)
     plan_id = "plan-20260401-001"
-    monkeypatch.setattr(plan_service, "_next_plan_id", lambda repo_root: plan_id)
+    monkeypatch.setattr(service, "_next_plan_id", lambda repo_root: plan_id)
 
     def fake_run(
         argv: list[str],
@@ -251,7 +255,7 @@ def test_plan_docs_live_reports_codex_cli_failure_details(
             ),
         )
 
-    monkeypatch.setattr(codex_wrapper.subprocess, "run", fake_run)
+    monkeypatch.setattr(codex_wrapper_live.subprocess, "run", fake_run)
 
     result = RUNNER.invoke(app, ["plan", "docs", "CLI の初回本番実行を確認する"])
 
@@ -269,7 +273,7 @@ def test_plan_docs_live_requires_legal_repo_local_runtime(
     def fail_run(*args: object, **kwargs: object) -> subprocess.CompletedProcess[str]:
         raise AssertionError("subprocess.run must not be called")
 
-    monkeypatch.setattr(codex_wrapper.subprocess, "run", fail_run)
+    monkeypatch.setattr(codex_wrapper_live.subprocess, "run", fail_run)
 
     result = RUNNER.invoke(app, ["plan", "docs", "CLI の初回本番実行を確認する"])
 
@@ -308,9 +312,9 @@ def test_env_returns_already_legal_without_creating_plan(isolated_repo: Path) ->
     assert log_lines[2]["goal_reached"] is True
     assert log_lines[2]["blocking_issues"] == []
     assert log_lines[2]["diagnostics"] == []
-    assert not state_io.plans_dir(isolated_repo).exists()
-    assert not state_io.tickets_dir(isolated_repo).exists()
-    assert not state_io.codex_dir(isolated_repo).exists()
+    assert not io.plans_dir(isolated_repo).exists()
+    assert not io.tickets_dir(isolated_repo).exists()
+    assert not io.codex_dir(isolated_repo).exists()
 
 
 def test_env_reconciles_runtime_files_without_plan_or_codex(
@@ -330,10 +334,10 @@ def test_env_reconciles_runtime_files_without_plan_or_codex(
         f"- {isolated_repo / '.tgbt/instructions.md'}",
         f"Log: {isolated_repo / '.tgbt/logs/env-latest.jsonl'}",
     ]
-    assert env_runtime.evaluate_env_legality(isolated_repo).is_legal is True
-    assert not state_io.plans_dir(isolated_repo).exists()
-    assert not state_io.tickets_dir(isolated_repo).exists()
-    assert not state_io.codex_dir(isolated_repo).exists()
+    assert runtime.evaluate_env_legality(isolated_repo).is_legal is True
+    assert not io.plans_dir(isolated_repo).exists()
+    assert not io.tickets_dir(isolated_repo).exists()
+    assert not io.codex_dir(isolated_repo).exists()
 
     log_lines = _load_env_log_entries(isolated_repo)
     assert [entry["event_type"] for entry in log_lines] == [
@@ -400,7 +404,7 @@ def test_env_reports_missing_agents_md_as_diagnostics_and_still_succeeds(
     ]
     assert (isolated_repo / ".tgbt/.codex/config.toml").exists()
     assert (isolated_repo / ".tgbt/instructions.md").exists()
-    assert state_io.env_log_path(isolated_repo).exists()
+    assert io.env_log_path(isolated_repo).exists()
     log_lines = _load_env_log_entries(isolated_repo)
     assert log_lines[0]["diagnostics"] == [
         {
@@ -414,9 +418,9 @@ def test_env_reports_missing_agents_md_as_diagnostics_and_still_succeeds(
     ]
     assert log_lines[2]["outcome"] == "legalized"
     assert log_lines[2]["diagnostics"] == log_lines[0]["diagnostics"]
-    assert not state_io.plans_dir(isolated_repo).exists()
-    assert not state_io.tickets_dir(isolated_repo).exists()
-    assert not state_io.codex_dir(isolated_repo).exists()
+    assert not io.plans_dir(isolated_repo).exists()
+    assert not io.tickets_dir(isolated_repo).exists()
+    assert not io.codex_dir(isolated_repo).exists()
 
 
 def test_env_reports_repo_root_codex_dir_as_diagnostics(isolated_repo: Path) -> None:
@@ -424,7 +428,7 @@ def test_env_reports_repo_root_codex_dir_as_diagnostics(isolated_repo: Path) -> 
 
     _write_agents_md(isolated_repo)
     _ensure_repo_local_runtime(isolated_repo)
-    state_io.repo_root_codex_dir(isolated_repo).mkdir()
+    io.repo_root_codex_dir(isolated_repo).mkdir()
 
     result = RUNNER.invoke(app, ["env"])
 
@@ -454,24 +458,24 @@ def test_env_detects_missing_required_profile_in_repo_local_config(
     """required profile set の欠落を blocking issue として検出する。"""
 
     _write_agents_md(isolated_repo)
-    state_io.repo_local_codex_config_path(isolated_repo).parent.mkdir(parents=True, exist_ok=True)
-    state_io.runtime_instructions_path(isolated_repo).parent.mkdir(parents=True, exist_ok=True)
-    state_io.runtime_instructions_path(isolated_repo).write_text(
-        env_runtime.render_runtime_instructions(isolated_repo),
+    io.repo_local_codex_config_path(isolated_repo).parent.mkdir(parents=True, exist_ok=True)
+    io.runtime_instructions_path(isolated_repo).parent.mkdir(parents=True, exist_ok=True)
+    io.runtime_instructions_path(isolated_repo).write_text(
+        runtime.render_runtime_instructions(isolated_repo),
         encoding="utf-8",
     )
-    state_io.repo_local_codex_config_path(isolated_repo).write_text(
+    io.repo_local_codex_config_path(isolated_repo).write_text(
         "\n\n".join(
             [
-                f"[profiles.{env_runtime.PROFILE_DRAFTING}]",
-                f'model = "{env_runtime.DEFAULT_PROFILE_MODEL}"',
+                f"[profiles.{runtime.PROFILE_DRAFTING}]",
+                f'model = "{runtime.DEFAULT_PROFILE_MODEL}"',
                 'model_reasoning_effort = "high"',
                 'approval_policy = "never"',
                 'sandbox_mode = "read-only"',
                 f'model_instructions_file = "{isolated_repo / ".tgbt/instructions.md"}"',
                 "",
-                f"[profiles.{env_runtime.PROFILE_WORKER}]",
-                f'model = "{env_runtime.DEFAULT_PROFILE_MODEL}"',
+                f"[profiles.{runtime.PROFILE_WORKER}]",
+                f'model = "{runtime.DEFAULT_PROFILE_MODEL}"',
                 'model_reasoning_effort = "high"',
                 'approval_policy = "never"',
                 'sandbox_mode = "workspace-write"',
@@ -482,7 +486,7 @@ def test_env_detects_missing_required_profile_in_repo_local_config(
         encoding="utf-8",
     )
 
-    report = env_runtime.evaluate_env_legality(isolated_repo)
+    report = runtime.evaluate_env_legality(isolated_repo)
 
     assert report.is_legal is False
     assert [issue.message for issue in report.blocking_issues] == [
@@ -497,7 +501,7 @@ def test_env_fails_when_blocking_runtime_issue_remains_after_reconcile(
     """補修後も runtime blocking issue が残れば非 0 終了する。"""
 
     _write_agents_md(isolated_repo)
-    monkeypatch.setattr(env_runtime, "reconcile_repo_local_runtime", lambda repo_root: [])
+    monkeypatch.setattr(runtime, "reconcile_repo_local_runtime", lambda repo_root: [])
 
     result = RUNNER.invoke(app, ["env"])
 
@@ -526,13 +530,13 @@ def test_env_writes_env_failed_when_observation_fails_after_invalidation(
     """observation failure は current invocation の `env_failed` を残す。"""
 
     _write_agents_md(isolated_repo)
-    state_io.env_log_path(isolated_repo).parent.mkdir(parents=True, exist_ok=True)
-    state_io.env_log_path(isolated_repo).write_text("stale\n", encoding="utf-8")
+    io.env_log_path(isolated_repo).parent.mkdir(parents=True, exist_ok=True)
+    io.env_log_path(isolated_repo).write_text("stale\n", encoding="utf-8")
 
-    def fail_observation(repo_root: Path) -> env_runtime.EnvLegalityReport:
+    def fail_observation(repo_root: Path) -> runtime.EnvLegalityReport:
         raise OSError("runtime instructions could not be rendered")
 
-    monkeypatch.setattr(env_runtime, "evaluate_env_legality", fail_observation)
+    monkeypatch.setattr(runtime, "evaluate_env_legality", fail_observation)
 
     result = RUNNER.invoke(app, ["env"])
 
@@ -555,20 +559,20 @@ def test_env_removes_stale_latest_when_log_publish_fails(
 
     _write_agents_md(isolated_repo)
     _ensure_repo_local_runtime(isolated_repo)
-    state_io.env_log_path(isolated_repo).parent.mkdir(parents=True, exist_ok=True)
-    state_io.env_log_path(isolated_repo).write_text("stale\n", encoding="utf-8")
+    io.env_log_path(isolated_repo).parent.mkdir(parents=True, exist_ok=True)
+    io.env_log_path(isolated_repo).write_text("stale\n", encoding="utf-8")
 
     def fail_write_jsonl_log(path: Path, entries: list[dict[str, object]]) -> None:
         raise OSError("disk full")
 
-    monkeypatch.setattr(state_io, "write_jsonl_log", fail_write_jsonl_log)
+    monkeypatch.setattr(io, "write_jsonl_log", fail_write_jsonl_log)
 
     result = RUNNER.invoke(app, ["env"])
 
     assert result.exit_code == 1
     assert "ERROR: failed to persist env state: disk full" in result.stderr
     assert f"Log: {isolated_repo / '.tgbt/logs/env-latest.jsonl'}" not in result.stderr
-    assert not state_io.env_log_path(isolated_repo).exists()
+    assert not io.env_log_path(isolated_repo).exists()
 
 
 def test_run_accepts_spec_arguments_then_fails_explicitly() -> None:
@@ -583,8 +587,8 @@ def test_run_accepts_spec_arguments_then_fails_explicitly() -> None:
 def _load_plan(path: Path) -> tuple[dict[str, object], dict[str, str]]:
     """Plan file を読み戻す。"""
 
-    metadata, body = state_io.load_markdown_with_front_matter(path)
-    sections = state_io.parse_plan_sections(body)
+    metadata, body = io.load_markdown_with_front_matter(path)
+    sections = io.parse_plan_sections(body)
     return metadata, sections
 
 
@@ -593,7 +597,7 @@ def _load_env_log_entries(repo_root: Path) -> list[dict[str, object]]:
 
     return [
         json.loads(line)
-        for line in state_io.env_log_path(repo_root).read_text(encoding="utf-8").splitlines()
+        for line in io.env_log_path(repo_root).read_text(encoding="utf-8").splitlines()
     ]
 
 
@@ -639,7 +643,7 @@ def _write_plan(
     front_matter = yaml.safe_dump(metadata, allow_unicode=True, sort_keys=False).strip()
     body_parts = [
         f"# {section_name}\n{sections[section_name]}"
-        for section_name in state_io.PLAN_SECTION_ORDER
+        for section_name in io.PLAN_SECTION_ORDER
     ]
     path.write_text(
         f"---\n{front_matter}\n---\n\n" + "\n\n".join(body_parts) + "\n",
@@ -677,10 +681,10 @@ def _plan_payload(
     open_questions: str = "- 将来の wrapper 拡張は別途検討する",
     risks: str = "- strict replay fixture の維持コストがある",
     execution_strategy: str = "- まず Plan 草案を固めてから `run` に進む",
-) -> plan_drafting.PlanDraftingPayload:
+) -> drafting.PlanDraftingPayload:
     """payload fixture を作る。"""
 
-    return plan_drafting.PlanDraftingPayload(
+    return drafting.PlanDraftingPayload(
         summary="Plan draft summary",
         title=title,
         sections={
@@ -703,12 +707,12 @@ def _write_docs_plan_stub_record(
     plan_revision: int,
     codex_call_id: str,
     request_text: str,
-    existing_plan: state_io.PlanDocument | None,
-    payload: plan_drafting.PlanDraftingPayload,
+    existing_plan: io.PlanDocument | None,
+    payload: drafting.PlanDraftingPayload,
 ) -> None:
     """`plan docs` 用 stub record を作る。"""
 
-    prompt_text = plan_drafting.build_docs_prompt(
+    prompt_text = drafting.build_docs_prompt(
         request_text=request_text,
         plan_id=plan_id,
         plan_revision=plan_revision,
@@ -731,7 +735,7 @@ def _write_plan_stub_record(
     plan_revision: int,
     codex_call_id: str,
     prompt_text: str,
-    payload: plan_drafting.PlanDraftingPayload,
+    payload: drafting.PlanDraftingPayload,
 ) -> None:
     """`plan_drafting` 用 stub record を作る。"""
 
@@ -746,18 +750,18 @@ def _write_plan_stub_record(
         "ticket_id": None,
         "run_id": None,
         "codex_call_id": codex_call_id,
-        "call_purpose": plan_drafting.CALL_PURPOSE,
+        "call_purpose": drafting.CALL_PURPOSE,
         "cwd": str(repo_root),
         "prompt_text": prompt_text,
-        "codex_profile": env_runtime.PROFILE_DRAFTING,
-        "resolved_model": env_runtime.DEFAULT_PROFILE_MODEL,
+        "codex_profile": runtime.PROFILE_DRAFTING,
+        "resolved_model": runtime.DEFAULT_PROFILE_MODEL,
         "resolved_reasoning_effort": "high",
     }
-    storage_request, _ = codex_wrapper.redact_request_for_storage(request)
+    storage_request, _ = codex_wrapper_live.redact_request_for_storage(request)
     payload_dict = {
-        "schema_name": plan_drafting.CALL_PURPOSE,
+        "schema_name": drafting.CALL_PURPOSE,
         "schema_version": 1,
-        "call_purpose": plan_drafting.CALL_PURPOSE,
+        "call_purpose": drafting.CALL_PURPOSE,
         "summary": payload.summary,
         "title": payload.title,
         "sections": payload.sections,
@@ -772,7 +776,7 @@ def _write_plan_stub_record(
                 "ticket_id": None,
                 "run_id": None,
                 "codex_call_id": codex_call_id,
-                "call_purpose": plan_drafting.CALL_PURPOSE,
+                "call_purpose": drafting.CALL_PURPOSE,
                 "codex_cli_mode": "live",
                 "request": storage_request,
                 "result": {
@@ -781,15 +785,15 @@ def _write_plan_stub_record(
                     "ticket_id": None,
                     "run_id": None,
                     "codex_call_id": codex_call_id,
-                    "call_purpose": plan_drafting.CALL_PURPOSE,
+                    "call_purpose": drafting.CALL_PURPOSE,
                     "codex_cli_mode": "live",
-                    "codex_profile": env_runtime.PROFILE_DRAFTING,
-                    "resolved_model": env_runtime.DEFAULT_PROFILE_MODEL,
+                    "codex_profile": runtime.PROFILE_DRAFTING,
+                    "resolved_model": runtime.DEFAULT_PROFILE_MODEL,
                     "resolved_reasoning_effort": "high",
                     "returncode": 0,
                     "stdout": "",
                     "stderr": "",
-                    "last_message_text": codex_wrapper.canonicalize_json(payload_dict),
+                    "last_message_text": codex_wrapper_live.canonicalize_json(payload_dict),
                     "business_output": payload_dict,
                     "generated_artifacts": [str(path)],
                     "stop_reason": "completed",
@@ -810,7 +814,7 @@ def _write_plan_stub_record(
 def _ensure_repo_local_runtime(repo_root: Path) -> None:
     """live 実行用の repo-local runtime を合法状態で用意する。"""
 
-    env_runtime.regenerate_repo_local_runtime(repo_root)
+    runtime.regenerate_repo_local_runtime(repo_root)
 
 
 def _write_agents_md(repo_root: Path) -> None:

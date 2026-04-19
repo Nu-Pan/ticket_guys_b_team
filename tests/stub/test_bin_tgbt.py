@@ -8,7 +8,10 @@ import subprocess
 import pytest
 import yaml
 
-from src import codex_wrapper, env_runtime, plan_drafting, state_io
+from agent_wrapper import codex_wrapper_live
+from cmd.init import runtime
+from cmd.plan.docs import drafting
+from state import io
 
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
@@ -87,7 +90,7 @@ def test_bin_tgbt_uses_invocation_cwd_as_target_repository(
             "実行方針": "- 既存の実行方針",
         },
     )
-    existing_plan = state_io.load_plan_document(plan_path)
+    existing_plan = io.load_plan_document(plan_path)
     _write_stub_record(
         target_repo_root,
         session_record_path,
@@ -157,14 +160,14 @@ def _write_stub_record(
     plan_id: str,
     request_text: str,
     title: str,
-    existing_plan: state_io.PlanDocument,
+    existing_plan: io.PlanDocument,
 ) -> None:
     """`plan_drafting` 用 stub record を作る。"""
 
     payload = {
-        "schema_name": plan_drafting.CALL_PURPOSE,
+        "schema_name": drafting.CALL_PURPOSE,
         "schema_version": 1,
-        "call_purpose": plan_drafting.CALL_PURPOSE,
+        "call_purpose": drafting.CALL_PURPOSE,
         "summary": "bin stub payload",
         "title": title,
         "sections": {
@@ -178,7 +181,7 @@ def _write_stub_record(
             "execution_strategy": "- stub fixture から再構成する",
         },
     }
-    prompt_text = plan_drafting.build_docs_prompt(
+    prompt_text = drafting.build_docs_prompt(
         request_text=request_text,
         plan_id=plan_id,
         plan_revision=2,
@@ -190,14 +193,14 @@ def _write_stub_record(
         "ticket_id": None,
         "run_id": None,
         "codex_call_id": "call-0001",
-        "call_purpose": plan_drafting.CALL_PURPOSE,
+        "call_purpose": drafting.CALL_PURPOSE,
         "cwd": str(repo_root),
         "prompt_text": prompt_text,
-        "codex_profile": env_runtime.PROFILE_DRAFTING,
-        "resolved_model": env_runtime.DEFAULT_PROFILE_MODEL,
+        "codex_profile": runtime.PROFILE_DRAFTING,
+        "resolved_model": runtime.DEFAULT_PROFILE_MODEL,
         "resolved_reasoning_effort": "high",
     }
-    storage_request, _ = codex_wrapper.redact_request_for_storage(request)
+    storage_request, _ = codex_wrapper_live.redact_request_for_storage(request)
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(
         json.dumps(
@@ -208,7 +211,7 @@ def _write_stub_record(
                 "ticket_id": None,
                 "run_id": None,
                 "codex_call_id": "call-0001",
-                "call_purpose": plan_drafting.CALL_PURPOSE,
+                "call_purpose": drafting.CALL_PURPOSE,
                 "codex_cli_mode": "live",
                 "request": storage_request,
                 "result": {
@@ -217,15 +220,15 @@ def _write_stub_record(
                     "ticket_id": None,
                     "run_id": None,
                     "codex_call_id": "call-0001",
-                    "call_purpose": plan_drafting.CALL_PURPOSE,
+                    "call_purpose": drafting.CALL_PURPOSE,
                     "codex_cli_mode": "live",
-                    "codex_profile": env_runtime.PROFILE_DRAFTING,
-                    "resolved_model": env_runtime.DEFAULT_PROFILE_MODEL,
+                    "codex_profile": runtime.PROFILE_DRAFTING,
+                    "resolved_model": runtime.DEFAULT_PROFILE_MODEL,
                     "resolved_reasoning_effort": "high",
                     "returncode": 0,
                     "stdout": "",
                     "stderr": "",
-                    "last_message_text": codex_wrapper.canonicalize_json(payload),
+                    "last_message_text": codex_wrapper_live.canonicalize_json(payload),
                     "business_output": payload,
                     "generated_artifacts": [str(path)],
                     "stop_reason": "completed",

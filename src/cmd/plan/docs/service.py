@@ -5,8 +5,12 @@ from datetime import datetime
 from pathlib import Path
 import re
 
-from .codex_common import CodexCliMode
-from . import codex_wrapper, plan_drafting, state_io
+from .cmd.plan import plan_drafting
+
+from .agent_wrapper import codex
+
+from ....agent_wrapper.agent_wrapper import CodexCliMode
+from ...state import state_io
 
 
 PLAN_IMPACT = "no plan file or front matter was created or updated"
@@ -38,63 +42,6 @@ class PlanCommandResult:
     plan_revision: int
     status: str
     session_record_path: str
-
-
-def create_or_update_plan(
-    *,
-    request_text: str,
-    plan_id: str | None,
-    codex_cli_mode: CodexCliMode,
-) -> PlanCommandResult:
-    """docs Plan file を新規作成または更新する。"""
-
-    normalized_request = request_text.strip()
-    if not normalized_request:
-        raise PlanCommandError(
-            cause="request_text must not be empty",
-            impact=PLAN_IMPACT,
-            next_step="provide a non-empty plan request and retry the command",
-        )
-
-    try:
-        repo_root = state_io.get_repository_root()
-        state_io.ensure_plan_storage(repo_root)
-        with state_io.repository_lock(repo_root, command_name="plan docs", plan_id=plan_id):
-            if plan_id is None:
-                target_plan_id = _next_plan_id(repo_root)
-                return _create_new_plan(
-                    repo_root=repo_root,
-                    plan_id=target_plan_id,
-                    request_text=normalized_request,
-                    codex_cli_mode=codex_cli_mode,
-                )
-
-            return _update_existing_plan(
-                repo_root=repo_root,
-                plan_id=plan_id,
-                request_text=normalized_request,
-                codex_cli_mode=codex_cli_mode,
-            )
-    except FileExistsError as error:
-        raise PlanCommandError(
-            cause="repository lock is already held",
-            impact=PLAN_IMPACT,
-            next_step="remove a stale repository lock after confirming no other tgbt process is running, then retry",
-        ) from error
-    except state_io.StateValidationError as error:
-        raise PlanCommandError(
-            cause=f"state validation failed: {error}",
-            impact=PLAN_IMPACT,
-            next_step="restore a safe snapshot or fix the invalid state files before retrying",
-        ) from error
-    except codex_wrapper.CodexWrapperError as error:
-        raise _translate_wrapper_error(error) from error
-    except OSError as error:
-        raise PlanCommandError(
-            cause=f"failed to persist plan state: {error}",
-            impact=PLAN_IMPACT,
-            next_step="check filesystem permissions and retry after restoring a safe snapshot if needed",
-        ) from error
 
 
 def _next_plan_id(repo_root: Path) -> str:
@@ -140,7 +87,7 @@ def _create_new_plan(
         existing_plan=None,
         session_record_relative_path=session_record_relative_path,
     )
-    result = codex_wrapper.execute(request)
+    result = codex.execute(request)
     payload = plan_drafting.validate_payload(result.business_output)
     document = _build_plan_document_from_payload(
         plan_id=plan_id,
@@ -200,7 +147,7 @@ def _update_existing_plan(
         existing_plan=current_document,
         session_record_relative_path=session_record_relative_path,
     )
-    result = codex_wrapper.execute(request)
+    result = codex.execute(request)
     payload = plan_drafting.validate_payload(result.business_output)
     document = _build_plan_document_from_payload(
         plan_id=plan_id,
@@ -233,10 +180,10 @@ def _build_codex_request(
     codex_cli_mode: CodexCliMode,
     existing_plan: state_io.PlanDocument | None,
     session_record_relative_path: str,
-) -> codex_wrapper.CodexCliRequest:
+) -> codex.CodexCliRequest:
     """Codex wrapper request を構築する。"""
 
-    return codex_wrapper.CodexCliRequest(
+    return codex.CodexCliRequest(
         plan_id=plan_id,
         plan_revision=plan_revision,
         ticket_id=None,
@@ -306,18 +253,18 @@ def _delete_active_tickets(repo_root: Path, *, plan_id: str, plan_revision: int)
             continue
         ticket_path.unlink()
 
-def _translate_wrapper_error(error: codex_wrapper.CodexWrapperError) -> PlanCommandError:
+def _translate_wrapper_error(error: codex.CodexWrapperError) -> PlanCommandError:
     """wrapper エラーを CLI 向けエラーへ写像する。"""
 
-    if isinstance(error, codex_wrapper.IllegalRuntimeError):
+    if isinstance(error, codex.IllegalRuntimeError):
         next_step = "run `tgbt env` to legalize the repo-local Codex runtime, then retry"
     elif isinstance(
         error,
         (
-            codex_wrapper.StubRecordRequiredError,
-            codex_wrapper.StubRecordNotFoundError,
-            codex_wrapper.StubReplayMismatchError,
-            codex_wrapper.StubRecordSchemaError,
+            codex.StubRecordRequiredError,
+            codex.StubRecordNotFoundError,
+            codex.StubReplayMismatchError,
+            codex.StubRecordSchemaError,
         ),
     ):
         next_step = (
@@ -335,3 +282,62 @@ def _translate_wrapper_error(error: codex_wrapper.CodexWrapperError) -> PlanComm
         impact=PLAN_WRAPPER_IMPACT,
         next_step=next_step,
     )
+
+
+def tgbt_plan_docs(
+    *,
+    request_text: str,
+    plan_id: str | None,
+    codex_cli_mode: CodexCliMode,
+) -> PlanCommandResult:
+    """
+    docs Plan file コマンドの実装
+    """
+
+    normalized_request = request_text.strip()
+    if not normalized_request:
+        raise PlanCommandError(
+            cause="request_text must not be empty",
+            impact=PLAN_IMPACT,
+            next_step="provide a non-empty plan request and retry the command",
+        )
+
+    try:
+        repo_root = state_io.get_repository_root()
+        state_io.ensure_plan_storage(repo_root)
+        with state_io.repository_lock(repo_root, command_name="plan docs", plan_id=plan_id):
+            if plan_id is None:
+                target_plan_id = _next_plan_id(repo_root)
+                return _create_new_plan(
+                    repo_root=repo_root,
+                    plan_id=target_plan_id,
+                    request_text=normalized_request,
+                    codex_cli_mode=codex_cli_mode,
+                )
+
+            return _update_existing_plan(
+                repo_root=repo_root,
+                plan_id=plan_id,
+                request_text=normalized_request,
+                codex_cli_mode=codex_cli_mode,
+            )
+    except FileExistsError as error:
+        raise PlanCommandError(
+            cause="repository lock is already held",
+            impact=PLAN_IMPACT,
+            next_step="remove a stale repository lock after confirming no other tgbt process is running, then retry",
+        ) from error
+    except state_io.StateValidationError as error:
+        raise PlanCommandError(
+            cause=f"state validation failed: {error}",
+            impact=PLAN_IMPACT,
+            next_step="restore a safe snapshot or fix the invalid state files before retrying",
+        ) from error
+    except codex.CodexWrapperError as error:
+        raise _translate_wrapper_error(error) from error
+    except OSError as error:
+        raise PlanCommandError(
+            cause=f"failed to persist plan state: {error}",
+            impact=PLAN_IMPACT,
+            next_step="check filesystem permissions and retry after restoring a safe snapshot if needed",
+        ) from error
