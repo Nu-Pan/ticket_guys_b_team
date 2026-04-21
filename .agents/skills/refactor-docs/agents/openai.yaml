@@ -1,4 +1,4 @@
 interface:
-  display_name: "Docs Refactor"
-  short_description: "docs再編とリンク修復を安全に進める"
-  default_prompt: "Use $refactor-docs to reorganize docs/, rebuild routing, and repair stale references."
+  display_name: "Refactor Docs"
+  short_description: "docs再編・リンク修復・明示oracle断片との整合修正"
+  default_prompt: "Use $refactor-docs to reorganize docs/, repair stale references, and correct docs that drift from explicit oracle fragments without filling unspecified gaps."

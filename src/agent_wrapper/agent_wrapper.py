@@ -1,6 +1,7 @@
 # std
-from enum import Enum
+from abc import ABC, abstractmethod
 from dataclasses import dataclass
+from enum import Enum
 from pathlib import Path
 
 
@@ -24,24 +25,27 @@ class AgentRunResult:
     audit_log_file_path: Path
 
 
-class AgentWrapper:
+class AgentWrapper(ABC):
     """
     Codex CLI, Claude Code CLI などの AI エージェントを呼び出すためのインターフェースクラス。
-    このクラスは純粋仮想規基底で、実際に使用する製品ごとの派生クラスを実装することを前提とする。
+    このクラスは純粋仮想基底で、実際に使用する製品ごとの派生クラスを実装することを前提とする。
     """
 
-    def __init__(self):
+    @abstractmethod
+    def __init__(self) -> None:
         """
         コンストラクタ
         """
         ...
 
-    def init_repo(self):
+    @abstractmethod
+    def init_repo(self) -> None:
         """
         tgbt 操作対象リポジトリを、エージェントが想定通りの挙動になるように初期化する。
         """
         ...
 
+    @abstractmethod
     def run(
         self,
         agent_profile: AgentProfile,

@@ -1,0 +1,4 @@
+interface:
+  display_name: "Implement Task"
+  short_description: "具体的な実装修正と対応テスト更新を安全に進めるスキル"
+  default_prompt: "Use $implement-task to carry out a scoped implementation change, update the matching tests, and avoid making product-level design decisions."

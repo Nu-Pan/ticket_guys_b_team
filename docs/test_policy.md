@@ -1,4 +1,4 @@
-# この文書を読むべき時
+# テスト方針
 
 - テストを追加・修正するとき
 - 実装変更に対する確認方法を決めるとき
@@ -10,44 +10,36 @@
 
 # 基本
 
+- 実際の運用がデバッグを兼ねる前提で、テストは必要最小限に保つ
 - テストには `pytest` を使う
-- テストファイルの配置先は `tests/**/*.py` とする
+- テスト以外のチェックとして `pyright` を使う
+- テストファイルは `tests/` 配下に置く
+- 現在の worktree で確認できる既存テスト用ディレクトリは `tests/unit/` のみである
 - 個別テストの行数が必要以上に膨らまないように努力する
 - そのために、テスト用コンポーネントの共通化や構造化を行ってよい
 
-# テスト戦略
+# live / stub の扱い
 
-Codex CLI の利用有無で 2 系統のテストを用意する。
+`CodexCliMode` には live / stub があるが、単体テスト実行時に live モードを使わない。
 
-## 1. Codex CLI を使用するテスト
-
-- 実際に Codex CLI を呼び出す
-- Codex CLI 呼び出し部分のテストだけを目的とする
-- トークン消費を抑えるため、可能な限り最小限に留める
-- 明示的に opt-in が指示されたときだけ実行する
-
-## 2. ダミー実装を使用するテスト
-
-- Codex CLI を呼び出す代わりに、固定パターンを返すダミー実装を用いる
-- この切り替えは `ticket_guys_b_team` の機能として用意する
-- 品質向上のために積極的に拡充・修正するのは主にこちらである
-- 通常は、こちらのテストが通れば動作確認として合格とする
-- 日常的に実行する標準テストは、原則としてこちらに寄せる
-- 環境セットアップ後は、stub テストは単に `pytest` を実行すれば通ることを目標とする
-- stub テストの成否は、既存 repository 状態、既存 `.tgbt/`、stale lock、手動 restore の有無に依存させない
-- strict replay に必要な session record、Plan / Ticket、front matter、counter、lock-free 状態は、テスト fixture またはダミー実装側で自前構築する
-- テスト実行者に、stub テストの前準備として live 実行、手動 snapshot restore、既存 state の掃除を要求しない
+- live 実行はトークン消費を伴うため、通常のテスト確認フローへ混ぜない
+- live / stub の違いが論点になる場合は、既存実装を根拠に判断する
+- stub を使うテストや確認では、既存 repository 状態、既存 `.tgbt/`、stale lock、手動 restore の有無に依存させない
 
 # 実装者向けルール
 
 - 変更内容に対応するテストを追加または更新する
 - テスト変更だけで仕様差分を吸収しようとせず、まず仕様と実装のどちらが正なのかを確認する
 - この `docs/` 配下の文書と既存テストが矛盾する場合、既存テストを正本扱いし、文書記述だけを根拠に挙動を決めない
-- live / stub の違いが論点になる場合は、必要に応じて `src/codex_wrapper.py` と `tests/stub/test_codex_wrapper.py` を読み直す
-- Plan 更新や関連する状態変化が論点になる場合は、必要に応じて `src/plan_service.py` と `tests/stub/test_main.py` を読み直す
-- stub テストを追加・修正する場合、必要な replay data と state はテストのスコープ内で閉じる
-- stub テストのために実リポジトリの既存 state へ依存する設計を新たに持ち込まない
-- strict replay の前提条件が必要でも、それを満たす責務は通常テストではテストハーネス側に置く
+- 単体テストでは live モードを使わない
+- stub ベースの確認やテストを追加する場合、必要な record や state はテストスコープ内で閉じる
+- テスト実行者に、live 実行、手動 snapshot restore、既存 state の掃除を前提条件として要求しない
+
+# 関連コード
+
+- live / stub の実装は `src/agent_wrapper/agent_wrapper.py` と `src/agent_wrapper/codex_wrapper_live.py` を参照する
+- `tgbt plan docs` のフローは `src/main.py`、`src/cmd/plan/docs/service.py`、`src/cmd/plan/docs/drafting.py` を参照する
+- state の読み書きは `src/state/io.py` と `src/state/path.py` を参照する
 
 # カバレッジ
 
@@ -58,3 +50,8 @@ Codex CLI の利用有無で 2 系統のテストを用意する。
 ```
 
 - カバレッジ 90% を目標とする
+
+# 関連文書
+
+- 実装ルールは [python.md](./python.md) を参照する
+- 実行環境や依存導入の前提は [dev_environment.md](./dev_environment.md) を参照する

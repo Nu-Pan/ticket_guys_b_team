@@ -1,4 +1,4 @@
-# この文書を読むべき時
+# Python 実装ルール
 
 - Python コードを編集するとき
 - Python の静的検査や実行確認をするとき
@@ -61,3 +61,8 @@
 ```bash
 .venv/bin/python -m pyright <file name>
 ```
+
+# 関連文書
+
+- 仮想環境や依存導入の前提は [dev_environment.md](./dev_environment.md) を参照する
+- テスト追加・修正や確認方針は [test_policy.md](./test_policy.md) を参照する

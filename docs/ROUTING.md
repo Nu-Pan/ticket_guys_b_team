@@ -1,16 +1,30 @@
 # docs ルーティング
 
 `docs/` は `tgbt` 開発のための詳細ガイド置き場であり、正本仕様の置き場ではない。
-ここでは「今ある文書の入口」に徹し、必要な話題ごとに読む先を案内する。
+この文書は、現在の `docs/` にある文書の入口だけを案内する。
 
-# 最初に見る文書
+## `docs/ROUTING.md`
 
-- 開発環境の作成、`.venv`、依存導入、ツール実行方法を確認したいときは [dev_environment.md](./dev_environment.md)
-- Python 実装時の型ヒント、import、docstring、コメント、`pyright` 実行方針を確認したいときは [python.md](./python.md)
-- テスト追加・修正、live/stub の使い分け、確認方針を確認したいときは [test_policy.md](./test_policy.md)
+`docs/` 全体の入口である。どの文書から読むべきかを判断したいときに読む。
 
-# 読み進め方
+## `docs/dev_environment.md`
 
-1. 環境をまだ作っていないなら、先に [dev_environment.md](./dev_environment.md) を読む
-2. Python コードを触るなら、続けて [python.md](./python.md) を読む
-3. 実装確認やテスト追加を行うなら、最後に [test_policy.md](./test_policy.md) を読む
+[開発環境](./dev_environment.md)。`.venv` の作成、依存導入、Python 実行環境、ツール実行の前提を確認したいときに読む。
+
+## `docs/python.md`
+
+[Python 実装ルール](./python.md)。型ヒント、import、docstring、コメント、依存追加、`pyright` 実行方針を確認したいときに読む。
+
+## `docs/test_policy.md`
+
+[テスト方針](./test_policy.md)。テスト追加・修正、live/stub の扱い、実装変更に対する確認方針を確認したいときに読む。
+
+## 下位ディレクトリ
+
+現在の `docs/` 直下に、追加の `ROUTING.md` を持つ下位ディレクトリは存在しない。
+
+# 典型的な読み順
+
+1. 開発環境が未作成なら、まず [開発環境](./dev_environment.md) を読む
+2. Python コードを編集するなら、次に [Python 実装ルール](./python.md) を読む
+3. 実装確認やテスト追加を行うなら、最後に [テスト方針](./test_policy.md) を読む

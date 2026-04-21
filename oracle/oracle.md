@@ -1,5 +1,3 @@
-# 概念 `oracle`
-
 ## 基本的な考え方
 
 - `<repo-root>/oracle` は
@@ -45,6 +43,13 @@ oracle にまつわる tgbt の主な仕様は以下の通り
     - 自然言語指示上で `<repo-root>/oracle` への参照を示すことはあり得るが、それ以上の特別扱いはしない
     - plan の指示と oracle の内容とで矛盾が発生した場合、それは計画書ドラフトに明記される
 
-<!-- `docs/spec/cli_contract.md#1-文書の目的` -->
-[リンク](./document_routing.md#ドキュメントのルーティング関する原則)
-[リンク](/docs/spec/cli_contract.md#1-文書の目的)
+## テストの oracle
+
+- `<repo-root>/tests/oracle` を導入する
+- `<repo-root>/tests/oracle` は
+    - ここまでに述べた `<repo-root>/oracle` と同様の性質をもつ
+    - つまり、 AI による編集は禁止で、人間が１００％責任を持つ
+- 狙い
+    - 人間が宣託を記述する方法として自然言語による指示が毎回最適とは限らない
+    - プログラミング言語で記述したほうが早いということは普通にありえる
+    - プログラミング言語による宣託記述の方法として `<repo-root>/tests/oracle` を利用する
