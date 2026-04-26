@@ -1,0 +1,22 @@
+# `codex_skill_rule.md`
+
+- 作業ワークフローのパターン化、それを実現する指示文の永続化の方法について記述
+- リポジトリローカルなスキルの扱いについて記述
+
+# `environment.md`
+
+- `tgbt` を開発する環境について記述
+- 使用するOS、エディタ、言語、実行環境の管理ルール…
+
+# `oracle.md`
+
+- `tgbt` リポポジトリ上で Codex CLI を用いて `tgbt` 自体の開発を行う際の `oracle` の取り扱いについて記述
+
+# `python_coding.md`
+
+- python コーディング規約について記述
+- 従うべきコーディング規約、 docstring の方針、…
+
+# `test_policy.ms`
+
+- `tgbt` 開発時のテストの方針について記述

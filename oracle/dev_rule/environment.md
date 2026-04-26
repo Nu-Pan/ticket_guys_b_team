@@ -23,7 +23,7 @@
 # Python 実行環境
 
 - Python 3.12.3 を前提とする
-- システムワイドの `python3` を直接使わない
+- システムワイドの `python3` の直接使用は禁止
 - Python 仮想環境として `.venv` を使う
 - Python インタプリタは `.venv/bin/python` を使う
 - pip は `.venv/bin/python -m pip` を使う
