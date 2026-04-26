@@ -52,9 +52,9 @@
 # 注意事項
 
 - 依存追加を、場当たり的なワークアラウンドで済ませない
-- パッケージ導入ルールの詳細は [python.md](./python.md) も参照する
+- パッケージ導入ルールの詳細は [python_coding.md](./python_coding.md) も参照する
 
 # 関連文書
 
-- Python 実装時の規約は [python.md](./python.md) を参照する
+- Python 実装時の規約は [python_coding.md](./python_coding.md) を参照する
 - テスト実行や確認方針は [test_policy.md](./test_policy.md) を参照する

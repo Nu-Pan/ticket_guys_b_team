@@ -1,7 +1,7 @@
 # 注意
 
 - このファイルでは「`tgbt` を使って任意のリポジトリ上で開発作業を行う」際の `oracle` について記述する
-- 「`tgbt` リポポジトリ上で Codex CLI を用いて `tgbt` 自体の開発を行う」際の `oracle` については `oracle/dev_rule/oracle.md` を参照すること
+- 「`tgbt` リポジトリ上で Codex CLI を用いて `tgbt` 自体の開発を行う」際の `oracle` については `oracle/dev_rule/oracle.md` を参照すること
 - これら２パターンは根本的に前提が異なるため、混同してはいけない
 
 # 基本的な考え方
@@ -32,7 +32,8 @@
 
 # テスト
 
-- `<repo-root>/tests/oracle` を導入する
-- `<repo-root>/tests/oracle` はここまでに述べた `<repo-root>/oracle` と同様の性質をもつ
+- `<repo-root>/oracle/tests` を導入する
+- `<repo-root>/oracle/tests` はここまでに述べた `<repo-root>/oracle` と同様の性質をもつ
 - つまり、 AI による編集は禁止で、人間が１００％責任を持つ
-- 人間が宣託を記述する方法として自然言語による指示が毎回最適とは限らないので、テスト
+- 人間が宣託を記述する方法として自然言語による指示が毎回最適とは限らないので、プログラムによる指示を行うインターフェースとしてテストを利用することを狙う
+

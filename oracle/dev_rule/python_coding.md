@@ -49,7 +49,7 @@
 
 - 必要なパッケージが `.venv` に入っていない場合は `pyproject.toml` に依存関係を追記する
 - それ以外のワークアラウンド的対応は禁止する
-- 依存関係の反映方法は [dev_environment.md](./dev_environment.md) に従う
+- 依存関係の反映方法は [environment.md](./environment.md) に従う
 
 # 型チェック
 
@@ -63,5 +63,5 @@
 
 # 関連文書
 
-- 仮想環境や依存導入の前提は [dev_environment.md](./dev_environment.md) を参照する
+- 仮想環境や依存導入の前提は [environment.md](./environment.md) を参照する
 - テスト追加・修正や確認方針は [test_policy.md](./test_policy.md) を参照する

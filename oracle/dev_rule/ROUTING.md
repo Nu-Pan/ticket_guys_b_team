@@ -15,7 +15,7 @@
 
 # `oracle.md`
 
-- `tgbt` リポポジトリ上で Codex CLI を用いて `tgbt` 自体の開発を行う際の `oracle` の取り扱いについて記述
+- `tgbt` リポジトリ上で Codex CLI を用いて `tgbt` 自体の開発を行う際の `oracle` の取り扱いについて記述
 
 # `python_coding.md`
 
