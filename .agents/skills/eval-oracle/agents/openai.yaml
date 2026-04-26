@@ -1,0 +1,4 @@
+interface:
+  display_name: "Eval Oracle"
+  short_description: "oracle の矛盾や typo を編集せず評価するスキル"
+  default_prompt: "Use $eval-oracle to evaluate oracle files for logical contradictions and basic issues without editing oracle content."
