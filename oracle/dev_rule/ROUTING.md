@@ -13,7 +13,7 @@
 - `tgbt` を開発する環境について記述
 - 使用するOS、エディタ、言語、実行環境の管理ルール…
 
-## `eval_oracle_skill.md`
+# `eval_oracle_skill.md`
 
 - `oracle` を評価するスキルの断片的な正本仕様を記述
 

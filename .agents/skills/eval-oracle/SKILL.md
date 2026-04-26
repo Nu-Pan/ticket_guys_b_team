@@ -9,6 +9,7 @@ description: tgbt の `oracle/**` を AI が編集せずに評価し、ドキュ
 
 `oracle/**` は人間が責任を持つ断片的な正本仕様であり、AI は編集しない。
 この skill は、AI が oracle を読み、明示された内容同士の矛盾や typo などの問題だけを評価して人間へ返すための作業原則を定める。
+`ROUTING.md` とファイルシステム上の実体との照合は、可能な限り bundled script で機械的に確認する。
 
 ## Non-Negotiables
 
@@ -42,13 +43,22 @@ description: tgbt の `oracle/**` を AI が編集せずに評価し、ドキュ
 ## Workflow
 
 1. `AGENTS.md` を読み、編集禁止範囲を確認する。
-2. `oracle/ROUTING.md` と対象階層の `ROUTING.md` から、依頼に関係する oracle ファイルだけを辿る。
-3. 対象階層ごとに、`ROUTING.md` のファイルリストと実ファイル一覧を照合する。
-4. `rg` で関連語、ファイル名、コマンド名、同じ概念の別表記を検索する。
-5. 明示された記述同士を比較し、矛盾・typo・参照不整合・routing の過不足だけを抽出する。
-6. 不完全性に由来する未記載事項は指摘から外す。
-7. 指摘ごとに、対象ファイル、問題の種類、根拠、影響、必要なら人間が検討できる最小限の修正方向をまとめる。
-8. 判断できないものは推測で埋めず、「未確定」としてどの追加判断が必要かを示す。
+2. routing の過不足を含む評価では、まず `./.venv/bin/python .agents/skills/eval-oracle/scripts/check_routing.py` を repo root から実行する。
+3. `check_routing.py` の結果を、機械的に確認できた事実として扱う。script が失敗した場合は、失敗理由と手動で確認できた範囲を区別する。
+4. `oracle/ROUTING.md` と対象階層の `ROUTING.md` から、依頼に関係する oracle ファイルだけを辿る。
+5. `rg` で関連語、ファイル名、コマンド名、同じ概念の別表記を検索する。
+6. 明示された記述同士を比較し、矛盾・typo・参照不整合・routing の過不足だけを抽出する。
+7. 不完全性に由来する未記載事項は指摘から外す。
+8. 指摘ごとに、対象ファイル、問題の種類、根拠、影響、必要なら人間が検討できる最小限の修正方向をまとめる。
+9. 判断できないものは推測で埋めず、「未確定」としてどの追加判断が必要かを示す。
+
+## Routing Check Script
+
+- `scripts/check_routing.py` は、`oracle/` 配下の各ディレクトリに `ROUTING.md` が存在するかを確認する。
+- root 以外の各階層では、`ROUTING.md` 内の ``# `file.md` `` 形式の見出しをファイルリストとして抽出し、同階層の実ファイル一覧と照合する。
+- root の `oracle/ROUTING.md` は子ディレクトリ案内の階層なので、file heading format の過不足比較対象にはしない。
+- script の検出結果は、`ROUTING.md` 自体がない、`ROUTING.md` にあるが実ファイルがない、実ファイルはあるが `ROUTING.md` にない、に分けて報告する。
+- `ROUTING.md` の説明文の妥当性、概念衝突、typo は script に任せず、従来通り oracle 本文を読んで評価する。
 
 ## Reporting Rules
 
@@ -57,7 +67,7 @@ description: tgbt の `oracle/**` を AI が編集せずに評価し、ドキュ
 - 各 finding には根拠ファイルを添える。
 - 「事実」「推論」「未確定事項」を混同しない。
 - oracle の欠落を埋める提案ではなく、現存記述の衝突や初歩的問題に限定して報告する。
-- routing の過不足は、「`ROUTING.md` にあるが実ファイルがない」または「実ファイルはあるが `ROUTING.md` にない」を区別して報告する。
+- routing の過不足は、「`ROUTING.md` 自体がない」「`ROUTING.md` にあるが実ファイルがない」「実ファイルはあるが `ROUTING.md` にない」を区別して報告する。
 - 問題が見つからない場合は、その範囲で矛盾や typo を見つけられなかったと明示し、網羅性を保証しない。
 
 ## Default Answer Shape
