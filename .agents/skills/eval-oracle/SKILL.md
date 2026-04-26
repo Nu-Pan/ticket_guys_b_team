@@ -1,6 +1,6 @@
 ---
 name: eval-oracle
-description: tgbt の `oracle/**` を AI が編集せずに評価し、ドキュメント間の論理矛盾、参照不整合、typo などの初歩的問題を根拠付きで報告するための repo-local skill。Use when Codex needs to review oracle files for contradictions or basic document issues without filling in missing specifications or modifying oracle content.
+description: tgbt の `oracle/**` を AI が編集せずに評価し、ドキュメント間の論理矛盾、ROUTING.md のファイルリスト過不足、typo などの初歩的問題を根拠付きで報告するための repo-local skill。Use when Codex needs to review oracle files for contradictions, ROUTING.md file-list drift, or basic document issues without filling in missing specifications or modifying oracle content.
 ---
 
 # Eval Oracle
@@ -27,12 +27,13 @@ description: tgbt の `oracle/**` を AI が編集せずに評価し、ドキュ
 - 複数の oracle ファイル間、または同一ファイル内での論理的な矛盾。
 - 同じ概念、用語、パス、コマンド、責務についての説明が衝突している箇所。
 - 参照先ファイルや routing の記述と実ファイル構成の不整合。
+- 各階層の `ROUTING.md` のファイルリストと、同階層の実ファイル構成との過不足。
 - typo、明らかな脱字、誤字、Markdown 構造の軽微な破綻。
 - 表記ゆれのうち、読み手や実装者が別概念として誤解しそうなもの。
 
 ### 評価しないこと
 
-- oracle に書かれていない仕様や要求の不足。
+- oracle に書かれていない仕様や要求の不足。ただし、既存 oracle ファイルが同階層の `ROUTING.md` に載っていない場合は routing の不足として評価する。
 - 正本仕様として何が望ましいかというプロダクト判断。
 - 実装が oracle に追従しているかどうかの網羅的確認。
 - README、memo、AI 管理ドキュメントを含む一般的なドキュメントレビュー。
@@ -42,11 +43,12 @@ description: tgbt の `oracle/**` を AI が編集せずに評価し、ドキュ
 
 1. `AGENTS.md` を読み、編集禁止範囲を確認する。
 2. `oracle/ROUTING.md` と対象階層の `ROUTING.md` から、依頼に関係する oracle ファイルだけを辿る。
-3. `rg` で関連語、ファイル名、コマンド名、同じ概念の別表記を検索する。
-4. 明示された記述同士を比較し、矛盾・typo・参照不整合だけを抽出する。
-5. 不完全性に由来する未記載事項は指摘から外す。
-6. 指摘ごとに、対象ファイル、問題の種類、根拠、影響、必要なら人間が検討できる最小限の修正方向をまとめる。
-7. 判断できないものは推測で埋めず、「未確定」としてどの追加判断が必要かを示す。
+3. 対象階層ごとに、`ROUTING.md` のファイルリストと実ファイル一覧を照合する。
+4. `rg` で関連語、ファイル名、コマンド名、同じ概念の別表記を検索する。
+5. 明示された記述同士を比較し、矛盾・typo・参照不整合・routing の過不足だけを抽出する。
+6. 不完全性に由来する未記載事項は指摘から外す。
+7. 指摘ごとに、対象ファイル、問題の種類、根拠、影響、必要なら人間が検討できる最小限の修正方向をまとめる。
+8. 判断できないものは推測で埋めず、「未確定」としてどの追加判断が必要かを示す。
 
 ## Reporting Rules
 
@@ -55,6 +57,7 @@ description: tgbt の `oracle/**` を AI が編集せずに評価し、ドキュ
 - 各 finding には根拠ファイルを添える。
 - 「事実」「推論」「未確定事項」を混同しない。
 - oracle の欠落を埋める提案ではなく、現存記述の衝突や初歩的問題に限定して報告する。
+- routing の過不足は、「`ROUTING.md` にあるが実ファイルがない」または「実ファイルはあるが `ROUTING.md` にない」を区別して報告する。
 - 問題が見つからない場合は、その範囲で矛盾や typo を見つけられなかったと明示し、網羅性を保証しない。
 
 ## Default Answer Shape
