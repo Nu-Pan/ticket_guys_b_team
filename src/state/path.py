@@ -4,6 +4,7 @@ from pathlib import Path
 # tgbt
 from util.error import tgbt_error
 
+
 class TGBTPath:
     """
     tgbt 起動時に一意に決まるファイル・ディレクトリパスを集めたクラス
@@ -35,8 +36,24 @@ class TGBTPath:
                     tgbt 操作対象リポジトリのルートディレクトリに .tgbt を存在する必要があります。
                     これは通常 tgbt init の実行によって自動的に満たされます。
                     """,
-                    actual={"current": current}
+                    actual={"current": current},
                 )
+
+    @property
+    def tgbt(self) -> Path:
+        """`<repo-root>/.tgbt`"""
+        return self.repo_root / ".tgbt"
+
+    @property
+    def tgbt_codex(self) -> Path:
+        """`<repo-root>/.tgbt/.codex`"""
+        return self.tgbt / ".codex"
+
+    @property
+    def tgbt_codex_config(self) -> Path:
+        """`<repo-root>/.tgbt/.codex/config.toml`"""
+        return self.tgbt_codex / "config.toml"
+
 
 # パス集合クラスの実体
 # 直接的に外部公開するのはこれだけ

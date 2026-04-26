@@ -14,6 +14,15 @@ class AgentProfile(Enum):
     REPO_WRITE = "repo write"
 
 
+class CodexCliMode(str, Enum):
+    """
+    Codex CLI の実行方式。
+    """
+
+    LIVE = "live"
+    STUB = "stub"
+
+
 @dataclass(frozen=True)
 class AgentRunResult:
     """
