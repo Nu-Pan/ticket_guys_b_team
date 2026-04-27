@@ -3,9 +3,9 @@ from typing import Annotated
 import typer
 
 # local
-from cmd.init.tgbt_init import tgbt_init_impl
-from cmd.plan.docs.tgbt_plan_docs import tgbt_plan_docs_impl
-from cmd.run.tgbt_run import tgbt_run_impl
+from sub_commands.init.tgbt_init import tgbt_init_impl
+from sub_commands.plan.docs.tgbt_plan_docs import tgbt_plan_docs_impl
+from sub_commands.run.tgbt_run import tgbt_run_impl
 from agent_wrapper.agent_wrapper import CodexCliMode
 from util.error import tgbt_error
 
@@ -28,6 +28,7 @@ def init() -> None:
     """
     tgbt の作業対象リポジトリを tgbt 実行にとって合法な状態へ整える。
     リポジトリへ tgbt を組み込む時に１回だけ呼び出されることを想定。
+    必ず「カレントがリポジトリのルートである状態」でこのコマンドを実行する必要がある。
     """
     # 実装を呼び出し
     tgbt_init_impl()

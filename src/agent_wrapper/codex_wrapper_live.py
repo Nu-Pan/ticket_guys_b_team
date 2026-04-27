@@ -14,10 +14,7 @@ def _ensure_codex_settings() -> None:
     """
     Codex CLI の挙動に影響する設定ファイル類を `tgbt` が想定する状態に修正する。
     """
-    # `<repo-root>/.codex` は削除する
-    shutil.rmtree(TGBT_PATH.repo_root_codex, ignore_errors=True)
-
-    # `<repo-root>/.tgbt/.codex` 配下を正しい状態にする
+    # `<repo-root>/.tgbt/.codex/config.toml` を想定のものに置き換える
     body = stdtqs(
         """
         # ----
@@ -28,15 +25,11 @@ def _ensure_codex_settings() -> None:
         model = "gpt-5.5"
         model_reasoning_effort = "medium"
         plan_mode_reasoning_effort = "medium"
-        approval_policy = "never"
         personality = "pragmatic"
-        profile = "tgbt_read"
         project_root_markers = [".tgbt"]
 
         # Web検索モード
         sandbox_workspace_write.network_access = true
-        web_search = "cached"
-        tools.web_search.context_size = "medium"
 
         # 参照リンクを vscode フレンドリーにする
         file_opener = "vscode"
@@ -78,6 +71,7 @@ def _ensure_codex_settings() -> None:
         [profiles.tgbt_read]
 
         sandbox_mode = "read-only"
+        approval_policy = "never"
 
         # ----
         # プロファイル (write)
@@ -86,24 +80,12 @@ def _ensure_codex_settings() -> None:
         [profiles.tgbt_write]
 
         sandbox_mode = "workspace-write"
+        approval_policy = "never"
 
         """
     )
-    shutil.rmtree(TGBT_PATH.tgbt_codex, ignore_errors=True)
     TGBT_PATH.tgbt_codex.mkdir(parents=True, exist_ok=True)
     TGBT_PATH.tgbt_codex_config.write_text(body, encoding="utf-8")
-
-
-def _ensure_agents_md() -> None:
-    """
-    `AGENTS.md` を正しい状態にする
-    """
-    # ルート直下のやつをやる
-    # NOTE
-    #   必要な指示文は都度 `tgbt` 側で生成すれば良いので、わざわざ `AGENTS.md` を使う理由がない。
-    #   よって `<repo-root>` 配下（サブディレクトリ含む）の `AGENTS.md` は全て削除する。
-    for agents_md in TGBT_PATH.repo_root.rglob("AGENTS.md"):
-        agents_md.unlink(missing_ok=True)
 
 
 class CodexWrapperLive(AgentWrapper):
@@ -123,7 +105,6 @@ class CodexWrapperLive(AgentWrapper):
         Codex CLI が動作する前提を整える。
         """
         _ensure_codex_settings()
-        _ensure_agents_md()
 
     def run(
         self,
