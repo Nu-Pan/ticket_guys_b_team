@@ -40,6 +40,11 @@ class TGBTPath:
                 )
 
     @property
+    def repo_root_codex(self) -> Path:
+        """`<repo-root>/.codex`"""
+        return self.repo_root / ".codex"
+
+    @property
     def tgbt(self) -> Path:
         """`<repo-root>/.tgbt`"""
         return self.repo_root / ".tgbt"
@@ -53,6 +58,11 @@ class TGBTPath:
     def tgbt_codex_config(self) -> Path:
         """`<repo-root>/.tgbt/.codex/config.toml`"""
         return self.tgbt_codex / "config.toml"
+
+    @property
+    def agents_md(self) -> Path:
+        """`<repo-root>/AGENTS.md`"""
+        return self.repo_root / "AGENTS.md"
 
 
 # パス集合クラスの実体

@@ -1,3 +1,8 @@
+# `codex_cli.md`
+
+- `tgbt` から Codex CLI を利用する際の規則について記述している
+- `codex` コマンドの呼び出し規約に加えて、 Codex CLI の挙動の設定方法についても記述している
+
 # `knowledge_system.md`
 
 - `tgbt` 上で実装するべき AI 用知識システムの仕様について記述している

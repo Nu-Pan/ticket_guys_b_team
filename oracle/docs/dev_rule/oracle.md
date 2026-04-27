@@ -1,7 +1,7 @@
 # 注意
 
 - このファイルでは「`tgbt` リポジトリ上で Codex CLI を用いて `tgbt` 自体の開発を行う」際の `oracle` について記述する
-- 「`tgbt` を使って任意のリポジトリ上で開発作業を行う」際の `oracle` については `oracle/tgbt_spec/oracle.md` を参照すること
+- 「`tgbt` を使って任意のリポジトリ上で開発作業を行う」際の `oracle` については `oracle/docs/tgbt_spec/oracle.md` を参照すること
 - これら２パターンは根本的に前提が異なるため、混同してはいけない
 
 # 基本的な考え方

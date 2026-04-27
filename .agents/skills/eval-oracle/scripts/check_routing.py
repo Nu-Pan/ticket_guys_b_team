@@ -1,7 +1,5 @@
 #!/usr/bin/env python3
-"""Check oracle ROUTING.md file lists against the filesystem."""
-
-from __future__ import annotations
+"""Check oracle ROUTING.md entries against the filesystem."""
 
 import re
 import sys
@@ -20,10 +18,10 @@ def find_repo_root() -> Path:
     raise RuntimeError("Could not find repository root containing AGENTS.md and oracle/")
 
 
-def oracle_dirs(oracle_root: Path) -> list[Path]:
+def routing_dirs(routing_root: Path) -> list[Path]:
     return sorted(
-        [oracle_root, *(path for path in oracle_root.rglob("*") if path.is_dir())],
-        key=lambda path: path.relative_to(oracle_root).as_posix(),
+        [routing_root, *(path for path in routing_root.rglob("*") if path.is_dir())],
+        key=lambda path: path.relative_to(routing_root).as_posix(),
     )
 
 
@@ -36,20 +34,25 @@ def routing_entries(routing_path: Path) -> set[str]:
     return entries
 
 
-def actual_markdown_files(directory: Path) -> set[str]:
-    return {
+def actual_routing_targets(directory: Path) -> set[str]:
+    markdown_files = {
         path.name
         for path in directory.glob("*.md")
         if path.is_file() and path.name != ROUTING_FILE
     }
+    child_directories = {path.name for path in directory.iterdir() if path.is_dir()}
+    return markdown_files | child_directories
 
 
 def main() -> int:
     repo_root = find_repo_root()
-    oracle_root = repo_root / "oracle"
+    routing_root = repo_root / "oracle" / "docs"
+    if not routing_root.is_dir():
+        raise RuntimeError("Could not find oracle/docs/")
+
     issues: list[str] = []
 
-    for directory in oracle_dirs(oracle_root):
+    for directory in routing_dirs(routing_root):
         routing_path = directory / ROUTING_FILE
         rel_dir = directory.relative_to(repo_root).as_posix()
 
@@ -57,21 +60,18 @@ def main() -> int:
             issues.append(f"missing-routing: {rel_dir}/{ROUTING_FILE}")
             continue
 
-        if directory == oracle_root:
-            continue
+        listed_entries = routing_entries(routing_path)
+        actual_entries = actual_routing_targets(directory)
 
-        listed_files = routing_entries(routing_path)
-        actual_files = actual_markdown_files(directory)
-
-        for filename in sorted(listed_files - actual_files):
+        for entry_name in sorted(listed_entries - actual_entries):
             issues.append(
-                f"listed-missing-file: {rel_dir}/{ROUTING_FILE} lists {filename}, "
-                f"but {rel_dir}/{filename} does not exist"
+                f"listed-missing-entry: {rel_dir}/{ROUTING_FILE} lists {entry_name}, "
+                f"but {rel_dir}/{entry_name} does not exist"
             )
 
-        for filename in sorted(actual_files - listed_files):
+        for entry_name in sorted(actual_entries - listed_entries):
             issues.append(
-                f"unlisted-file: {rel_dir}/{filename} exists, "
+                f"unlisted-entry: {rel_dir}/{entry_name} exists, "
                 f"but is not listed in {rel_dir}/{ROUTING_FILE}"
             )
 
