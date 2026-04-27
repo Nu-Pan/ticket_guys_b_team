@@ -41,12 +41,14 @@ AI は low-level な実装、局所的な整合調整、対応テストの更新
 
 - まず user request を、どの関数・クラス・コマンド・テストを触る話かに分解する。
 - 挙動の根拠は、既存テスト、実装、必要な `oracle` 断片の順で集める。
-- `oracle` を読むときは `oracle/ROUTING.md` と各階層の `ROUTING.md` から必要なファイルだけ辿る。
-- Python 実装を触るときは `oracle/dev_rule/python_coding.md` を読む。
-- `.venv`、依存追加、ツール実行方法が論点なら `oracle/dev_rule/environment.md` を読む。
-- テスト追加・修正や確認方法が論点なら `oracle/dev_rule/test_policy.md` を読む。
-- AI 管理ドキュメントを作りたくなる作業では `oracle/dev_rule/ai_docs.md` を読み、作成しない方針を守る。
+- `oracle` を読むときは `oracle/docs/ROUTING.md` と各階層の `ROUTING.md` から必要なファイルだけ辿る。
+- Python 実装を触るときは `oracle/docs/dev_rule/ROUTING.md` で所在を確認してから `oracle/docs/dev_rule/python_coding.md` を読む。
+- `.venv`、依存追加、ツール実行方法が論点なら `oracle/docs/dev_rule/ROUTING.md` で所在を確認してから `oracle/docs/dev_rule/environment.md` を読む。
+- テスト追加・修正や確認方法が論点なら `oracle/docs/dev_rule/ROUTING.md` で所在を確認してから `oracle/docs/dev_rule/test_policy.md` を読む。
+- AI 管理ドキュメントを作りたくなる作業では `oracle/docs/dev_rule/ROUTING.md` で所在を確認してから `oracle/docs/dev_rule/ai_docs.md` を読み、作成しない方針を守る。
 - `oracle` と既存テストが衝突する場合は、勝手に整合させず、衝突箇所を人間へ返す。
+- この `ticket_guys_b_team` repository 上で `tgbt` を実行して自己開発させない。smoke test が必要なら、テスト用のトイプロジェクト上で実行する既存方針に従う。
+- unit test では live mode を使わない。
 
 ## Workflow
 
@@ -55,7 +57,7 @@ AI は low-level な実装、局所的な整合調整、対応テストの更新
 3. high-level な仕様判断が必要か確認する。必要なら、その論点を明示して人間へ返す。
 4. 最小差分で実装する。新しい抽象化は、重複や破綻を避けるために必要な場合だけ導入する。
 5. 変更に対応するテストを追加または更新する。stub テストは既存 repository 状態や既存 `.tgbt/` に依存させない。
-6. 変更対象に近い単位で `./.venv/bin/python -m pyright ...` と `./.venv/bin/python -m pytest ...` を実行する。
+6. 変更対象に近い単位で `./.venv/bin/python -m pyright ...` と `./.venv/bin/python -m pytest ...` を実行する。unit test では live mode を使わず、`tgbt` 自己実行も避ける。
 7. 実装結果、確認したコマンド、残る不確定事項をまとめて報告する。
 
 ## Escalation Rules
@@ -85,7 +87,7 @@ AI は low-level な実装、局所的な整合調整、対応テストの更新
 ## Default execution pattern
 
 1. 対象コードと既存テストを特定する
-2. 必要な `oracle/dev_rule/*.md` と `oracle/tgbt_spec/*.md` だけ読む
+2. 必要な `oracle/docs/dev_rule/*.md` と `oracle/docs/tgbt_spec/*.md` だけ読む
 3. 最小差分で実装する
 4. 対応テストを追加・更新する
 5. `.venv/bin/python -m pyright` と対象 `.venv/bin/python -m pytest` を実行する
