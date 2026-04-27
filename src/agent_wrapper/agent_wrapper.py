@@ -10,8 +10,8 @@ class AgentProfile(Enum):
     エージェントに何かをさせる時のプロファイル
     """
 
-    READ_ONLY = "read_only"
-    REPO_WRITE = "repo write"
+    READ = "tgbt_read"
+    WRITE = "tgbt_write"
 
 
 class CodexCliMode(str, Enum):

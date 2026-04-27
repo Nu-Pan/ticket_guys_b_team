@@ -18,8 +18,6 @@ def _ensure_codex_settings() -> None:
     shutil.rmtree(TGBT_PATH.repo_root_codex, ignore_errors=True)
 
     # `<repo-root>/.tgbt/.codex` 配下を正しい状態にする
-    # TODO
-    #   中身の正しさが未調査
     body = stdtqs(
         """
         # ----
@@ -30,57 +28,86 @@ def _ensure_codex_settings() -> None:
         model = "gpt-5.5"
         model_reasoning_effort = "high"
         plan_mode_reasoning_effort = "high"
-        model_verbosity = "high"
-        approval_policy = "on-request"
-        sandbox_mode = "workspace-write"
+        approval_policy = "never"
         personality = "pragmatic"
+        profile = "tgbt_read"
+        project_root_markers = [".tgbt"]
 
         # Web検索モード
-        # NOTE
-        #   cached はライブ取得せず、OpenAI 管理のインデックスを使う
         sandbox_workspace_write.network_access = true
         web_search = "cached"
+        tools.web_search.context_size = "high"
 
-        # 参照リンクを vsocde フレンドリーにする
+        # 参照リンクを vscode フレンドリーにする
         file_opener = "vscode"
 
-        # 基本指示は使わない
-        #developer_instructions = ...
+        # ログインシェルは読み込ませない
+        # NOTE
+        #   tgbt からの codex 呼び出しに想定外の何かが混入するのを防ぐために無効化
+        #   利便性と安全性を天秤にかけて、安全性を取った
+        allow_login_shell = false
+
+        # フィードバック系は副作用あるかもなので無効化
+        analytics.enabled = false
+        feedback.enabled = false
+
+        # 更新チェックは無効化
+        # NOTE
+        #   tgbt 側で明示的に更新チェックが行われることを前提に無効化している
+        check_for_update_on_startup = false
+
+        # メモリー機能
+        # NOTE
+        #   Codex CLI のメモリー機能は使わない
+        #   代わりに tgbt の知識システムだけを使う
+        features.memories = false
+        #memories.consolidation_model = "..."
+        #memories.extract_model = "..."
+
+        # 履歴関係
+        # NOTE
+        #   履歴は tgbt の仕組みで管理する
+        #   reasoning はデバッグ用に詳細を残す
+        history.persistence = "none"
+        model_reasoning_summary = "detailed"
+        model_verbosity = "medium"
+        hide_agent_reasoning = false
 
         # ----
-        # セッション履歴
+        # プロファイル (read)
         # ----
 
-        [history]
-        persistence = "none"
+        [profiles.tgbt_read]
 
-        # ----
-        # Web 検索
-        # ----
-
-        [tools.web_search]
-        context_size = "high"
-
-        # ----
-        # マルチエージェント
-        # ----
-
-        [agents]
-
-        max_threads = 6
-        max_depth = 1
-
-        # ----
-        # プロファイル
-        # ----
-
-        [profiles.read_only]
         sandbox_mode = "read-only"
-        approval_policy = "never"
+        default_permissions = "tgbt_read"
 
-        [profiles."repo write"]
+        [permissions.tgbt_read.filesystem.":project_roots"]
+
+        "." = "read"
+        "README.md" = "none"
+        "memo/**" = "none"
+        ".tgbt" = "none"
+        ".codex" = "none"
+
+        # ----
+        # プロファイル (write)
+        # ----        
+
+        [profiles.tgbt_write]
+
         sandbox_mode = "workspace-write"
-        approval_policy = "on-request"
+        default_permissions = "tgbt_write"
+
+        [permissions.tgbt_write.filesystem.":project_roots"]
+
+        "." = "write"
+        "README.md" = "none"
+        "memo/**" = "none"
+        ".tgbt" = "none"
+        ".codex" = "none"
+        "AGENTS.md" = "read"
+        "oracle/**" = "read"
         """
     )
     shutil.rmtree(TGBT_PATH.tgbt_codex, ignore_errors=True)
