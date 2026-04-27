@@ -29,12 +29,3 @@ history.persistence = "save-all"
 model_reasoning_summary = "detailed"
 model_verbosity = "high"
 hide_agent_reasoning = false
-
-# ----
-# マルチエージェント
-# ----
-
-[agents]
-
-max_threads = 6
-max_depth = 1
