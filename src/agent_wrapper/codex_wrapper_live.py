@@ -26,8 +26,8 @@ def _ensure_codex_settings() -> None:
 
         # 基本設定
         model = "gpt-5.5"
-        model_reasoning_effort = "high"
-        plan_mode_reasoning_effort = "high"
+        model_reasoning_effort = "medium"
+        plan_mode_reasoning_effort = "medium"
         approval_policy = "never"
         personality = "pragmatic"
         profile = "tgbt_read"
@@ -36,7 +36,7 @@ def _ensure_codex_settings() -> None:
         # Web検索モード
         sandbox_workspace_write.network_access = true
         web_search = "cached"
-        tools.web_search.context_size = "high"
+        tools.web_search.context_size = "medium"
 
         # 参照リンクを vscode フレンドリーにする
         file_opener = "vscode"
@@ -61,8 +61,6 @@ def _ensure_codex_settings() -> None:
         #   Codex CLI のメモリー機能は使わない
         #   代わりに tgbt の知識システムだけを使う
         features.memories = false
-        #memories.consolidation_model = "..."
-        #memories.extract_model = "..."
 
         # 履歴関係
         # NOTE
@@ -80,15 +78,6 @@ def _ensure_codex_settings() -> None:
         [profiles.tgbt_read]
 
         sandbox_mode = "read-only"
-        default_permissions = "tgbt_read"
-
-        [permissions.tgbt_read.filesystem.":project_roots"]
-
-        "." = "read"
-        "README.md" = "none"
-        "memo/**" = "none"
-        ".tgbt" = "none"
-        ".codex" = "none"
 
         # ----
         # プロファイル (write)
@@ -97,17 +86,7 @@ def _ensure_codex_settings() -> None:
         [profiles.tgbt_write]
 
         sandbox_mode = "workspace-write"
-        default_permissions = "tgbt_write"
 
-        [permissions.tgbt_write.filesystem.":project_roots"]
-
-        "." = "write"
-        "README.md" = "none"
-        "memo/**" = "none"
-        ".tgbt" = "none"
-        ".codex" = "none"
-        "AGENTS.md" = "read"
-        "oracle/**" = "read"
         """
     )
     shutil.rmtree(TGBT_PATH.tgbt_codex, ignore_errors=True)

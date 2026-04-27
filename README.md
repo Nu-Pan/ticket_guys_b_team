@@ -10,4 +10,4 @@
 - Codex CLI の worker runtime は `CODEX_HOME=<repo-root>/.tgbt/.codex` を前提とする
 - runtime 生成物は `.tgbt/.codex/config.toml` と `.tgbt/instructions.md`
 - `.tgbt/instructions.md` は人間向け文書ではなく、Codex CLI に読ませる repo-local runtime 指示である
-- `tgbt init` が `.tgbt/.codex/config.toml` と `.tgbt/instructions.md` を自動生成・合法化する
+- `tgbt init` が `.tgbt/.codex/config.toml` と `.tgbt/instructions.md` を自動生成・正規化する
