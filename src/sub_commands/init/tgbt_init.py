@@ -2,7 +2,7 @@
 from pathlib import Path
 
 # local
-from agent_wrapper.codex_wrapper_live import CodexWrapperLive
+from agent_wrapper.codex_wrapper import CodexWrapper
 from state.path import TGBT_PATH
 from util.error import tgbt_error
 
@@ -37,4 +37,4 @@ def tgbt_init_impl() -> None:
     _ensure_tgbt_root_dir()
 
     # Codex CLI 用のリポジトリ状態を整える。
-    CodexWrapperLive().init_repo()
+    CodexWrapper().init_repo()

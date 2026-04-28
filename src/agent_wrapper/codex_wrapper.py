@@ -88,7 +88,7 @@ def _ensure_codex_settings() -> None:
     TGBT_PATH.tgbt_codex_config.write_text(body, encoding="utf-8")
 
 
-class CodexWrapperLive(AgentWrapper):
+class CodexWrapper(AgentWrapper):
     """
     Codex CLI を live mode で呼び出すための wrapper。
     """

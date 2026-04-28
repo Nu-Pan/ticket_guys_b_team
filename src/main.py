@@ -4,7 +4,6 @@ from typing import Annotated
 import typer
 
 # local
-from agent_wrapper.agent_wrapper import CodexCliMode
 from sub_commands.init.tgbt_init import tgbt_init_impl
 from sub_commands.plan.docs.tgbt_plan_docs import tgbt_plan_docs_impl
 from sub_commands.run.tgbt_run import tgbt_run_impl
@@ -46,10 +45,6 @@ def plan_docs(
         str | None,
         typer.Option("--plan-id", help="Existing plan identifier to update."),
     ] = None,
-    codex_cli_mode: Annotated[
-        CodexCliMode,
-        typer.Option("--codex-cli-mode", help="Codex CLI execution mode."),
-    ] = CodexCliMode.LIVE,
 ) -> None:
     """
     docs 修正作業の計画書を作成する。
@@ -73,7 +68,6 @@ def plan_docs(
     tgbt_plan_docs_impl(
         instruction=instruction,
         plan_id=plan_id,
-        codex_cli_mode=codex_cli_mode,
     )
 
 
@@ -83,13 +77,9 @@ def run(
         str,
         typer.Option("--plan-id", help="Plan identifier to execute."),
     ],
-    codex_cli_mode: Annotated[
-        CodexCliMode,
-        typer.Option("--codex-cli-mode", help="Codex CLI execution mode."),
-    ] = CodexCliMode.LIVE,
 ) -> None:
     """指定した Plan を起点に run を実行する。"""
-    _ = plan_id, codex_cli_mode
+    _ = (plan_id,)
     tgbt_run_impl()
 
 

@@ -4,7 +4,7 @@
 - `oracle/docs/` 配下の各階層には `ROUTING.md` が存在する
 - `ROUTING.md` には、同一階層のファイル・ディレクトリの目次情報が記述されている
 - `ROUTING.md` を辿れば、適切な .md ファイルにアクセス可能である
-- 「`oracle/` 直下」「`oracle/tests/` 配下」には `ROUTING.md` を作成しない
+- 「`oracle/` 直下」には `ROUTING.md` を作成しない
 
 # `ROUTING.md` のフォーマット
 
