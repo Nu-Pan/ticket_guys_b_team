@@ -1,12 +1,14 @@
 # std
+import sys
 from typing import Annotated
 import typer
 
 # local
+from agent_wrapper.agent_wrapper import CodexCliMode
 from sub_commands.init.tgbt_init import tgbt_init_impl
 from sub_commands.plan.docs.tgbt_plan_docs import tgbt_plan_docs_impl
 from sub_commands.run.tgbt_run import tgbt_run_impl
-from agent_wrapper.agent_wrapper import CodexCliMode
+from util.editor_input import EditorInstructionInput
 from util.error import tgbt_error
 
 
@@ -36,10 +38,10 @@ def init() -> None:
 
 @plan_app.command("docs")
 def plan_docs(
-    request_text: Annotated[
-        str,
-        typer.Argument(help="Plan generation request text."),
-    ],
+    instruction_source: Annotated[
+        str | None,
+        typer.Argument(help="Use '-' to read instruction text from stdin."),
+    ] = None,
     plan_id: Annotated[
         str | None,
         typer.Option("--plan-id", help="Existing plan identifier to update."),
@@ -54,8 +56,25 @@ def plan_docs(
     plan_id 未指定の場合は新規に計画書を作成する。
     plan_id を指定された場合は既存計画書を更新する。
     """
+    # 指示文の入力元を CLI 引数から決める。
+    if instruction_source is None:
+        instruction = EditorInstructionInput().read()
+    elif instruction_source == "-":
+        instruction = sys.stdin.read()
+    else:
+        raise tgbt_error(
+            "指示文の入力元指定が不正です",
+            "標準入力から指示文を渡す場合は末尾引数に '-' を指定してください",
+            actual={"instruction_source": instruction_source},
+            expect={"instruction_source": "None or '-'"},
+        )
+
     # 実装を呼び出し
-    result = tgbt_plan_docs_impl()
+    tgbt_plan_docs_impl(
+        instruction=instruction,
+        plan_id=plan_id,
+        codex_cli_mode=codex_cli_mode,
+    )
 
 
 @app.command()
