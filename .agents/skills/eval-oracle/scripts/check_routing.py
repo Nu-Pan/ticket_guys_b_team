@@ -1,4 +1,3 @@
-#!/usr/bin/env python3
 """Check oracle ROUTING.md entries against the filesystem."""
 
 import re

@@ -43,14 +43,15 @@ description: tgbt の `oracle/**` を AI が編集せずに評価し、ドキュ
 ## Workflow
 
 1. `AGENTS.md` を読み、編集禁止範囲を確認する。
-2. routing の過不足を含む評価では、まず `./.venv/bin/python .agents/skills/eval-oracle/scripts/check_routing.py` を repo root から実行する。
-3. `check_routing.py` の結果を、機械的に確認できた事実として扱う。script が失敗した場合は、失敗理由と手動で確認できた範囲を区別する。
-4. `oracle/docs/ROUTING.md` と対象階層の `ROUTING.md` から、依頼に関係する oracle ファイルだけを辿る。
-5. `rg` で関連語、ファイル名、コマンド名、同じ概念の別表記を検索する。
-6. 明示された記述同士を比較し、矛盾・typo・参照不整合・routing の過不足だけを抽出する。
-7. 不完全性に由来する未記載事項は指摘から外す。
-8. 指摘ごとに、対象ファイル、問題の種類、根拠、影響、必要なら人間が検討できる最小限の修正方向をまとめる。
-9. 判断できないものは推測で埋めず、「未確定」としてどの追加判断が必要かを示す。
+2. routing の過不足や `ROUTING.md` の形式が論点なら、`oracle/docs/ROUTING.md` と `oracle/docs/dev_rule/ROUTING.md` から `oracle/docs/dev_rule/docs_routing_policy.md` を確認する。
+3. routing の過不足を含む評価では、まず `./.venv/bin/python .agents/skills/eval-oracle/scripts/check_routing.py` を repo root から実行する。
+4. `check_routing.py` の結果を、機械的に確認できた事実として扱う。script が失敗した場合は、失敗理由と手動で確認できた範囲を区別する。
+5. `oracle/docs/ROUTING.md` と対象階層の `ROUTING.md` から、依頼に関係する oracle ファイルだけを辿る。
+6. `rg` で関連語、ファイル名、コマンド名、同じ概念の別表記を検索する。
+7. 明示された記述同士を比較し、矛盾・typo・参照不整合・routing の過不足だけを抽出する。
+8. 不完全性に由来する未記載事項は指摘から外す。
+9. 指摘ごとに、対象ファイル、問題の種類、根拠、影響、必要なら人間が検討できる最小限の修正方向をまとめる。
+10. 判断できないものは推測で埋めず、「未確定」としてどの追加判断が必要かを示す。
 
 ## Routing Check Script
 

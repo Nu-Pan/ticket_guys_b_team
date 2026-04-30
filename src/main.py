@@ -7,7 +7,7 @@ import typer
 from sub_commands.init.tgbt_init import tgbt_init_impl
 from sub_commands.plan.docs.tgbt_plan_docs import tgbt_plan_docs_impl
 from sub_commands.run.tgbt_run import tgbt_run_impl
-from util.editor_input import EditorInstructionInput
+from util.editor_input import read_from_editor
 from util.error import tgbt_error
 
 
@@ -53,7 +53,7 @@ def plan_docs(
     """
     # 指示文の入力元を CLI 引数から決める。
     if instruction_source is None:
-        instruction = EditorInstructionInput().read()
+        instruction = read_from_editor()
     elif instruction_source == "-":
         instruction = sys.stdin.read()
     else:

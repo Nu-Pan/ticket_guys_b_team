@@ -6,6 +6,13 @@ from agent_wrapper.codex_wrapper import CodexWrapper
 from state.path import TGBT_PATH
 from util.error import tgbt_error
 
+_TGBT_MEANINGFUL_DIR_NAMES = (
+    "memo",
+    "oracle",
+    "docs",
+    "tests",
+)
+
 
 def _ensure_tgbt_root_dir() -> None:
     """
@@ -26,6 +33,10 @@ def _ensure_tgbt_root_dir() -> None:
             actual={"repo_root": actual_repo_root},
             expect={"repo_root": expected_repo_root},
         )
+
+    # tgbt が意味を持つトップレベルディレクトリを用意する。
+    for dir_name in _TGBT_MEANINGFUL_DIR_NAMES:
+        (actual_repo_root / dir_name).mkdir(exist_ok=True)
 
 
 def tgbt_init_impl() -> None:
