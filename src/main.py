@@ -1,5 +1,4 @@
 # std
-import sys
 from typing import Annotated
 import typer
 
@@ -7,9 +6,6 @@ import typer
 from sub_commands.init.tgbt_init import tgbt_init_impl
 from sub_commands.plan.docs.tgbt_plan_docs import tgbt_plan_docs_impl
 from sub_commands.run.tgbt_run import tgbt_run_impl
-from util.editor_input import read_from_editor
-from util.error import tgbt_error
-
 
 # type app を構築
 app = typer.Typer(
@@ -39,7 +35,12 @@ def init() -> None:
 def plan_docs(
     instruction_source: Annotated[
         str | None,
-        typer.Argument(help="Use '-' to read instruction text from stdin."),
+        typer.Argument(
+            help=(
+                "Use '-' to read instruction text from stdin. "
+                "Other text is inserted before opening the editor."
+            ),
+        ),
     ] = None,
     plan_id: Annotated[
         str | None,
@@ -51,22 +52,9 @@ def plan_docs(
     plan_id 未指定の場合は新規に計画書を作成する。
     plan_id を指定された場合は既存計画書を更新する。
     """
-    # 指示文の入力元を CLI 引数から決める。
-    if instruction_source is None:
-        instruction = read_from_editor()
-    elif instruction_source == "-":
-        instruction = sys.stdin.read()
-    else:
-        raise tgbt_error(
-            "指示文の入力元指定が不正です",
-            "標準入力から指示文を渡す場合は末尾引数に '-' を指定してください",
-            actual={"instruction_source": instruction_source},
-            expect={"instruction_source": "None or '-'"},
-        )
-
     # 実装を呼び出し
     tgbt_plan_docs_impl(
-        instruction=instruction,
+        instruction_source,
         plan_id=plan_id,
     )
 

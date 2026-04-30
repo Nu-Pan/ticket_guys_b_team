@@ -60,6 +60,28 @@ class TGBTPath:
         return self.tgbt_codex / "config.toml"
 
     @property
+    def tgbt_plan(self) -> Path:
+        """`<repo-root>/.tgbt/plan`"""
+        return self.tgbt / "plan"
+
+    @property
+    def tgbt_plan_read(self) -> Path:
+        """`<repo-root>/.tgbt/plan_read`"""
+        return self.tgbt / "plan_read"
+
+    def tgbt_plan_json(self, plan_id: str) -> Path:
+        """
+        plan id に対応する正本 JSON パスを返す。
+        """
+        return self.tgbt_plan / f"{plan_id}.json"
+
+    def tgbt_plan_markdown(self, plan_id: str) -> Path:
+        """
+        plan id に対応する閲覧用 Markdown パスを返す。
+        """
+        return self.tgbt_plan_read / f"{plan_id}.md"
+
+    @property
     def agents_md(self) -> Path:
         """`<repo-root>/AGENTS.md`"""
         return self.repo_root / "AGENTS.md"

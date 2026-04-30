@@ -1,6 +1,7 @@
 # std
 import json
-from pathlib import Path
+import re
+import sys
 from uuid import uuid4
 
 # pip
@@ -15,39 +16,16 @@ from schemas.plan import (
     CompletionCriterion,
     PlannedProcedure,
     RiskNote,
+    TGBT_PLAN_FIELD_RULES_PROMPT,
     TgbtPlan,
 )
 from state.path import TGBT_PATH
 from util.error import tgbt_error
 from util.text import stdtqs
+from util.editor_input import read_from_editor
 
 
-def _plan_dir() -> Path:
-    """
-    plan 正本 JSON を保存するディレクトリを返す。
-    """
-    return TGBT_PATH.tgbt / "plan"
-
-
-def _plan_read_dir() -> Path:
-    """
-    人間閲覧用 Markdown を保存するディレクトリを返す。
-    """
-    return TGBT_PATH.tgbt / "plan_read"
-
-
-def _plan_json_path(plan_id: str) -> Path:
-    """
-    plan id に対応する正本 JSON パスを返す。
-    """
-    return _plan_dir() / f"{plan_id}.json"
-
-
-def _plan_markdown_path(plan_id: str) -> Path:
-    """
-    plan id に対応する閲覧用 Markdown パスを返す。
-    """
-    return _plan_read_dir() / f"{plan_id}.md"
+_HTML_COMMENT_PATTERN = re.compile(r"<!--.*?-->", re.DOTALL)
 
 
 def _new_plan_id() -> str:
@@ -58,10 +36,12 @@ def _new_plan_id() -> str:
 
 
 def _render_id_text_items(
-    items: list[CompletionCriterion]
-    | list[RiskNote]
-    | list[PlannedProcedure]
-    | list[Assumption],
+    items: (
+        list[CompletionCriterion]
+        | list[RiskNote]
+        | list[PlannedProcedure]
+        | list[Assumption]
+    ),
 ) -> str:
     """
     id と text を持つ plan 項目の Markdown list を描画する。
@@ -131,8 +111,8 @@ def _save_plan(plan_id: str, plan: TgbtPlan) -> None:
     plan 正本 JSON と閲覧用 Markdown を保存する。
     """
     # plan 関連ディレクトリは必要になった時点で作成する。
-    _plan_dir().mkdir(parents=True, exist_ok=True)
-    _plan_read_dir().mkdir(parents=True, exist_ok=True)
+    TGBT_PATH.tgbt_plan.mkdir(parents=True, exist_ok=True)
+    TGBT_PATH.tgbt_plan_read.mkdir(parents=True, exist_ok=True)
 
     # JSON を正本として保存し、Markdown は派生物として保存する。
     plan_json = json.dumps(
@@ -140,8 +120,11 @@ def _save_plan(plan_id: str, plan: TgbtPlan) -> None:
         ensure_ascii=False,
         indent=2,
     )
-    _plan_json_path(plan_id).write_text(plan_json + "\n", encoding="utf-8")
-    _plan_markdown_path(plan_id).write_text(
+    TGBT_PATH.tgbt_plan_json(plan_id).write_text(
+        plan_json + "\n",
+        encoding="utf-8",
+    )
+    TGBT_PATH.tgbt_plan_markdown(plan_id).write_text(
         _render_plan_markdown(plan_id, plan) + "\n",
         encoding="utf-8",
     )
@@ -151,7 +134,8 @@ def _load_plan(plan_id: str) -> TgbtPlan:
     """
     plan id に対応する正本 JSON を読み込む。
     """
-    plan_json_path = _plan_json_path(plan_id)
+    # plan のパスを構築
+    plan_json_path = TGBT_PATH.tgbt_plan_json(plan_id)
     if not plan_json_path.exists():
         raise tgbt_error(
             "指定された plan が見つかりません",
@@ -161,9 +145,7 @@ def _load_plan(plan_id: str) -> TgbtPlan:
 
     # 正本 JSON は保存前後とも TgbtPlan として検証する。
     try:
-        return TgbtPlan.model_validate_json(
-            plan_json_path.read_text(encoding="utf-8")
-        )
+        return TgbtPlan.model_validate_json(plan_json_path.read_text(encoding="utf-8"))
     except (OSError, ValidationError) as error:
         raise tgbt_error(
             "plan 正本 JSON の読み込みに失敗しました",
@@ -182,20 +164,7 @@ def _build_create_plan_prompt(instruction: str) -> str:
         The final response must conform to the TgbtPlan schema.
         Do not return Markdown. Do not return prose outside the schema.
 
-        Field rules:
-        - schema_version: Use "1".
-        - original_instructions: Preserve the user's original instruction text without paraphrasing.
-        - completion_criteria: Write concrete observable conditions for completion.
-        - risk_notes: Record ambiguity, missing information, likely execution risk, or oracle conflicts.
-        - planned_procedures: Write ordered, atomic pre-execution work procedures.
-        - assumptions: Record assumptions made to fill gaps not specified by the user or oracle.
-        - self_check_notes: Record concise checks performed before finalizing the plan.
-
-        ID rules:
-        - completion_criteria ids: COMP-001, COMP-002, ...
-        - risk_notes ids: RISK-001, RISK-002, ...
-        - planned_procedures ids: PROC-001, PROC-002, ...
-        - assumptions ids: ASMP-001, ASMP-002, ...
+        {TGBT_PLAN_FIELD_RULES_PROMPT}
 
         Quality rules:
         - Prefer oracle over user instruction if they conflict.
@@ -229,6 +198,8 @@ def _build_update_plan_prompt(
         The final response must conform to the TgbtPlan schema.
         Do not return Markdown. Do not return prose outside the schema.
 
+        {TGBT_PLAN_FIELD_RULES_PROMPT}
+
         Update rules:
         - Preserve existing original_instructions and append the new user instruction.
         - Preserve existing item ids when updating existing items.
@@ -237,12 +208,6 @@ def _build_update_plan_prompt(
         - Prefer oracle over user instruction if they conflict.
         - Do not invent product-level decisions beyond necessary assumptions.
         - Make assumptions explicit instead of hiding them in procedure text.
-
-        ID rules:
-        - completion_criteria ids: COMP-001, COMP-002, ...
-        - risk_notes ids: RISK-001, RISK-002, ...
-        - planned_procedures ids: PROC-001, PROC-002, ...
-        - assumptions ids: ASMP-001, ASMP-002, ...
 
         Existing plan JSON:
         ```json
@@ -279,14 +244,54 @@ def _run_plan_prompt(prompt: str) -> TgbtPlan:
             "audit log を確認してください",
             actual={
                 "audit_log_file_path": result.audit_log_file_path,
-                "structured_response_type": (
-                    type(result.structured_response).__name__
-                ),
+                "structured_response_type": (type(result.structured_response).__name__),
             },
             expect={"structured_response_type": TgbtPlan.__name__},
         )
 
     return result.structured_response
+
+
+def _build_docs_instruction_template(initial_instruction: str = "") -> str:
+    """
+    `tgbt plan docs` 用の人間指示ファイル初期本文を構築する。
+    """
+    # 人間向け説明は HTML コメントにして、編集完了後の機械処理で除外できるようにする。
+    template = stdtqs("""
+        <!--
+        tgbt plan docs に渡す指示を Markdown で書いてください。
+
+        - docs 修正作業で達成したいことを書いてください。
+        - 重要な制約、対象ファイル、完了条件があれば書いてください。
+        - 見出しを使う場合は `#` だけを使ってください。
+        - `##` 以降の深い見出しは使わないでください。
+        - このコメントブロックは tgbt が指示文から除外します。
+        -->
+
+        # Docs 修正指示
+        """)
+
+    # CLI 引数で渡された文字列は、編集前の指示本文として見出しの下に注入する。
+    if initial_instruction == "":
+        return template + "\n"
+    return f"{template}\n{initial_instruction}\n"
+
+
+def _remove_instruction_comments(instruction: str) -> str:
+    """
+    人間指示ファイルから tgbt が注入した HTML コメントを取り除く。
+    """
+    # コメント除去後の前後空白は、テンプレート由来の余白を plan に残さないために落とす。
+    return _HTML_COMMENT_PATTERN.sub("", instruction).strip()
+
+
+def _read_instruction_from_editor(initial_instruction: str = "") -> str:
+    """
+    docs 用テンプレートを入れた人間指示ファイルをエディタで編集して読み込む。
+    """
+    # エディタ用テンプレートを注入し、戻り値は機械処理用の本文だけに絞る。
+    instruction = read_from_editor(_build_docs_instruction_template(initial_instruction))
+    return _remove_instruction_comments(instruction)
 
 
 def create_plan(instruction: str) -> str:
@@ -327,12 +332,20 @@ def udate_plan(
 
 
 def tgbt_plan_docs_impl(
-    instruction: str,
+    instruction_source: str | None,
     plan_id: str | None,
 ) -> None:
     """
     `tgbt plan docs` の実装。
     """
+    # 指示文の入力元を CLI 引数から決める。
+    if instruction_source is None:
+        instruction = _read_instruction_from_editor()
+    elif instruction_source == "-":
+        instruction = sys.stdin.read()
+    else:
+        instruction = _read_instruction_from_editor(instruction_source)
+
     # 作成・更新処理を呼び出す
     if plan_id is None:
         plan_id = create_plan(instruction)
@@ -340,4 +353,4 @@ def tgbt_plan_docs_impl(
         plan_id = udate_plan(instruction, plan_id)
 
     # tgbt plan の結果として、人間閲覧用 Markdown を標準出力へ表示する。
-    typer.echo(_plan_markdown_path(plan_id).read_text(encoding="utf-8"))
+    typer.echo(TGBT_PATH.tgbt_plan_markdown(plan_id).read_text(encoding="utf-8"))

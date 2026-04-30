@@ -10,14 +10,14 @@ from pathlib import Path
 from util.error import tgbt_error
 
 
-def read_from_editor() -> str:
+def read_from_editor(initial_text: str = "") -> str:
     """
-    エディタで編集された一時ファイルの本文を返す。
+    エディタで編集された人間指示ファイルの本文を返す。
     """
-    # 編集用の一時ファイルを作り、エディタ終了後に本文を読み戻す。
+    # 編集用の人間指示ファイルを初期本文つきで作り、エディタ終了後に本文を読み戻す。
     with tempfile.TemporaryDirectory() as temp_dir:
         instruction_file = Path(temp_dir) / "instruction.md"
-        instruction_file.write_text("", encoding="utf-8")
+        instruction_file.write_text(initial_text, encoding="utf-8")
 
         _run_editor(instruction_file)
         return instruction_file.read_text(encoding="utf-8")

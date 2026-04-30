@@ -1,5 +1,23 @@
 from pydantic import BaseModel, ConfigDict
 
+# TODO この文字列についての適切な説明を書く
+TGBT_PLAN_FIELD_RULES_PROMPT = """\
+Field rules:
+- schema_version: Use "1".
+- original_instructions: Preserve the user's original instruction text without paraphrasing.
+- completion_criteria: Write concrete observable conditions for completion.
+- risk_notes: Record ambiguity, missing information, likely execution risk, or oracle conflicts.
+- planned_procedures: Write ordered, atomic pre-execution work procedures.
+- assumptions: Record assumptions made to fill gaps not specified by the user or oracle.
+- self_check_notes: Record concise checks performed before finalizing the plan.
+
+ID rules:
+- completion_criteria ids: COMP-001, COMP-002, ...
+- risk_notes ids: RISK-001, RISK-002, ...
+- planned_procedures ids: PROC-001, PROC-002, ...
+- assumptions ids: ASMP-001, ASMP-002, ...
+"""
+
 
 class StrictModel(BaseModel):
     model_config = ConfigDict(extra="forbid")
