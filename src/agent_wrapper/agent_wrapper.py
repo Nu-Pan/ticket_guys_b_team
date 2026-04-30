@@ -4,6 +4,9 @@ from dataclasses import dataclass
 from enum import Enum
 from pathlib import Path
 
+# pip
+from pydantic import BaseModel
+
 
 class AgentProfile(Enum):
     """
@@ -23,6 +26,7 @@ class AgentRunResult:
     is_ok: bool
     reponse: str
     audit_log_file_path: Path
+    structured_response: BaseModel | None = None
 
 
 class AgentWrapper(ABC):
@@ -50,6 +54,7 @@ class AgentWrapper(ABC):
         self,
         agent_profile: AgentProfile,
         instruction: str,
+        output_schema: type[BaseModel] | None = None,
     ) -> AgentRunResult:
         """
         エージェントに作業を実行させる。
