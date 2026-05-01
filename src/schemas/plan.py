@@ -4,6 +4,16 @@ from typing import ClassVar
 # pip
 from pydantic import BaseModel, ConfigDict
 
+# local
+from schemas.markdown import (
+    MarkdownSection,
+    render_document,
+    render_id_text_items,
+    render_metadata_item,
+    render_plain_items,
+    render_text_blocks,
+)
+
 
 class StrictModel(BaseModel):
     model_config = ConfigDict(extra="forbid")
@@ -84,3 +94,41 @@ ID rules:
     planned_procedures: list[PlannedProcedure]
     assumptions: list[Assumption]
     self_check_notes: list[str]
+
+
+def render_plan_markdown(plan_id: str, plan: TgbtPlan) -> str:
+    """
+    TgbtPlan から人間閲覧用 Markdown を生成する。
+    """
+    return render_document(
+        title=f"tgbt plan: {plan_id}",
+        metadata=[
+            render_metadata_item("schema_version", plan.schema_version),
+        ],
+        sections=[
+            MarkdownSection(
+                title="Original Instructions",
+                body=render_text_blocks(plan.original_instructions),
+            ),
+            MarkdownSection(
+                title="Completion Criteria",
+                body=render_id_text_items(plan.completion_criteria),
+            ),
+            MarkdownSection(
+                title="Risk Notes",
+                body=render_id_text_items(plan.risk_notes),
+            ),
+            MarkdownSection(
+                title="Planned Procedures",
+                body=render_id_text_items(plan.planned_procedures),
+            ),
+            MarkdownSection(
+                title="Assumptions",
+                body=render_id_text_items(plan.assumptions),
+            ),
+            MarkdownSection(
+                title="Self Check Notes",
+                body=render_plain_items(plan.self_check_notes),
+            ),
+        ],
+    )

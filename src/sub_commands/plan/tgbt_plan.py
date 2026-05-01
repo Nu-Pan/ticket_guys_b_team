@@ -11,13 +11,7 @@ from pydantic import ValidationError
 # local
 from agent_wrapper.agent_wrapper import AgentProfile
 from agent_wrapper.codex_wrapper import CodexWrapper
-from schemas.plan import (
-    Assumption,
-    CompletionCriterion,
-    PlannedProcedure,
-    RiskNote,
-    TgbtPlan,
-)
+from schemas.plan import TgbtPlan, render_plan_markdown
 from state.path import TGBT_PATH
 from util.error import tgbt_error
 from util.text import stdtqs
@@ -31,77 +25,6 @@ def _new_plan_id() -> str:
     新しい plan id を生成する。
     """
     return f"plan-{uuid4().hex}"
-
-
-def _render_id_text_items(
-    items: (
-        list[CompletionCriterion]
-        | list[RiskNote]
-        | list[PlannedProcedure]
-        | list[Assumption]
-    ),
-) -> str:
-    """
-    id と text を持つ plan 項目の Markdown list を描画する。
-    """
-    if len(items) == 0:
-        return "- なし"
-
-    return "\n".join(f"- `{item.id}` {item.text}" for item in items)
-
-
-def _render_plain_items(items: list[str]) -> str:
-    """
-    文字列 list の Markdown list を描画する。
-    """
-    if len(items) == 0:
-        return "- なし"
-
-    return "\n".join(f"- {item}" for item in items)
-
-
-def _render_plan_markdown(plan_id: str, plan: TgbtPlan) -> str:
-    """
-    TgbtPlan から人間閲覧用 Markdown を生成する。
-    """
-    # 人間が plan id と schema version を確認できるように先頭へ集約する。
-    original_instructions = "\n\n".join(
-        f"```text\n{item.text}\n```" for item in plan.original_instructions
-    )
-    if not original_instructions:
-        original_instructions = "なし"
-
-    return "\n".join(
-        [
-            f"# tgbt plan: {plan_id}",
-            "",
-            f"- schema_version: `{plan.schema_version}`",
-            "",
-            "## Original Instructions",
-            "",
-            original_instructions,
-            "",
-            "## Completion Criteria",
-            "",
-            _render_id_text_items(plan.completion_criteria),
-            "",
-            "## Risk Notes",
-            "",
-            _render_id_text_items(plan.risk_notes),
-            "",
-            "## Planned Procedures",
-            "",
-            _render_id_text_items(plan.planned_procedures),
-            "",
-            "## Assumptions",
-            "",
-            _render_id_text_items(plan.assumptions),
-            "",
-            "## Self Check Notes",
-            "",
-            _render_plain_items(plan.self_check_notes),
-        ]
-    )
 
 
 def _save_plan(plan_id: str, plan: TgbtPlan) -> None:
@@ -123,7 +46,7 @@ def _save_plan(plan_id: str, plan: TgbtPlan) -> None:
         encoding="utf-8",
     )
     TGBT_PATH.tgbt_plan_markdown(plan_id).write_text(
-        _render_plan_markdown(plan_id, plan) + "\n",
+        render_plan_markdown(plan_id, plan) + "\n",
         encoding="utf-8",
     )
 
