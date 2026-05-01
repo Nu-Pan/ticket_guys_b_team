@@ -21,9 +21,3 @@
 # plan id の省略
 
 - plan id として latest を指定したら、最新のプランが選択されるようにする
-
-# codex 実行結果の監査ログ
-
-- 必要な対応は以下の通り
-    - `tgbt` 呼び出し自体のログを `<repo-root>/.tgbt/logs/tgbt_call` に保存する
-    - `tgbt init` で起きたことの `<repo-root>/.tgbt/logs/init` への保存
