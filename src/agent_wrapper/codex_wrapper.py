@@ -192,10 +192,10 @@ class CodexWrapper(AgentWrapper):
                     is_ok = False
 
         # 実行内容を後から確認できるように標準出力と標準エラーを保存する。
-        audit_log_dir = TGBT_PATH.tgbt_codex / "audit_logs"
-        audit_log_dir.mkdir(parents=True, exist_ok=True)
-        audit_log_file_path = audit_log_dir / f"{time.time_ns()}.log"
-        audit_log_file_path.write_text(
+        log_dir = TGBT_PATH.tgbt_logs / "codex"
+        log_dir.mkdir(parents=True, exist_ok=True)
+        log_file_path = log_dir / f"{time.time_ns()}.log"
+        log_file_path.write_text(
             stdtqs(f"""
                 command: {command}
                 returncode: {completed.returncode}
@@ -217,6 +217,6 @@ class CodexWrapper(AgentWrapper):
         return AgentRunResult(
             is_ok=is_ok,
             reponse=completed.stdout,
-            audit_log_file_path=audit_log_file_path,
+            log_file_path=log_file_path,
             structured_response=structured_response,
         )

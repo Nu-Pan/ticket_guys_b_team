@@ -233,16 +233,16 @@ def _run_plan_prompt(prompt: str) -> TgbtPlan:
     if not result.is_ok:
         raise tgbt_error(
             "Codex CLI による plan 生成に失敗しました",
-            "audit log を確認してください",
-            actual={"audit_log_file_path": result.audit_log_file_path},
+            "log を確認してください",
+            actual={"log_file_path": result.log_file_path},
         )
 
     if not isinstance(result.structured_response, TgbtPlan):
         raise tgbt_error(
             "Codex CLI の構造化応答が TgbtPlan ではありません",
-            "audit log を確認してください",
+            "log を確認してください",
             actual={
-                "audit_log_file_path": result.audit_log_file_path,
+                "log_file_path": result.log_file_path,
                 "structured_response_type": (type(result.structured_response).__name__),
             },
             expect={"structured_response_type": TgbtPlan.__name__},

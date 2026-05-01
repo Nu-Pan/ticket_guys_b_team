@@ -7,4 +7,4 @@
     - tgbt からの Codex CLI 呼び出しを出来るだけ隔離するための措置
 - git 管理
     - `<repo-root>/.tgbt/.codex` は codex の状態ファイル等が含まれるため git 管理対象としない
-    - それ以外は git 管理対象とする（e.g. 過去の plan, audit ログなど）
+    - それ以外は git 管理対象とする（e.g. `<repo-root>/.tgbt/logs`）

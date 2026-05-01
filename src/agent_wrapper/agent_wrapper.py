@@ -25,7 +25,7 @@ class AgentRunResult:
 
     is_ok: bool
     reponse: str
-    audit_log_file_path: Path
+    log_file_path: Path
     structured_response: BaseModel | None = None
 
 

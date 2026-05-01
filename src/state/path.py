@@ -60,6 +60,11 @@ class TGBTPath:
         return self.tgbt_codex / "config.toml"
 
     @property
+    def tgbt_logs(self) -> Path:
+        """`<repo-root>/.tgbt/logs`"""
+        return self.tgbt / "logs"
+
+    @property
     def tgbt_plan(self) -> Path:
         """`<repo-root>/.tgbt/plan`"""
         return self.tgbt / "plan"
