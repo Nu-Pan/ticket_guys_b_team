@@ -1,4 +1,4 @@
 interface:
   display_name: "Create Repo Local Skill"
   short_description: "tgbt向け repo-local skill 作成・更新・メンテ"
-  default_prompt: "Use $create-repo-local-skill to maintain repo-local skills under .agents/skills and validate them."
+  default_prompt: "Use $create-repo-local-skill to maintain repo-local skills in the tgbt repository and validate them."

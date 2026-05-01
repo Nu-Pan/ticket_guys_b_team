@@ -10,7 +10,7 @@
 
 # `docs_routing_policy.md`
 
-- `oracle/docs` 配下ドキュメントの `ROUTING.md` によるルーティングについて記述
+- `<tgbt-root>/oracle/docs` 配下ドキュメントの `ROUTING.md` によるルーティングについて記述
 
 # `environment.md`
 
@@ -23,7 +23,12 @@
 
 # `oracle.md`
 
-- `tgbt` リポジトリ上で Codex CLI を用いて `tgbt` 自体の開発を行う際の `oracle` の取り扱いについて記述
+- `<tgbt-root>` 上で Codex CLI を用いて `tgbt` 自体の開発を行う際の `<tgbt-root>/oracle` の取り扱いについて記述
+
+# `path_notation_rule.md`
+
+- ファイル・ディレクトリのパスの表記方法の正本ルールを記述
+- e.g. `<tgbt-root>`, `<repo-root>` の違い
 
 # `python_coding.md`
 

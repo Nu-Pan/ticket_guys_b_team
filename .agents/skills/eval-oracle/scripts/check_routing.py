@@ -1,4 +1,4 @@
-"""Check oracle ROUTING.md entries against the filesystem."""
+"""Check <tgbt-root>/oracle ROUTING.md entries against the filesystem."""
 
 import re
 import sys
@@ -14,7 +14,7 @@ def find_repo_root() -> Path:
     for candidate in (current, *current.parents):
         if (candidate / "AGENTS.md").is_file() and (candidate / "oracle").is_dir():
             return candidate
-    raise RuntimeError("Could not find repository root containing AGENTS.md and oracle/")
+    raise RuntimeError("Could not find <tgbt-root> containing AGENTS.md and oracle/")
 
 
 def routing_dirs(routing_root: Path) -> list[Path]:
@@ -47,7 +47,7 @@ def main() -> int:
     repo_root = find_repo_root()
     routing_root = repo_root / "oracle" / "docs"
     if not routing_root.is_dir():
-        raise RuntimeError("Could not find oracle/docs/")
+        raise RuntimeError("Could not find <tgbt-root>/oracle/docs/")
 
     issues: list[str] = []
 
@@ -75,7 +75,7 @@ def main() -> int:
             )
 
     if not issues:
-        print("OK: oracle routing matches filesystem")
+        print("OK: <tgbt-root>/oracle routing matches filesystem")
         return 0
 
     print("ROUTING issues found:")

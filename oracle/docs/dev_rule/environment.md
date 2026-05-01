@@ -1,7 +1,7 @@
 # 開発環境
 
 - 開発環境をセットアップするとき
-- `.venv` の作成、依存追加、ツール実行方法を確認するとき
+- `<tgbt-root>/.venv` の作成、依存追加、ツール実行方法を確認するとき
 
 # 読まなくてよい時
 
@@ -12,7 +12,7 @@
 
 - WSL2 Ubuntu 24.04 on Windows 11
 - vscode (with Remote Development Extension)
-- `ticket_guys_b_team.code-workspace` を vscode で開いた環境
+- `<tgbt-root>/ticket_guys_b_team.code-workspace` を vscode で開いた環境
 - Codex CLI が利用可能
 
 # ファイルエンコード
@@ -24,27 +24,29 @@
 
 - Python 3.12.3 を前提とする
 - システムワイドの `python3` の直接使用は禁止（例外として venv 作成時のみ使用可）
-- Python 仮想環境として `.venv` を使う
-- Python インタプリタは `.venv/bin/python` を使う
-- pip は `.venv/bin/python -m pip` を使う
+- Python 仮想環境として `<tgbt-root>/.venv` を使う
+- Python インタプリタは `<tgbt-root>/.venv/bin/python` を使う
+- pip は `<tgbt-root>/.venv/bin/python -m pip` を使う
 
 # 仮想環境の管理
 
-## `.venv` の新規作成
+## `<tgbt-root>/.venv` の新規作成
 
 ```bash
+cd <tgbt-root>
 /usr/bin/python3 -m venv .venv
 ```
 
-## `.venv` へのパッケージインストール
+## `<tgbt-root>/.venv` へのパッケージインストール
 
 権限昇格付きでの実行が必要なら、ユーザーに依頼すること。
 
 ```bash
+cd <tgbt-root>
 ./.venv/bin/python -m pip install -e ."[test]"
 ```
 
-## `.venv` への新規パッケージ追加
+## `<tgbt-root>/.venv` への新規パッケージ追加
 
 - `pyproject.toml` に依存関係を追記する
 - その後、上記のインストール手順を実行する

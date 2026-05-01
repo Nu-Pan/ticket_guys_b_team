@@ -47,7 +47,7 @@
 
 # パッケージ管理
 
-- 必要なパッケージが `.venv` に入っていない場合は `pyproject.toml` に依存関係を追記する
+- 必要なパッケージが `<tgbt-root>/.venv` に入っていない場合は `pyproject.toml` に依存関係を追記する
 - それ以外のワークアラウンド的対応は禁止する
 - 依存関係の反映方法は [environment.md](./environment.md) に従う
 
@@ -58,6 +58,7 @@
 - 実行例:
 
 ```bash
+cd <tgbt-root>
 .venv/bin/python -m pyright <file name>
 ```
 

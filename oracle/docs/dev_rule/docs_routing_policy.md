@@ -1,10 +1,11 @@
 
 # `ROUTING.md` についてのルール
 
-- `oracle/docs/` 配下の各階層には `ROUTING.md` が存在する
+- `<tgbt-root>/oracle/docs/` 配下の各階層には `ROUTING.md` が存在する
 - `ROUTING.md` には、同一階層のファイル・ディレクトリの目次情報が記述されている
 - `ROUTING.md` を辿れば、適切な .md ファイルにアクセス可能である
-- 「`oracle/` 直下」には `ROUTING.md` を作成しない
+- 「`<tgbt-root>/oracle` 直下」には `ROUTING.md` を作成しない
+- `<tgbt-root>/oracle/docs/ROUTING.md` の存在は `<tgbt-root>/AGENTS.md` から辿ることが出来る
 
 # `ROUTING.md` のフォーマット
 
