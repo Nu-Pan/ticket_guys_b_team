@@ -2,7 +2,7 @@
 import json
 import re
 import sys
-from uuid import uuid4
+from datetime import datetime
 
 # pip
 import typer
@@ -24,7 +24,8 @@ def _new_plan_id() -> str:
     """
     新しい plan id を生成する。
     """
-    return f"plan-{uuid4().hex}"
+    # 固定幅の日時を使い、plan id の文字列ソート順と作成順を揃える。
+    return datetime.now().strftime("plan-%Y%m%d-%H%M%S-%f")
 
 
 def _save_plan(plan_id: str, plan: TgbtPlan) -> None:
@@ -75,63 +76,6 @@ def _load_plan(plan_id: str) -> TgbtPlan:
         )
 
 
-def _build_create_plan_prompt(instruction: str) -> str:
-    """
-    新規 plan 作成用の Codex prompt を構築する。
-    """
-    return stdtqs(f"""
-        Create a new tgbt plan for `tgbt plan`.
-
-        Quality rules:
-        - Prefer oracle over user instruction if they conflict.
-        - Do not invent product-level decisions beyond necessary assumptions.
-        - Make assumptions explicit instead of hiding them in procedure text.
-        - Keep each list item focused on one idea.
-
-        User instruction:
-        ```text
-        {instruction}
-        ```
-        """)
-
-
-def _build_update_plan_prompt(
-    instruction: str,
-    existing_plan: TgbtPlan,
-) -> str:
-    """
-    既存 plan 更新用の Codex prompt を構築する。
-    """
-    existing_plan_json = json.dumps(
-        existing_plan.model_dump(mode="json"),
-        ensure_ascii=False,
-        indent=2,
-    )
-
-    return stdtqs(f"""
-        Update the existing tgbt plan for `tgbt plan`.
-
-        Update rules:
-        - Preserve existing original_instructions and append the new user instruction.
-        - Preserve existing item ids when updating existing items.
-        - Create new ids only for newly added items.
-        - Keep schema_version as "1".
-        - Prefer oracle over user instruction if they conflict.
-        - Do not invent product-level decisions beyond necessary assumptions.
-        - Make assumptions explicit instead of hiding them in procedure text.
-
-        Existing plan JSON:
-        ```json
-        {existing_plan_json}
-        ```
-
-        New user instruction:
-        ```text
-        {instruction}
-        ```
-        """)
-
-
 def _run_plan_prompt(prompt: str) -> TgbtPlan:
     """
     Codex CLI に TgbtPlan schema 付きで plan 生成を依頼する。
@@ -163,9 +107,9 @@ def _run_plan_prompt(prompt: str) -> TgbtPlan:
     return result.structured_response
 
 
-def _build_plan_instruction_template(initial_instruction: str = "") -> str:
+def _read_instruction_from_editor(initial_instruction: str = "") -> str:
     """
-    `tgbt plan` 用の人間指示ファイル初期本文を構築する。
+    plan 用テンプレートを入れた人間指示ファイルをエディタで編集して読み込む。
     """
     # 人間向け説明は HTML コメントにして、編集完了後の機械処理で除外できるようにする。
     template = stdtqs("""
@@ -184,42 +128,43 @@ def _build_plan_instruction_template(initial_instruction: str = "") -> str:
 
     # CLI 引数で渡された文字列は、編集前の指示本文として見出しの下に注入する。
     if initial_instruction == "":
-        return template + "\n"
-    return f"{template}\n{initial_instruction}\n"
+        initial_text = template + "\n"
+    else:
+        initial_text = f"{template}\n{initial_instruction}\n"
 
+    # エディタ用テンプレートを注入し、戻り値は機械処理用の本文だけに絞る。
+    instruction = read_from_editor(initial_text)
 
-def _remove_instruction_comments(instruction: str) -> str:
-    """
-    人間指示ファイルから tgbt が注入した HTML コメントを取り除く。
-    """
     # コメント除去後の前後空白は、テンプレート由来の余白を plan に残さないために落とす。
     return _HTML_COMMENT_PATTERN.sub("", instruction).strip()
 
 
-def _read_instruction_from_editor(initial_instruction: str = "") -> str:
-    """
-    plan 用テンプレートを入れた人間指示ファイルをエディタで編集して読み込む。
-    """
-    # エディタ用テンプレートを注入し、戻り値は機械処理用の本文だけに絞る。
-    instruction = read_from_editor(
-        _build_plan_instruction_template(initial_instruction)
-    )
-    return _remove_instruction_comments(instruction)
-
-
-def create_plan(instruction: str) -> str:
+def _create_plan(instruction: str) -> str:
     """
     instruction に従って plan を新しく作成する。
     作成したプランの ID を返す。
     """
     # 新規 plan id は tgbt 側で生成し、AI には決めさせない。
     plan_id = _new_plan_id()
-    plan = _run_plan_prompt(_build_create_plan_prompt(instruction))
+    plan = _run_plan_prompt(stdtqs(f"""
+        Create a new tgbt plan for `tgbt plan`.
+
+        Quality rules:
+        - Prefer oracle over user instruction if they conflict.
+        - Do not invent product-level decisions beyond necessary assumptions.
+        - Make assumptions explicit instead of hiding them in procedure text.
+        - Keep each list item focused on one idea.
+
+        User instruction:
+        ```text
+        {instruction}
+        ```
+        """))
     _save_plan(plan_id, plan)
     return plan_id
 
 
-def udate_plan(
+def _udate_plan(
     instruction: str,
     plan_id: str,
 ) -> str:
@@ -227,12 +172,33 @@ def udate_plan(
     instruction に従って既存 plan を更新する。
     """
     existing_plan = _load_plan(plan_id)
-    updated_plan = _run_plan_prompt(
-        _build_update_plan_prompt(
-            instruction=instruction,
-            existing_plan=existing_plan,
-        )
+    existing_plan_json = json.dumps(
+        existing_plan.model_dump(mode="json"),
+        ensure_ascii=False,
+        indent=2,
     )
+    updated_plan = _run_plan_prompt(stdtqs(f"""
+        Update the existing tgbt plan for `tgbt plan`.
+
+        Update rules:
+        - Preserve existing original_instructions and append the new user instruction.
+        - Preserve existing item ids when updating existing items.
+        - Create new ids only for newly added items.
+        - Keep schema_version as "1".
+        - Prefer oracle over user instruction if they conflict.
+        - Do not invent product-level decisions beyond necessary assumptions.
+        - Make assumptions explicit instead of hiding them in procedure text.
+
+        Existing plan JSON:
+        ```json
+        {existing_plan_json}
+        ```
+
+        New user instruction:
+        ```text
+        {instruction}
+        ```
+        """))
     _save_plan(plan_id, updated_plan)
     return plan_id
 
@@ -254,9 +220,9 @@ def tgbt_plan_impl(
 
     # 作成・更新処理を呼び出す
     if plan_id is None:
-        plan_id = create_plan(instruction)
+        plan_id = _create_plan(instruction)
     else:
-        plan_id = udate_plan(instruction, plan_id)
+        plan_id = _udate_plan(instruction, plan_id)
 
     # tgbt plan の結果として、人間閲覧用 Markdown を標準出力へ表示する。
     typer.echo(TGBT_PATH.tgbt_plan_markdown(plan_id).read_text(encoding="utf-8"))
