@@ -17,3 +17,10 @@
 
 - `<repo-root>/.tgbt/logs` 配下に保存する
 - 種類ごとに、更にサブディレクトリを作成する
+
+# Codex CLI 呼び出しログの仕様
+
+- Codex CLI 呼び出しログの保存先は `<repo-root>/.tgbt/logs/codex_call`
+- Codex CLI 実行時の環境（config.toml とか schema とかの設定すべて）を Codex CLI 呼び出しログに含める
+- Codex CLI 呼び出しログは json 形式で構造化して保存する
+- １ファイル１呼び出しとする

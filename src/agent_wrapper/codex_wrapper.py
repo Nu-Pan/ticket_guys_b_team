@@ -233,29 +233,84 @@ class CodexWrapper(AgentWrapper):
                     structured_response_error = str(error)
                     is_ok = False
 
-        # 実行内容を後から確認できるように標準出力と標準エラーを保存する。
-        log_dir = TGBT_PATH.tgbt_logs / "codex"
+        # 実行内容を後から確認できるように Codex CLI 呼び出しログを保存する。
+        log_dir = TGBT_PATH.tgbt_logs / "codex_call"
         log_dir.mkdir(parents=True, exist_ok=True)
-        log_file_path = log_dir / f"{time.time_ns()}.log"
+        log_file_path = log_dir / f"{time.time_ns()}.json"
+        config_toml = None
+        if TGBT_PATH.tgbt_codex_config.exists():
+            config_toml = TGBT_PATH.tgbt_codex_config.read_text(encoding="utf-8")
+
+        structured_response_raw = None
+        if (
+            structured_response_file_path is not None
+            and structured_response_file_path.exists()
+        ):
+            structured_response_raw = structured_response_file_path.read_text(
+                encoding="utf-8"
+            )
+
         log_file_path.write_text(
-            stdtqs(f"""
-                command: {command}
-                returncode: {completed.returncode}
-                is_ok: {is_ok}
-                structured_schema_file_path: {structured_schema_file_path}
-                structured_response_file_path: {structured_response_file_path}
-                structured_response_error:
-                {structured_response_error}
-
-                stdout:
-                {completed.stdout}
-
-                stderr:
-                {completed.stderr}
-                """),
+            json.dumps(
+                {
+                    "command": command,
+                    "cwd": str(TGBT_PATH.repo_root),
+                    "environment": {
+                        "CODEX_HOME": env["CODEX_HOME"],
+                    },
+                    "config": {
+                        "config_toml_path": str(TGBT_PATH.tgbt_codex_config),
+                        "config_toml": config_toml,
+                    },
+                    "input": {
+                        "agent_profile": agent_profile.value,
+                        "instruction": instruction,
+                        "codex_instruction": codex_instruction,
+                    },
+                    "output_schema": {
+                        "class_name": (
+                            output_schema.__name__
+                            if output_schema is not None
+                            else None
+                        ),
+                        "json_schema": (
+                            output_schema.model_json_schema()
+                            if output_schema is not None
+                            else None
+                        ),
+                        "schema_file_path": (
+                            str(structured_schema_file_path)
+                            if structured_schema_file_path is not None
+                            else None
+                        ),
+                    },
+                    "result": {
+                        "returncode": completed.returncode,
+                        "is_ok": is_ok,
+                        "stdout": completed.stdout,
+                        "stderr": completed.stderr,
+                        "structured_response_file_path": (
+                            str(structured_response_file_path)
+                            if structured_response_file_path is not None
+                            else None
+                        ),
+                        "structured_response_raw": structured_response_raw,
+                        "structured_response": (
+                            structured_response.model_dump(mode="json")
+                            if structured_response is not None
+                            else None
+                        ),
+                        "structured_response_error": structured_response_error,
+                    },
+                },
+                ensure_ascii=False,
+                indent=2,
+            )
+            + "\n",
             encoding="utf-8",
         )
 
+        # 正常終了
         return AgentRunResult(
             is_ok=is_ok,
             reponse=completed.stdout,

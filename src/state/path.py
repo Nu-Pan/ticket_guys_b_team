@@ -18,9 +18,7 @@ class TGBTPath:
 
     @property
     def repo_root(self) -> Path:
-        """
-        リポジトリルートパス
-        """
+        """`<repo-root>`"""
         if isinstance(self._repo_root, Path):
             return self._repo_root
         else:
@@ -75,15 +73,11 @@ class TGBTPath:
         return self.tgbt / "plan_read"
 
     def tgbt_plan_json(self, plan_id: str) -> Path:
-        """
-        plan id に対応する正本 JSON パスを返す。
-        """
+        """`<repo-root>/.tgbt/plan/<plan-id>.json`"""
         return self.tgbt_plan / f"{plan_id}.json"
 
     def tgbt_plan_markdown(self, plan_id: str) -> Path:
-        """
-        plan id に対応する閲覧用 Markdown パスを返す。
-        """
+        """`<repo-root>/.tgbt/plan_read/<plan-id>.md`"""
         return self.tgbt_plan_read / f"{plan_id}.md"
 
     @property
