@@ -18,10 +18,13 @@
 - あと、事前にユーザーが Codex CLI を直接起動してログイン状態にする必要があるけど、その案内も必要だろう
 - Codex CLI の設定が正しいかどうかはスキーマと照合する必要がある（存在しないキーを指定した時に、それがエラーにならない）
 
+# plan id の省略
+
+- plan id として latest を指定したら、最新のプランが選択されるようにする
+
 # codex 実行結果の監査ログ
 
 - 必要な対応は以下の通り
-    - plan の修正を既存の更新ではなく、修正版の新規作成的な挙動にする
     - Codex CLI 呼び出しログの保存先を `<repo-root>/.tgbt/.codex/audit_logs` から `<repo-root>/.tgbt/logs/codex_call` に変更する
     - Codex CLI 実行時の環境（config.toml とか schema とかの設定すべて）を Codex CLI ログに含める
     - `tgbt` 呼び出し自体のログを `<repo-root>/.tgbt/logs/tgbt_call` に保存する

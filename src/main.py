@@ -39,13 +39,16 @@ def plan(
     ] = None,
     plan_id: Annotated[
         str | None,
-        typer.Option("--plan-id", help="Existing plan identifier to update."),
+        typer.Option(
+            "--plan-id",
+            help="Existing plan identifier to revise into a new plan.",
+        ),
     ] = None,
 ) -> None:
     """
     作業計画書を作成する。
     plan_id 未指定の場合は新規に計画書を作成する。
-    plan_id を指定された場合は既存計画書を更新する。
+    plan_id を指定された場合は既存計画書から修正版計画書を新規作成する。
     """
     # 実装を呼び出し
     tgbt_plan_impl(

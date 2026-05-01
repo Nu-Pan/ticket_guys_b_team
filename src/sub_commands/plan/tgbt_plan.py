@@ -36,17 +36,31 @@ def _save_plan(plan_id: str, plan: TgbtPlan) -> None:
     TGBT_PATH.tgbt_plan.mkdir(parents=True, exist_ok=True)
     TGBT_PATH.tgbt_plan_read.mkdir(parents=True, exist_ok=True)
 
+    # plan はログとして過去版も残すため、既存ファイルは上書きしない。
+    plan_json_path = TGBT_PATH.tgbt_plan_json(plan_id)
+    plan_markdown_path = TGBT_PATH.tgbt_plan_markdown(plan_id)
+    if plan_json_path.exists() or plan_markdown_path.exists():
+        raise tgbt_error(
+            "plan の保存先ファイルが既に存在します",
+            "別の plan_id で再実行してください",
+            actual={
+                "plan_id": plan_id,
+                "plan_json_path": plan_json_path,
+                "plan_markdown_path": plan_markdown_path,
+            },
+        )
+
     # JSON を正本として保存し、Markdown は派生物として保存する。
     plan_json = json.dumps(
         plan.model_dump(mode="json"),
         ensure_ascii=False,
         indent=2,
     )
-    TGBT_PATH.tgbt_plan_json(plan_id).write_text(
+    plan_json_path.write_text(
         plan_json + "\n",
         encoding="utf-8",
     )
-    TGBT_PATH.tgbt_plan_markdown(plan_id).write_text(
+    plan_markdown_path.write_text(
         render_plan_markdown(plan_id, plan) + "\n",
         encoding="utf-8",
     )
@@ -169,14 +183,17 @@ def _udate_plan(
     plan_id: str,
 ) -> str:
     """
-    instruction に従って既存 plan を更新する。
+    instruction に従って既存 plan から修正版 plan を新規作成する。
     """
+    # 既存プランをロード
     existing_plan = _load_plan(plan_id)
     existing_plan_json = json.dumps(
         existing_plan.model_dump(mode="json"),
         ensure_ascii=False,
         indent=2,
     )
+
+    # プラン更新を AI にやらせる
     updated_plan = _run_plan_prompt(stdtqs(f"""
         Update the existing tgbt plan for `tgbt plan`.
 
@@ -199,8 +216,13 @@ def _udate_plan(
         {instruction}
         ```
         """))
-    _save_plan(plan_id, updated_plan)
-    return plan_id
+
+    # 既存 plan は履歴として残し、修正版 plan は新しい ID で保存する。
+    updated_plan_id = _new_plan_id()
+    _save_plan(updated_plan_id, updated_plan)
+
+    # 正常終了
+    return updated_plan_id
 
 
 def tgbt_plan_impl(
