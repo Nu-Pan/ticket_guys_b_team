@@ -8,6 +8,10 @@
 - `tgbt` から Codex CLI を利用する際の規則について記述している
 - `codex` コマンドの呼び出し規約に加えて、 Codex CLI の挙動の設定方法についても記述している
 
+# `concurrency.md`
+
+- `tgbt` 上における並列処理・並行処理の原則について記述している
+
 # `dot_tgbt_dir.md`
 
 - `<repo-root>/.tgbt` の扱いについて記述している

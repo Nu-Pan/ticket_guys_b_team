@@ -73,6 +73,11 @@ class TGBTPath:
         return self.tgbt_logs / "tgbt_call"
 
     @property
+    def tgbt_lock(self) -> Path:
+        """`<repo-root>/.tgbt/tgbt.lock`"""
+        return self.tgbt / "tgbt.lock"
+
+    @property
     def tgbt_plan(self) -> Path:
         """`<repo-root>/.tgbt/plan`"""
         return self.tgbt / "plan"

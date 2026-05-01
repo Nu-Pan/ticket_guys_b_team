@@ -1,4 +1,5 @@
 # std
+from pathlib import Path
 import sys
 from typing import Annotated
 import typer
@@ -12,6 +13,7 @@ from util.tgbt_call_log import (
     reset_related_log_paths,
     write_tgbt_call_log,
 )
+from util.tgbt_repo_lock import TGBTRepoLock
 
 # type app を構築
 app = typer.Typer(
@@ -76,9 +78,18 @@ def run(
 
 
 def main() -> None:
-    # TODO
-    #   repo lock はここで取る
-    #   repo lock 取れなかったら失敗させる
+    # help と未初期化 repo の `tgbt init` は repo lock 対象外とする。
+    if _does_not_need_repo_lock():
+        _run_app_with_tgbt_call_log()
+    else:
+        with TGBTRepoLock():
+            _run_app_with_tgbt_call_log()
+
+
+def _run_app_with_tgbt_call_log() -> None:
+    """
+    Typer app を実行し、tgbt 呼び出しログを保存する。
+    """
     reset_related_log_paths()
     exit_code = 0
     exc_obj: BaseException | None = None
@@ -98,6 +109,24 @@ def main() -> None:
             exc_obj=exc_obj,
             exc_tb=exc_tb,
         )
+
+
+def _does_not_need_repo_lock() -> bool:
+    """
+    repo lock が不要な CLI 呼び出しかどうかを判定する。
+    """
+    # ヘルプ表示だけなら repo root 解決を要求しない。
+    if len(sys.argv) == 1 or "--help" in sys.argv[1:] or "-h" in sys.argv[1:]:
+        return True
+
+    # Typer に渡す前の argv で、未初期化 repo の init だけを判定する。
+    if sys.argv[1:2] != ["init"]:
+        return False
+
+    current = Path.cwd()
+    return not any(
+        (candidate / ".tgbt").is_dir() for candidate in (current, *current.parents)
+    )
 
 
 if __name__ == "__main__":

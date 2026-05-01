@@ -8,8 +8,8 @@ def tgbt_error(
     next: str = "",
     actual: dict[str, Any] = dict(),
     expect: dict[str, Any] = dict(),
-    exc_obj: int | typer.Exit | typer.Abort | Exception = 1,
-) -> typer.Exit | typer.Abort | Exception:
+    exc_obj: int | BaseException = 1,
+) -> BaseException:
     """
     エラー情報を表示した上で適切な例外を投げて終了する。
     tgbt が継続不能になったらこの関数を呼び出す。
