@@ -2,7 +2,8 @@
 # tgbt からの Codex CLI 利用についての規則
 
 - Codex CLI とは `codex` コマンドの事を指す
-- 何らかの作業を実行させるには `codex exec --profile "<profile>" "<prompt>"` を使う
+- 何らかの作業を実行させるには `codex exec` を使う
+- 必要に応じて `--profile`, `--output-schema` などのオプションを使用しても良い
 - `codex` コマンド実行時のカレントは、必ず `<repo-root>` とする
 - 環境変数 `$CODEX_HOME` を用いて、 `~/.codex` ではなく `<repo-root>/.tgbt/.codex` を参照させる（リポジトリ外の設定を参照させない）
 - Codex CLI の挙動設定（プロファイルを含む）は `<repo-root>/.tgbt/.codex/config.toml` で記述する

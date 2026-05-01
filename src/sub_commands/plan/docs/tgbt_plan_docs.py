@@ -24,7 +24,6 @@ from util.error import tgbt_error
 from util.text import stdtqs
 from util.editor_input import read_from_editor
 
-
 _HTML_COMMENT_PATTERN = re.compile(r"<!--.*?-->", re.DOTALL)
 
 
@@ -290,7 +289,9 @@ def _read_instruction_from_editor(initial_instruction: str = "") -> str:
     docs 用テンプレートを入れた人間指示ファイルをエディタで編集して読み込む。
     """
     # エディタ用テンプレートを注入し、戻り値は機械処理用の本文だけに絞る。
-    instruction = read_from_editor(_build_docs_instruction_template(initial_instruction))
+    instruction = read_from_editor(
+        _build_docs_instruction_template(initial_instruction)
+    )
     return _remove_instruction_comments(instruction)
 
 
@@ -308,18 +309,11 @@ def create_plan(instruction: str) -> str:
 
 def udate_plan(
     instruction: str,
-    plan_id: str | None,
+    plan_id: str,
 ) -> str:
     """
     instruction に従って既存 plan を更新する。
     """
-    if plan_id is None:
-        raise tgbt_error(
-            "更新対象の plan_id が指定されていません",
-            "既存 plan を更新する場合は plan_id を指定してください",
-        )
-
-    # 既存正本を検証してから、Codex に更新版 plan の生成を依頼する。
     existing_plan = _load_plan(plan_id)
     updated_plan = _run_plan_prompt(
         _build_update_plan_prompt(
