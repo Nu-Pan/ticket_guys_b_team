@@ -63,6 +63,16 @@ class TGBTPath:
         return self.tgbt / "logs"
 
     @property
+    def tgbt_logs_codex_call(self) -> Path:
+        """`<repo-root>/.tgbt/logs/codex_call`"""
+        return self.tgbt_logs / "codex_call"
+
+    @property
+    def tgbt_logs_tgbt_call(self) -> Path:
+        """`<repo-root>/.tgbt/logs/tgbt_call`"""
+        return self.tgbt_logs / "tgbt_call"
+
+    @property
     def tgbt_plan(self) -> Path:
         """`<repo-root>/.tgbt/plan`"""
         return self.tgbt / "plan"

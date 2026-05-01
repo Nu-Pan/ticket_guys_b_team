@@ -10,6 +10,7 @@ from pydantic import BaseModel, ValidationError
 
 # local
 from state.path import TGBT_PATH
+from util.tgbt_call_log import record_related_log_path
 from util.text import stdtqs
 from .agent_wrapper import AgentProfile, AgentRunResult, AgentWrapper
 
@@ -234,7 +235,7 @@ class CodexWrapper(AgentWrapper):
                     is_ok = False
 
         # 実行内容を後から確認できるように Codex CLI 呼び出しログを保存する。
-        log_dir = TGBT_PATH.tgbt_logs / "codex_call"
+        log_dir = TGBT_PATH.tgbt_logs_codex_call
         log_dir.mkdir(parents=True, exist_ok=True)
         log_file_path = log_dir / f"{time.time_ns()}.json"
         config_toml = None
@@ -309,6 +310,7 @@ class CodexWrapper(AgentWrapper):
             + "\n",
             encoding="utf-8",
         )
+        record_related_log_path(log_file_path)
 
         # 正常終了
         return AgentRunResult(

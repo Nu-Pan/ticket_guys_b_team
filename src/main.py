@@ -1,4 +1,5 @@
 # std
+import sys
 from typing import Annotated
 import typer
 
@@ -6,6 +7,11 @@ import typer
 from sub_commands.init.tgbt_init import tgbt_init_impl
 from sub_commands.plan.tgbt_plan import tgbt_plan_impl
 from sub_commands.run.tgbt_run import tgbt_run_impl
+from util.tgbt_call_log import (
+    get_exit_code,
+    reset_related_log_paths,
+    write_tgbt_call_log,
+)
 
 # type app を構築
 app = typer.Typer(
@@ -73,7 +79,25 @@ def main() -> None:
     # TODO
     #   repo lock はここで取る
     #   repo lock 取れなかったら失敗させる
-    app(prog_name="tgbt")
+    reset_related_log_paths()
+    exit_code = 0
+    exc_obj: BaseException | None = None
+    exc_tb = None
+
+    try:
+        app(prog_name="tgbt")
+    except BaseException as error:
+        exit_code = get_exit_code(error)
+        exc_obj = error
+        exc_tb = error.__traceback__
+        raise
+    finally:
+        write_tgbt_call_log(
+            argv=["tgbt", *sys.argv[1:]],
+            exit_code=exit_code,
+            exc_obj=exc_obj,
+            exc_tb=exc_tb,
+        )
 
 
 if __name__ == "__main__":
