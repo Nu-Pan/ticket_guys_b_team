@@ -4,7 +4,7 @@ import typer
 
 # local
 from sub_commands.init.tgbt_init import tgbt_init_impl
-from sub_commands.plan.docs.tgbt_plan_docs import tgbt_plan_docs_impl
+from sub_commands.plan.tgbt_plan import tgbt_plan_impl
 from sub_commands.run.tgbt_run import tgbt_run_impl
 
 # type app を構築
@@ -13,11 +13,6 @@ app = typer.Typer(
     help="ticket_guys_b_team command line interface.",
     no_args_is_help=True,
 )
-plan_app = typer.Typer(
-    help="Plan-related commands.",
-    no_args_is_help=True,
-)
-app.add_typer(plan_app, name="plan")
 
 
 @app.command()
@@ -31,8 +26,8 @@ def init() -> None:
     tgbt_init_impl()
 
 
-@plan_app.command("docs")
-def plan_docs(
+@app.command("plan")
+def plan(
     instruction_source: Annotated[
         str | None,
         typer.Argument(
@@ -48,12 +43,12 @@ def plan_docs(
     ] = None,
 ) -> None:
     """
-    docs 修正作業の計画書を作成する。
+    作業計画書を作成する。
     plan_id 未指定の場合は新規に計画書を作成する。
     plan_id を指定された場合は既存計画書を更新する。
     """
     # 実装を呼び出し
-    tgbt_plan_docs_impl(
+    tgbt_plan_impl(
         instruction_source,
         plan_id=plan_id,
     )

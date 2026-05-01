@@ -35,7 +35,7 @@ description: Investigate tgbt repo behavior from code, tgbt oracle, and relevant
 3. 調査の起点として、必要に応じて以下の代表ファイルから読む。
    - CLI 表面: `<tgbt-root>/src/main.py`, `<tgbt-root>/bin/tgbt`
    - init 系: `<tgbt-root>/src/sub_commands/init/tgbt_init.py`, `<tgbt-root>/src/agent_wrapper/codex_wrapper_live.py`
-   - Plan 系: `<tgbt-root>/src/sub_commands/plan/docs/tgbt_plan_docs.py`
+   - Plan 系: `<tgbt-root>/src/sub_commands/plan/tgbt_plan.py`
    - run 系: `<tgbt-root>/src/sub_commands/run/tgbt_run.py`
    - 状態管理: `<tgbt-root>/src/state/path.py` とその利用箇所
    - 開発ルール: `<tgbt-root>/oracle/docs/dev_rule/ROUTING.md` から関連ファイル

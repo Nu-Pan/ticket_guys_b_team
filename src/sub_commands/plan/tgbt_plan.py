@@ -158,7 +158,7 @@ def _build_create_plan_prompt(instruction: str) -> str:
     新規 plan 作成用の Codex prompt を構築する。
     """
     return stdtqs(f"""
-        Create a new tgbt plan for `tgbt plan docs`.
+        Create a new tgbt plan for `tgbt plan`.
 
         The final response must conform to the TgbtPlan schema.
         Do not return Markdown. Do not return prose outside the schema.
@@ -192,7 +192,7 @@ def _build_update_plan_prompt(
     )
 
     return stdtqs(f"""
-        Update the existing tgbt plan for `tgbt plan docs`.
+        Update the existing tgbt plan for `tgbt plan`.
 
         The final response must conform to the TgbtPlan schema.
         Do not return Markdown. Do not return prose outside the schema.
@@ -251,23 +251,23 @@ def _run_plan_prompt(prompt: str) -> TgbtPlan:
     return result.structured_response
 
 
-def _build_docs_instruction_template(initial_instruction: str = "") -> str:
+def _build_plan_instruction_template(initial_instruction: str = "") -> str:
     """
-    `tgbt plan docs` 用の人間指示ファイル初期本文を構築する。
+    `tgbt plan` 用の人間指示ファイル初期本文を構築する。
     """
     # 人間向け説明は HTML コメントにして、編集完了後の機械処理で除外できるようにする。
     template = stdtqs("""
         <!--
-        tgbt plan docs に渡す指示を Markdown で書いてください。
+        tgbt plan に渡す指示を Markdown で書いてください。
 
-        - docs 修正作業で達成したいことを書いてください。
+        - 作業で達成したいことを書いてください。
         - 重要な制約、対象ファイル、完了条件があれば書いてください。
         - 見出しを使う場合は `#` だけを使ってください。
         - `##` 以降の深い見出しは使わないでください。
         - このコメントブロックは tgbt が指示文から除外します。
         -->
 
-        # Docs 修正指示
+        # 作業指示
         """)
 
     # CLI 引数で渡された文字列は、編集前の指示本文として見出しの下に注入する。
@@ -286,11 +286,11 @@ def _remove_instruction_comments(instruction: str) -> str:
 
 def _read_instruction_from_editor(initial_instruction: str = "") -> str:
     """
-    docs 用テンプレートを入れた人間指示ファイルをエディタで編集して読み込む。
+    plan 用テンプレートを入れた人間指示ファイルをエディタで編集して読み込む。
     """
     # エディタ用テンプレートを注入し、戻り値は機械処理用の本文だけに絞る。
     instruction = read_from_editor(
-        _build_docs_instruction_template(initial_instruction)
+        _build_plan_instruction_template(initial_instruction)
     )
     return _remove_instruction_comments(instruction)
 
@@ -325,12 +325,12 @@ def udate_plan(
     return plan_id
 
 
-def tgbt_plan_docs_impl(
+def tgbt_plan_impl(
     instruction_source: str | None,
     plan_id: str | None,
 ) -> None:
     """
-    `tgbt plan docs` の実装。
+    `tgbt plan` の実装。
     """
     # 指示文の入力元を CLI 引数から決める。
     if instruction_source is None:
