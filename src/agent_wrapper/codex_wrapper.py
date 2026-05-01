@@ -13,6 +13,8 @@ from state.path import TGBT_PATH
 from util.text import stdtqs
 from .agent_wrapper import AgentProfile, AgentRunResult, AgentWrapper
 
+_OUTPUT_SCHEMA_PROMPT_ATTRIBUTE = "TGBT_OUTPUT_SCHEMA_PROMPT"
+
 
 def _ensure_codex_settings() -> None:
     """
@@ -90,6 +92,38 @@ def _ensure_codex_settings() -> None:
     TGBT_PATH.tgbt_codex_config.write_text(body, encoding="utf-8")
 
 
+def _get_output_schema_prompt(output_schema: type[BaseModel]) -> str:
+    """
+    schema 型に紐づく追加 prompt 規則を取り出す。
+    """
+    # schema 固有の意味論は wrapper ではなく schema 側に任意属性として持たせる。
+    schema_prompt = getattr(output_schema, _OUTPUT_SCHEMA_PROMPT_ATTRIBUTE, None)
+    if isinstance(schema_prompt, str):
+        return schema_prompt.strip()
+    return ""
+
+
+def _build_structured_output_instruction(
+    instruction: str,
+    output_schema: type[BaseModel],
+) -> str:
+    """
+    構造化応答を要求する Codex prompt を構築する。
+    """
+    schema_prompt = _get_output_schema_prompt(output_schema)
+    return stdtqs(f"""
+        Structured output rules:
+        - The final response must conform to the {output_schema.__name__} schema.
+        - Do not return Markdown.
+        - Do not return prose outside the schema.
+
+        {schema_prompt}
+
+        Task instruction:
+        {instruction}
+        """)
+
+
 class CodexWrapper(AgentWrapper):
     """
     Codex CLI を live mode で呼び出すための wrapper。
@@ -139,6 +173,14 @@ class CodexWrapper(AgentWrapper):
             )
             structured_response_file_path = tmp_dir / "last_message.json"
 
+        # 構造化応答のための共通指示は wrapper 側で付与する。
+        codex_instruction = instruction
+        if output_schema is not None:
+            codex_instruction = _build_structured_output_instruction(
+                instruction=instruction,
+                output_schema=output_schema,
+            )
+
         # Codex CLI に渡す引数を構築
         command = [
             "codex",
@@ -155,7 +197,7 @@ class CodexWrapper(AgentWrapper):
                     str(structured_response_file_path),
                 ]
             )
-        command.append(instruction)
+        command.append(codex_instruction)
 
         # Codex CLI 呼び出し
         # NOTE

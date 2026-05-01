@@ -21,6 +21,7 @@
 # codex 実行結果の監査ログ
 
 - 必要な対応は以下の通り
+    - Codex CLI 呼び出しを複数のコマンドで使い回せるように抽象化
     - Codex CLI 呼び出しログの保存先を `<repo-root>/.tgbt/.codex/audit_logs` から `<repo-root>/.tgbt/logs/codex_call` に変更する
     - Codex CLI 実行時の環境（config.toml とか schema とかの設定すべて）を Codex CLI ログに含める
     - `tgbt` 呼び出し自体のログを `<repo-root>/.tgbt/logs/tgbt_call` に保存する

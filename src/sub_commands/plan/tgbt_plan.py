@@ -16,7 +16,6 @@ from schemas.plan import (
     CompletionCriterion,
     PlannedProcedure,
     RiskNote,
-    TGBT_PLAN_FIELD_RULES_PROMPT,
     TgbtPlan,
 )
 from state.path import TGBT_PATH
@@ -160,11 +159,6 @@ def _build_create_plan_prompt(instruction: str) -> str:
     return stdtqs(f"""
         Create a new tgbt plan for `tgbt plan`.
 
-        The final response must conform to the TgbtPlan schema.
-        Do not return Markdown. Do not return prose outside the schema.
-
-        {TGBT_PLAN_FIELD_RULES_PROMPT}
-
         Quality rules:
         - Prefer oracle over user instruction if they conflict.
         - Do not invent product-level decisions beyond necessary assumptions.
@@ -193,11 +187,6 @@ def _build_update_plan_prompt(
 
     return stdtqs(f"""
         Update the existing tgbt plan for `tgbt plan`.
-
-        The final response must conform to the TgbtPlan schema.
-        Do not return Markdown. Do not return prose outside the schema.
-
-        {TGBT_PLAN_FIELD_RULES_PROMPT}
 
         Update rules:
         - Preserve existing original_instructions and append the new user instruction.
