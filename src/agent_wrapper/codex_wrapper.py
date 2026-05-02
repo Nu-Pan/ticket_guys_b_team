@@ -18,127 +18,6 @@ from .agent_wrapper import AgentProfile, AgentRunResult, AgentWrapper
 _OUTPUT_SCHEMA_PROMPT_ATTRIBUTE = "TGBT_OUTPUT_SCHEMA_PROMPT"
 
 
-def _ensure_codex_settings() -> None:
-    """
-    Codex CLI の挙動に影響する設定ファイル類を `tgbt` が想定する状態に修正する。
-    """
-    # `<repo-root>/.tgbt/.codex/config.toml` を想定のものに置き換える
-    body = stdtqs("""
-        # ----
-        # グローバル設定
-        # ----
-
-        # 基本設定
-        model = "gpt-5.5"
-        model_reasoning_effort = "medium"
-        plan_mode_reasoning_effort = "medium"
-        personality = "pragmatic"
-        project_root_markers = [".tgbt"]
-
-        # Web検索モード
-        sandbox_workspace_write.network_access = true
-
-        # 参照リンクを vscode フレンドリーにする
-        file_opener = "vscode"
-
-        # ログインシェルは読み込ませない
-        # NOTE
-        #   tgbt からの codex 呼び出しに想定外の何かが混入するのを防ぐために無効化
-        #   利便性と安全性を天秤にかけて、安全性を取った
-        allow_login_shell = false
-
-        # フィードバック系は副作用あるかもなので無効化
-        analytics.enabled = false
-        feedback.enabled = false
-
-        # 更新チェックは無効化
-        # NOTE
-        #   tgbt 側で明示的に更新チェックが行われることを前提に無効化している
-        check_for_update_on_startup = false
-
-        # メモリー機能
-        # NOTE
-        #   Codex CLI のメモリー機能は使わない
-        #   代わりに tgbt の知識システムだけを使う
-        features.memories = false
-
-        # 履歴関係
-        # NOTE
-        #   履歴は tgbt の仕組みで管理する
-        #   reasoning はデバッグ用に詳細を残す
-        history.persistence = "none"
-        model_reasoning_summary = "detailed"
-        model_verbosity = "medium"
-        hide_agent_reasoning = false
-
-        # ----
-        # プロファイル (read)
-        # ----
-
-        [profiles.tgbt_read]
-
-        sandbox_mode = "read-only"
-        approval_policy = "never"
-
-        # ----
-        # プロファイル (write)
-        # ----        
-
-        [profiles.tgbt_write]
-
-        sandbox_mode = "workspace-write"
-        approval_policy = "never"
-
-        """)
-    TGBT_PATH.tgbt_codex.mkdir(parents=True, exist_ok=True)
-    TGBT_PATH.tgbt_codex_config.write_text(body, encoding="utf-8")
-
-
-def _get_output_schema_prompt(output_schema: type[BaseModel]) -> str:
-    """
-    schema 型に紐づく追加 prompt 規則を取り出す。
-    """
-    # schema 固有の意味論は wrapper ではなく schema 側に任意属性として持たせる。
-    schema_prompt = getattr(output_schema, _OUTPUT_SCHEMA_PROMPT_ATTRIBUTE, None)
-    if isinstance(schema_prompt, str):
-        return schema_prompt.strip()
-    return ""
-
-
-def _build_structured_output_instruction(
-    instruction: str,
-    output_schema: type[BaseModel],
-) -> str:
-    """
-    構造化応答を要求する Codex prompt を構築する。
-    """
-    schema_prompt = _get_output_schema_prompt(output_schema)
-    blocks = [
-        MarkdownPromptBlock(
-            title="Structured output rules",
-            body=stdtqs(f"""
-                - The final response must conform to the {output_schema.__name__} schema.
-                - Do not return Markdown.
-                - Do not return prose outside the schema.
-                """),
-        ),
-        MarkdownPromptBlock(
-            title="Task instruction",
-            body=instruction,
-        ),
-    ]
-    if schema_prompt != "":
-        blocks.insert(
-            1,
-            MarkdownPromptBlock(
-                title="Schema-specific rules",
-                body=schema_prompt,
-            ),
-        )
-
-    return render_prompt(blocks)
-
-
 class CodexWrapper(AgentWrapper):
     """
     Codex CLI を live mode で呼び出すための wrapper。
@@ -333,3 +212,124 @@ class CodexWrapper(AgentWrapper):
             log_file_path=log_file_path,
             structured_response=structured_response,
         )
+
+
+def _build_structured_output_instruction(
+    instruction: str,
+    output_schema: type[BaseModel],
+) -> str:
+    """
+    構造化応答を要求する Codex prompt を構築する。
+    """
+    schema_prompt = _get_output_schema_prompt(output_schema)
+    blocks = [
+        MarkdownPromptBlock(
+            title="Structured output rules",
+            body=stdtqs(f"""
+                - The final response must conform to the {output_schema.__name__} schema.
+                - Do not return Markdown.
+                - Do not return prose outside the schema.
+                """),
+        ),
+        MarkdownPromptBlock(
+            title="Task instruction",
+            body=instruction,
+        ),
+    ]
+    if schema_prompt != "":
+        blocks.insert(
+            1,
+            MarkdownPromptBlock(
+                title="Schema-specific rules",
+                body=schema_prompt,
+            ),
+        )
+
+    return render_prompt(blocks)
+
+
+def _get_output_schema_prompt(output_schema: type[BaseModel]) -> str:
+    """
+    schema 型に紐づく追加 prompt 規則を取り出す。
+    """
+    # schema 固有の意味論は wrapper ではなく schema 側に任意属性として持たせる。
+    schema_prompt = getattr(output_schema, _OUTPUT_SCHEMA_PROMPT_ATTRIBUTE, None)
+    if isinstance(schema_prompt, str):
+        return schema_prompt.strip()
+    return ""
+
+
+def _ensure_codex_settings() -> None:
+    """
+    Codex CLI の挙動に影響する設定ファイル類を `tgbt` が想定する状態に修正する。
+    """
+    # `<repo-root>/.tgbt/.codex/config.toml` を想定のものに置き換える
+    body = stdtqs("""
+        # ----
+        # グローバル設定
+        # ----
+
+        # 基本設定
+        model = "gpt-5.5"
+        model_reasoning_effort = "medium"
+        plan_mode_reasoning_effort = "medium"
+        personality = "pragmatic"
+        project_root_markers = [".tgbt"]
+
+        # Web検索モード
+        sandbox_workspace_write.network_access = true
+
+        # 参照リンクを vscode フレンドリーにする
+        file_opener = "vscode"
+
+        # ログインシェルは読み込ませない
+        # NOTE
+        #   tgbt からの codex 呼び出しに想定外の何かが混入するのを防ぐために無効化
+        #   利便性と安全性を天秤にかけて、安全性を取った
+        allow_login_shell = false
+
+        # フィードバック系は副作用あるかもなので無効化
+        analytics.enabled = false
+        feedback.enabled = false
+
+        # 更新チェックは無効化
+        # NOTE
+        #   tgbt 側で明示的に更新チェックが行われることを前提に無効化している
+        check_for_update_on_startup = false
+
+        # メモリー機能
+        # NOTE
+        #   Codex CLI のメモリー機能は使わない
+        #   代わりに tgbt の知識システムだけを使う
+        features.memories = false
+
+        # 履歴関係
+        # NOTE
+        #   履歴は tgbt の仕組みで管理する
+        #   reasoning はデバッグ用に詳細を残す
+        history.persistence = "none"
+        model_reasoning_summary = "detailed"
+        model_verbosity = "medium"
+        hide_agent_reasoning = false
+
+        # ----
+        # プロファイル (read)
+        # ----
+
+        [profiles.tgbt_read]
+
+        sandbox_mode = "read-only"
+        approval_policy = "never"
+
+        # ----
+        # プロファイル (write)
+        # ----
+
+        [profiles.tgbt_write]
+
+        sandbox_mode = "workspace-write"
+        approval_policy = "never"
+
+        """)
+    TGBT_PATH.tgbt_codex.mkdir(parents=True, exist_ok=True)
+    TGBT_PATH.tgbt_codex_config.write_text(body, encoding="utf-8")

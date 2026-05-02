@@ -37,13 +37,6 @@ def record_related_log_path(log_file_path: Path) -> None:
         _RELATED_LOG_PATHS.set((*current_paths, log_file_path))
 
 
-def get_related_log_paths() -> list[Path]:
-    """
-    現在の tgbt 呼び出しに関連するログパス一覧を返す。
-    """
-    return list(_RELATED_LOG_PATHS.get())
-
-
 def get_exit_code(exc_obj: BaseException) -> int:
     """
     Typer/SystemExit 系の例外からプロセス終了コードを推定する。
@@ -128,3 +121,10 @@ def write_tgbt_call_log(
         return log_file_path
     except Exception:
         return None
+
+
+def get_related_log_paths() -> list[Path]:
+    """
+    現在の tgbt 呼び出しに関連するログパス一覧を返す。
+    """
+    return list(_RELATED_LOG_PATHS.get())

@@ -14,6 +14,18 @@ _TGBT_MEANINGFUL_DIR_NAMES = (
 )
 
 
+def tgbt_init_impl() -> None:
+    """
+    `tgbt init` の実装
+    `tgbt` から Codex CLI を呼び出した時に、その挙動が想定通りのものになるように、 `<repo-root>` 配下の状態を修正する。
+    """
+    # repo root として使う `.tgbt` ディレクトリを先に用意する。
+    _ensure_tgbt_root_dir()
+
+    # Codex CLI 用のリポジトリ状態を整える。
+    CodexWrapper().init_repo()
+
+
 def _ensure_tgbt_root_dir() -> None:
     """
     カレントディレクトリを tgbt 操作対象リポジトリとして初期化する。
@@ -37,15 +49,3 @@ def _ensure_tgbt_root_dir() -> None:
     # tgbt が意味を持つトップレベルディレクトリを用意する。
     for dir_name in _TGBT_MEANINGFUL_DIR_NAMES:
         (actual_repo_root / dir_name).mkdir(exist_ok=True)
-
-
-def tgbt_init_impl() -> None:
-    """
-    `tgbt init` の実装
-    `tgbt` から Codex CLI を呼び出した時に、その挙動が想定通りのものになるように、 `<repo-root>` 配下の状態を修正する。
-    """
-    # repo root として使う `.tgbt` ディレクトリを先に用意する。
-    _ensure_tgbt_root_dir()
-
-    # Codex CLI 用のリポジトリ状態を整える。
-    CodexWrapper().init_repo()

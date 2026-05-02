@@ -32,6 +32,19 @@ class MarkdownPromptBlock:
     children: Sequence["MarkdownPromptBlock"] = ()
 
 
+def render_prompt(blocks: Sequence[MarkdownPromptBlock]) -> str:
+    """
+    Markdown 見出しブロック列から AI に渡す prompt を組み立てる。
+    """
+    lines: list[str] = []
+    for block in blocks:
+        lines.extend(_render_prompt_block(block, 1))
+
+    if len(lines) > 0 and lines[-1] == "":
+        lines.pop()
+    return "\n".join(lines)
+
+
 def _render_prompt_block(block: MarkdownPromptBlock, level: int) -> list[str]:
     """
     prompt block とその子孫を Markdown 行へ描画する。
@@ -48,19 +61,6 @@ def _render_prompt_block(block: MarkdownPromptBlock, level: int) -> list[str]:
         lines.extend(_render_prompt_block(child, level + 1))
 
     return lines
-
-
-def render_prompt(blocks: Sequence[MarkdownPromptBlock]) -> str:
-    """
-    Markdown 見出しブロック列から AI に渡す prompt を組み立てる。
-    """
-    lines: list[str] = []
-    for block in blocks:
-        lines.extend(_render_prompt_block(block, 1))
-
-    if len(lines) > 0 and lines[-1] == "":
-        lines.pop()
-    return "\n".join(lines)
 
 
 def render_metadata_item(key: str, value: str) -> str:
