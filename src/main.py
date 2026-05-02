@@ -49,7 +49,10 @@ def plan(
         str | None,
         typer.Option(
             "--plan-id",
-            help="Existing plan identifier to revise into a new plan.",
+            help=(
+                "Existing plan identifier to revise into a new plan. "
+                "Use 'latest' for the newest plan."
+            ),
         ),
     ] = None,
 ) -> None:

@@ -67,6 +67,25 @@ def _save_plan(plan_id: str, plan: TgbtPlan) -> None:
     )
 
 
+def _resolve_plan_id(plan_id: str) -> str:
+    """
+    plan 更新元として使う plan id を解決する。
+    """
+    if plan_id != "latest":
+        return plan_id
+
+    # plan id は固定幅日時なので、文字列順で最も大きいものを最新として扱う。
+    plan_paths = sorted(TGBT_PATH.tgbt_plan.glob("*.json"))
+    if len(plan_paths) == 0:
+        raise tgbt_error(
+            "latest に対応する plan が見つかりません",
+            "既存 plan を作成してから再実行してください",
+            actual={"plan_dir_path": TGBT_PATH.tgbt_plan},
+        )
+
+    return plan_paths[-1].stem
+
+
 def _load_plan(plan_id: str) -> TgbtPlan:
     """
     plan id に対応する正本 JSON を読み込む。
@@ -198,6 +217,7 @@ def _udate_plan(
     instruction に従って既存 plan から修正版 plan を新規作成する。
     """
     # 既存プランをロード
+    plan_id = _resolve_plan_id(plan_id)
     existing_plan = _load_plan(plan_id)
     existing_plan_json = json.dumps(
         existing_plan.model_dump(mode="json"),
