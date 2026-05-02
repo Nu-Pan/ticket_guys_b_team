@@ -11,6 +11,7 @@ from pydantic import ValidationError
 # local
 from agent_wrapper.agent_wrapper import AgentProfile
 from agent_wrapper.codex_wrapper import CodexWrapper
+from schemas.markdown import MarkdownPromptBlock, render_prompt
 from schemas.plan import TgbtPlan, render_plan_markdown
 from state.path import TGBT_PATH
 from util.error import tgbt_error
@@ -160,20 +161,31 @@ def _create_plan(instruction: str) -> str:
     """
     # 新規 plan id は tgbt 側で生成し、AI には決めさせない。
     plan_id = _new_plan_id()
-    plan = _run_plan_prompt(stdtqs(f"""
-        Create a new tgbt plan for `tgbt plan`.
 
-        Quality rules:
-        - Prefer oracle over user instruction if they conflict.
-        - Do not invent product-level decisions beyond necessary assumptions.
-        - Make assumptions explicit instead of hiding them in procedure text.
-        - Keep each list item focused on one idea.
-
-        User instruction:
-        ```text
-        {instruction}
-        ```
-        """))
+    # AI に渡す指示文は Markdown 見出しブロックとして構築する。
+    prompt = render_prompt(
+        [
+            MarkdownPromptBlock(
+                title="Create a new tgbt plan for `tgbt plan`",
+                children=[
+                    MarkdownPromptBlock(
+                        title="Quality rules",
+                        body=stdtqs("""
+                            - Prefer oracle over user instruction if they conflict.
+                            - Do not invent product-level decisions beyond necessary assumptions.
+                            - Make assumptions explicit instead of hiding them in procedure text.
+                            - Keep each list item focused on one idea.
+                            """),
+                    ),
+                    MarkdownPromptBlock(
+                        title="User instruction",
+                        body=f"```text\n{instruction}\n```",
+                    ),
+                ],
+            ),
+        ]
+    )
+    plan = _run_plan_prompt(prompt)
     _save_plan(plan_id, plan)
     return plan_id
 
@@ -194,28 +206,36 @@ def _udate_plan(
     )
 
     # プラン更新を AI にやらせる
-    updated_plan = _run_plan_prompt(stdtqs(f"""
-        Update the existing tgbt plan for `tgbt plan`.
-
-        Update rules:
-        - Preserve existing original_instructions and append the new user instruction.
-        - Preserve existing item ids when updating existing items.
-        - Create new ids only for newly added items.
-        - Keep schema_version as "1".
-        - Prefer oracle over user instruction if they conflict.
-        - Do not invent product-level decisions beyond necessary assumptions.
-        - Make assumptions explicit instead of hiding them in procedure text.
-
-        Existing plan JSON:
-        ```json
-        {existing_plan_json}
-        ```
-
-        New user instruction:
-        ```text
-        {instruction}
-        ```
-        """))
+    prompt = render_prompt(
+        [
+            MarkdownPromptBlock(
+                title="Update the existing tgbt plan for `tgbt plan`",
+                children=[
+                    MarkdownPromptBlock(
+                        title="Update rules",
+                        body=stdtqs("""
+                            - Preserve existing original_instructions and append the new user instruction.
+                            - Preserve existing item ids when updating existing items.
+                            - Create new ids only for newly added items.
+                            - Keep schema_version as "1".
+                            - Prefer oracle over user instruction if they conflict.
+                            - Do not invent product-level decisions beyond necessary assumptions.
+                            - Make assumptions explicit instead of hiding them in procedure text.
+                            """),
+                    ),
+                    MarkdownPromptBlock(
+                        title="Existing plan JSON",
+                        body=f"```json\n{existing_plan_json}\n```",
+                    ),
+                    MarkdownPromptBlock(
+                        title="New user instruction",
+                        body=f"```text\n{instruction}\n```",
+                    ),
+                ],
+            ),
+        ]
+    )
+    updated_plan = _run_plan_prompt(prompt)
 
     # 既存 plan は履歴として残し、修正版 plan は新しい ID で保存する。
     updated_plan_id = _new_plan_id()

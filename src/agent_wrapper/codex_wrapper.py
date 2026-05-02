@@ -9,6 +9,7 @@ from pathlib import Path
 from pydantic import BaseModel, ValidationError
 
 # local
+from schemas.markdown import MarkdownPromptBlock, render_prompt
 from state.path import TGBT_PATH
 from util.tgbt_call_log import record_related_log_path
 from util.text import stdtqs
@@ -112,17 +113,30 @@ def _build_structured_output_instruction(
     構造化応答を要求する Codex prompt を構築する。
     """
     schema_prompt = _get_output_schema_prompt(output_schema)
-    return stdtqs(f"""
-        Structured output rules:
-        - The final response must conform to the {output_schema.__name__} schema.
-        - Do not return Markdown.
-        - Do not return prose outside the schema.
+    blocks = [
+        MarkdownPromptBlock(
+            title="Structured output rules",
+            body=stdtqs(f"""
+                - The final response must conform to the {output_schema.__name__} schema.
+                - Do not return Markdown.
+                - Do not return prose outside the schema.
+                """),
+        ),
+        MarkdownPromptBlock(
+            title="Task instruction",
+            body=instruction,
+        ),
+    ]
+    if schema_prompt != "":
+        blocks.insert(
+            1,
+            MarkdownPromptBlock(
+                title="Schema-specific rules",
+                body=schema_prompt,
+            ),
+        )
 
-        {schema_prompt}
-
-        Task instruction:
-        {instruction}
-        """)
+    return render_prompt(blocks)
 
 
 class CodexWrapper(AgentWrapper):
