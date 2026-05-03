@@ -1,11 +1,12 @@
 # std
-from pathlib import Path
 import sys
+from types import TracebackType
 from typing import Annotated
+
+# pip
 import typer
 
 # local
-from sub_commands.init.tgbt_init import tgbt_init_impl
 from sub_commands.plan.tgbt_plan import tgbt_plan_impl
 from sub_commands.run.tgbt_run import tgbt_run_impl
 from util.tgbt_call_log import (
@@ -15,26 +16,16 @@ from util.tgbt_call_log import (
 )
 from util.tgbt_repo_lock import TGBTRepoLock
 
-# type app を構築
-app = typer.Typer(
+# NOTE: `bin/tgbt` はこのファイルを直接実行するため、
+# local import は絶対 import にする。
+_app = typer.Typer(
     name="tgbt",
     help="ticket_guys_b_team command line interface.",
     no_args_is_help=True,
 )
 
 
-@app.command()
-def init() -> None:
-    """
-    tgbt の作業対象リポジトリを tgbt 実行にとって合法な状態へ整える。
-    リポジトリへ tgbt を組み込む時に１回だけ呼び出されることを想定。
-    必ず「カレントがリポジトリのルートである状態」でこのコマンドを実行する必要がある。
-    """
-    # 実装を呼び出し
-    tgbt_init_impl()
-
-
-@app.command("plan")
+@_app.command("plan")
 def plan(
     instruction_source: Annotated[
         str | None,
@@ -68,7 +59,7 @@ def plan(
     )
 
 
-@app.command()
+@_app.command()
 def run(
     plan_id: Annotated[
         str,
@@ -81,8 +72,18 @@ def run(
 
 
 def main() -> None:
-    # help と未初期化 repo の `tgbt init` は repo lock 対象外とする。
-    if _does_not_need_repo_lock():
+    """
+    tgbt CLI の共通実行制御を行う。
+    """
+    # ヘルプ表示だけなら repo root 解決を要求しない。
+    is_help_only = (
+        len(sys.argv) == 1
+        or "--help" in sys.argv[1:]
+        or "-h" in sys.argv[1:]
+    )
+
+    # help だけの呼び出しは repo lock 対象外とする。
+    if is_help_only:
         _run_app_with_tgbt_call_log()
     else:
         with TGBTRepoLock():
@@ -96,10 +97,10 @@ def _run_app_with_tgbt_call_log() -> None:
     reset_related_log_paths()
     exit_code = 0
     exc_obj: BaseException | None = None
-    exc_tb = None
+    exc_tb: TracebackType | None = None
 
     try:
-        app(prog_name="tgbt")
+        _app(prog_name="tgbt")
     except BaseException as error:
         exit_code = get_exit_code(error)
         exc_obj = error
@@ -112,24 +113,6 @@ def _run_app_with_tgbt_call_log() -> None:
             exc_obj=exc_obj,
             exc_tb=exc_tb,
         )
-
-
-def _does_not_need_repo_lock() -> bool:
-    """
-    repo lock が不要な CLI 呼び出しかどうかを判定する。
-    """
-    # ヘルプ表示だけなら repo root 解決を要求しない。
-    if len(sys.argv) == 1 or "--help" in sys.argv[1:] or "-h" in sys.argv[1:]:
-        return True
-
-    # Typer に渡す前の argv で、未初期化 repo の init だけを判定する。
-    if sys.argv[1:2] != ["init"]:
-        return False
-
-    current = Path.cwd()
-    return not any(
-        (candidate / ".tgbt").is_dir() for candidate in (current, *current.parents)
-    )
 
 
 if __name__ == "__main__":

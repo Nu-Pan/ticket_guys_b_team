@@ -2,7 +2,6 @@
 import fcntl
 import os
 from datetime import datetime
-from pathlib import Path
 from types import TracebackType
 from typing import TextIO
 

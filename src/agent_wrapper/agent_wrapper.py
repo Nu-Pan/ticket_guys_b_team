@@ -43,13 +43,6 @@ class AgentWrapper(ABC):
         ...
 
     @abstractmethod
-    def init_repo(self) -> None:
-        """
-        tgbt 操作対象リポジトリを、エージェントが想定通りの挙動になるように初期化する。
-        """
-        ...
-
-    @abstractmethod
     def run(
         self,
         agent_profile: AgentProfile,

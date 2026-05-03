@@ -38,3 +38,7 @@
 # `structured_prompt.md`
 
 - `tgbt` が AI に渡す指示文を構造化・構築（結合）する方法についての正本仕様を記述している
+
+# `tgbt_prerequirements_test.md`
+
+- `tgbt` 起動直後に行われる事前チェック処理の正本仕様を記述している
