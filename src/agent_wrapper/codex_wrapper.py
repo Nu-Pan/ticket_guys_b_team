@@ -4,6 +4,7 @@ import os
 import subprocess
 import time
 from datetime import date
+from dataclasses import asdict
 from pathlib import Path
 
 # pip
@@ -36,7 +37,7 @@ class CodexWrapper(AgentWrapper):
     def run(
         self,
         agent_profile: AgentProfile,
-        instruction: str,
+        instruction: list[MarkdownPromptBlock],
         output_schema: type[BaseModel] | None = None,
     ) -> AgentRunResult:
         """Codex CLI に作業を実行させる。
@@ -58,7 +59,7 @@ class CodexWrapper(AgentWrapper):
 
 def _run_codex_cli(
     agent_profile: AgentProfile,
-    instruction: str,
+    instruction: list[MarkdownPromptBlock],
     output_schema: type[BaseModel] | None = None,
     *,
     check_cli_availability: bool = True,
@@ -104,9 +105,9 @@ def _run_codex_cli(
         structured_response_file_path = tmp_dir / "last_message.json"
 
     # 構造化応答のための共通指示は wrapper 側で付与する。
-    structured_instruction_blocks: list[MarkdownPromptBlock] | None = None
+    codex_instruction_blocks = instruction
     if output_schema is not None:
-        structured_instruction_blocks = _build_structured_output_instruction(
+        codex_instruction_blocks = _build_structured_output_instruction(
             instruction=instruction,
             output_schema=output_schema,
         )
@@ -131,10 +132,7 @@ def _run_codex_cli(
         )
 
     # prompt 文字列への描画は、CLI 引数に積む直前まで遅延させる。
-    if structured_instruction_blocks is None:
-        codex_instruction = instruction
-    else:
-        codex_instruction = render_prompt(structured_instruction_blocks)
+    codex_instruction = render_prompt(codex_instruction_blocks)
     command.append(codex_instruction)
 
     # Codex CLI を shell 経由ではなく argv として呼び出す。
@@ -199,7 +197,7 @@ def _run_codex_cli(
                 },
                 "input": {
                     "agent_profile": agent_profile.value,
-                    "instruction": instruction,
+                    "instruction": [asdict(block) for block in instruction],
                     "codex_instruction": codex_instruction,
                 },
                 "output_schema": {
@@ -264,7 +262,12 @@ def _ensure_codex_cli_is_available() -> None:
     # 本命呼び出しの前提確認なので、ここでは再帰的な事前確認を行わない。
     result = _run_codex_cli(
         agent_profile=AgentProfile.READ,
-        instruction=_SMOKE_TEST_INSTRUCTION,
+        instruction=[
+            MarkdownPromptBlock(
+                title="Task instruction",
+                body=_SMOKE_TEST_INSTRUCTION,
+            )
+        ],
         check_cli_availability=False,
     )
     response = result.reponse.strip()
@@ -313,7 +316,7 @@ def _is_smoke_test_cache_valid(cache_file_path: Path, today: str) -> bool:
 
 
 def _build_structured_output_instruction(
-    instruction: str,
+    instruction: list[MarkdownPromptBlock],
     output_schema: type[BaseModel],
 ) -> list[MarkdownPromptBlock]:
     """構造化応答を要求する Codex prompt block を構築する.
@@ -336,10 +339,7 @@ def _build_structured_output_instruction(
                 - Do not return prose outside the schema.
                 """),
         ),
-        MarkdownPromptBlock(
-            title="Task instruction",
-            body=instruction,
-        ),
+        *instruction,
     ]
 
     # schema 側に追加指示がある場合だけ、共通ルールとタスク指示の間に差し込む。

@@ -7,6 +7,9 @@ from pathlib import Path
 # pip
 from pydantic import BaseModel
 
+# local
+from schemas.markdown import MarkdownPromptBlock
+
 
 class AgentProfile(Enum):
     """
@@ -46,7 +49,7 @@ class AgentWrapper(ABC):
     def run(
         self,
         agent_profile: AgentProfile,
-        instruction: str,
+        instruction: list[MarkdownPromptBlock],
         output_schema: type[BaseModel] | None = None,
     ) -> AgentRunResult:
         """
