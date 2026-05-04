@@ -2,12 +2,37 @@
 
 ## ticket_guys_b_team とは
 
-- `ticket_guys_b_team` (`tgbt`) は、仕様レビュー駆動のマルチエージェント開発を人間向けに整理して実行するためのフロントエンドである
+- `ticket_guys_b_team` (`tgbt`) は、仕様レビュー駆動の AI コーディングエージェント主導開発を遂行するための人間向けフロントエンド CLI ツールである
+
+## 記法について
+
+- `tgbt` を用いた開発を行う対象リポジトリのルートパスを `<repo-root>` とする
+- `tgbt` 自体のリポジトリルートパスを `<tgbt-root>` とする
 
 ## 開発環境など
 
-- [AGENTS.md](AGENTS.md)
-- Codex CLI の worker runtime は `CODEX_HOME=<repo-root>/.tgbt/.codex` を前提とする
-- runtime 生成物は `.tgbt/.codex/config.toml` と `.tgbt/instructions.md`
-- `.tgbt/instructions.md` は人間向け文書ではなく、Codex CLI に読ませる repo-local runtime 指示である
-- `tgbt init` が `.tgbt/.codex/config.toml` と `.tgbt/instructions.md` を自動生成・正規化する
+- `tgbt` 自体の開発には Codex CLI を用いる
+- そのため `tgbt` の開発環境についての情報は全て Codex CLI が利用可能な状態でリポジトリ上に記述されている
+
+## 使い方
+
+### 前提条件
+
+- 環境変数 `$PATH` として `<tgbt-root>/bin` が登録済みである
+- `codex` コマンド (Codex CLI) が利用可能である
+
+### プラン新規作成
+
+- `tgbt plan` コマンドを実行すると、与えられたユーザー指示を元にプランを新規作成する
+- 特に引数を与えない場合、エディタが立ち上がるので、そこにユーザー指示を入力する
+- コマンド完了時、作成されたプラン全文とプラン ID が表示される
+
+### 修正プラン作成
+
+- `tgbt plan --plan-id <plan id>` のように `<plan id>` を指定することで、既存プランの修正版作成を指示出来る
+- プランの内容が人間の意図と一致するまでプラン修正を繰り返すことを前提としている
+- `tgbt plan --plan-id latest` を実行した場合、最新のプランが自動選択される
+
+### プラン実行
+
+- `tgbt run --plan-id <plan id>` で、既存プランに従って実際に作業が行われる

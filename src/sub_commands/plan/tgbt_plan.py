@@ -36,6 +36,11 @@ def tgbt_plan_impl(
     else:
         instruction = _read_instruction_from_editor(instruction_source)
 
+    # 指示文が実質未入力なら、plan 生成へ進まずユーザー操作として正常終了する。
+    if _is_instruction_empty(instruction):
+        typer.echo("tgbt plan was cancelled because instruction is empty.")
+        raise typer.Exit(code=0)
+
     # 作成・更新処理を呼び出す
     if plan_id is None:
         plan_id = _create_plan(instruction)
@@ -76,6 +81,19 @@ def _read_instruction_from_editor(initial_instruction: str = "") -> str:
 
     # コメント除去後の前後空白は、テンプレート由来の余白を plan に残さないために落とす。
     return _HTML_COMMENT_PATTERN.sub("", instruction).strip()
+
+
+def _is_instruction_empty(instruction: str) -> bool:
+    """
+    plan 生成に使える実質的な指示文が存在するか判定する。
+    """
+    # HTML コメントと前後空白を除去して、人間が書いた本文だけに近づける。
+    normalized_instruction = _HTML_COMMENT_PATTERN.sub("", instruction).strip()
+    if normalized_instruction == "":
+        return True
+
+    # エディタテンプレート由来の見出しだけが残っている状態は未入力として扱う。
+    return normalized_instruction == "# 作業指示"
 
 
 def _create_plan(instruction: str) -> str:
