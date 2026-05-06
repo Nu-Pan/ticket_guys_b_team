@@ -1,6 +1,6 @@
 ---
 name: implement-task
-description: Implement a scoped low-level change in tgbt. Use for localized function, class, command, or behavior changes that avoid tests, broad refactors, and product-level decisions.
+description: Implement a scoped low-level tgbt code change. Use for localized function, class, command, or behavior fixes that avoid tests, broad refactors, public API redesign, and product-level decisions.
 ---
 
 # Implement Task
@@ -16,18 +16,20 @@ AI の責務は low-level なコード変更、局所的な整合調整、局所
 - 変更は要求を満たすために必要な局所差分へ留める。
 - tgbt 自体の開発では、テストを追加・更新しない。
 - AI 管理の中間ドキュメントや作業ログを作成・更新しない。
+- `<tgbt-root>/README.md` と `<tgbt-root>/memo/**` は読まない。
 - `<tgbt-root>/oracle` は必要なときだけ参照し、未記載仕様を補完しない。
 - 参照した `<tgbt-root>/oracle` と実装が衝突する場合は、`<tgbt-root>/oracle` を正本として扱い、衝突箇所を人間へ返す。
+- この `<tgbt-root>` 上で `tgbt` を実行して自己開発させない。
 
 ## Scope
 
-扱う作業:
+扱う:
 
 - 既存設計の範囲で関数・クラス・分岐・入出力を実装または修正する。
 - 既存 public interface を維持したまま、局所的な bug fix や整合調整を行う。
 - 実装後に型チェックや import 確認など、テスト実装を伴わない局所確認を行う。
 
-扱わない作業:
+扱わない:
 
 - プロダクトビジョン、要求定義、抽象アーキテクチャ設計を決める。
 - 複数の妥当な振る舞いがあり、既存コードや `<tgbt-root>/oracle` 断片から決め切れない仕様判断を行う。
@@ -39,9 +41,9 @@ AI の責務は low-level なコード変更、局所的な整合調整、局所
 - まず user request を、触る関数・クラス・コマンド・入出力へ分解する。
 - 挙動の根拠は既存実装から集め、必要な場合だけ `<tgbt-root>/oracle` を読む。
 - `<tgbt-root>/oracle` を読むときは `<tgbt-root>/oracle/docs/ROUTING.md` と各階層の `ROUTING.md` から必要なファイルだけ辿る。
-- Python 実装を触るときは `<tgbt-root>/oracle/docs/dev_rule/ROUTING.md` で所在を確認してから `<tgbt-root>/oracle/docs/dev_rule/python_coding.md` を読む。
-- `<tgbt-root>/.venv`、依存追加、ツール実行方法が論点なら `<tgbt-root>/oracle/docs/dev_rule/ROUTING.md` で所在を確認してから `<tgbt-root>/oracle/docs/dev_rule/environment.md` を読む。
-- テスト方針や確認方法が論点なら `<tgbt-root>/oracle/docs/dev_rule/ROUTING.md` で所在を確認してから `<tgbt-root>/oracle/docs/dev_rule/test_policy.md` を読む。
+- Python 実装を触るときは `<tgbt-root>/oracle/docs/dev_rule/python_coding.md` を読む。
+- `<tgbt-root>/.venv`、依存追加、ツール実行方法が論点なら `<tgbt-root>/oracle/docs/dev_rule/environment.md` を読む。
+- テスト方針や確認方法が論点なら `<tgbt-root>/oracle/docs/dev_rule/test_policy.md` を読む。
 - 正本判断は `<tgbt-root>/oracle` の明示内容を優先する。ただし `<tgbt-root>/oracle` を完全仕様として扱わない。
 
 ## Workflow
@@ -53,7 +55,7 @@ AI の責務は low-level なコード変更、局所的な整合調整、局所
 5. Python を編集するときは `python_coding.md` に従い、型ヒント、docstring、import、コメント、関数分割、非公開識別子の規則を守る。
 6. テストを追加・更新せず、変更対象に近い単位で `<tgbt-root>/.venv/bin/python -m pyright ...` や import 確認などを実行する。
 7. pyright で見つかった型エラーは、要求範囲を越えない限り修正する。範囲外の既存エラーだけが残る場合は人間へ報告する。
-8. この `<tgbt-root>` 上で `tgbt` を実行して自己開発させない。smoke test が必要で手順を一意に決められない場合は、人間へ確認する。
+8. smoke test が必要で手順を一意に決められない場合は、人間へ確認する。
 
 ## Reporting Rules
 

@@ -1,6 +1,6 @@
 ---
 name: investigate-tgbt
-description: Investigate tgbt repo behavior from code, tgbt oracle, and relevant existing tests. Use when answering repo-specific questions without editing files or inferring product intent.
+description: Investigate current tgbt repo behavior without editing files. Use for code, oracle, and relevant existing-test evidence when answering repo-specific questions without inferring product intent.
 ---
 
 # Investigate TGBT
@@ -8,24 +8,24 @@ description: Investigate tgbt repo behavior from code, tgbt oracle, and relevant
 ## Overview
 
 調査対象を repo 内の具体的な根拠へ分解し、事実・推論・未確定事項を分けて説明する。
-人間が保持する抽象仕様を勝手に補完せず、現に読める成果物から言えることだけを積み上げる。
+人間が保持する抽象仕様を補完せず、現に読める成果物から言えることだけを積み上げる。
 
 ## Guardrails
 
 - 最初に `<tgbt-root>/AGENTS.md` を確認し、repo 固有の読み取り・編集制約を外さない。
-- `<tgbt-root>/oracle` は人間が管理する断片的な正本仕様であり、網羅的ではない前提で扱う。調査対象がその断片仕様そのものに関係するときだけ参照する。
+- コード編集、依存追加、state を汚すコマンド、永続的な中間ドキュメント作成をしない。
+- `<tgbt-root>/README.md` と `<tgbt-root>/memo/**` は読まない。
+- `<tgbt-root>/oracle` は断片的な正本仕様として扱い、調査対象がその断片仕様に関係するときだけ参照する。
 - 参照した `<tgbt-root>/oracle` の明示内容と実装・既存テストが衝突する場合は、`<tgbt-root>/oracle` を正本として扱い、衝突箇所を事実として分けて報告する。
-- プロダクトビジョンや抽象設計の確定は人間の責務だと理解する。調査では、repo から観測できる事実の整理に徹する。
+- プロダクトビジョンや抽象設計を確定せず、repo から観測できる事実の整理に徹する。
 - `<repo-root>/.codex/` と runtime state の `<repo-root>/.tgbt/.codex/` を混同しない。両者は役割が違う可能性があるので、必ず実装を中心に、必要なら関連する既存テストも証拠として意味を確認する。
 - この `<tgbt-root>` 上で `tgbt` を実行して自己開発させない。unit test の live mode も使わない。
-- 調査結果は回答として報告し、中間ドキュメントや調査メモとして永続化しない。
 
 ## Evidence Order
 
 - 実装済み挙動を知りたいときは、まず実装を優先する。既存テストが残っている場合は、過去または周辺期待値の証拠として必要な範囲で読む。
 - 開発ルールや作業手順を知りたいときは、`<tgbt-root>/AGENTS.md` と `<tgbt-root>/oracle/docs/ROUTING.md`、`<tgbt-root>/oracle/docs/dev_rule/ROUTING.md` から辿れる該当ファイルを優先する。
 - tgbt の仕様断片を知りたいときは、`<tgbt-root>/oracle/docs/ROUTING.md` と各階層の `ROUTING.md` から関連する `<tgbt-root>/oracle/docs/tgbt_spec/*.md` を辿る。
-- `<tgbt-root>/README.md` と `<tgbt-root>/memo/**` は読まない。
 - 根拠同士が食い違う場合は、勝手に整合させず、どのファイルのどの主張が衝突しているかを明示する。
 
 ## Investigation Workflow
@@ -42,7 +42,7 @@ description: Investigate tgbt repo behavior from code, tgbt oracle, and relevant
    - 仕様断片: `<tgbt-root>/oracle/docs/tgbt_spec/ROUTING.md` から関連ファイル
 4. 証拠の鎖が切れたときだけ隣接モジュールへ広げる。無関係なファイルを広く読むより、入口から呼び出し先を辿る。
 5. 調査タスクでは、コード編集、依存追加、既存 state を汚すコマンドを既定動作にしない。`tgbt` 自己実行と unit test の live mode は行わない。
-6. 調査結果は回答として報告し、`<tgbt-root>/docs/` などの中間ドキュメントとして永続化しない。
+6. 調査結果は回答として報告する。
 
 ## Reporting Rules
 

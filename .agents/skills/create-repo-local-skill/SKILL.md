@@ -1,15 +1,14 @@
 ---
 name: create-repo-local-skill
-description: Create, update, or review tgbt repo-local skills. Use when maintaining repo-local skill instructions or metadata, aligning with tgbt oracle and `$skill-creator`, or validating skills without editing `CODEX_HOME`.
+description: Maintain tgbt repo-local skills under `.agents/skills`. Use for creating, refactoring, validating, or refreshing skill metadata while aligning with tgbt oracle and upstream `$skill-creator`, without editing `CODEX_HOME`.
 ---
 
 # Create Repo Local Skill
 
 ## Overview
 
-`tgbt` 用の repo-local skill を `<tgbt-root>/.agents/skills` に作成・更新・メンテナンスする。
-upstream の `$skill-creator` を必ず併用し、repo 固有の正本情報は `<tgbt-root>/oracle`、Codex skill 一般の外部根拠は OpenAI 公式 docs と upstream skill-creator で確認する。
-詳細な作成手順は upstream skill-creator を優先し、公式 docs は現在の配置・trigger・metadata 方針の確認に使う。
+`<tgbt-root>/.agents/skills` 配下の repo-local skill を作成、更新、検証する。
+upstream の `$skill-creator` を必ず併用し、repo 固有ルールは `<tgbt-root>/AGENTS.md` と `<tgbt-root>/oracle`、Codex skill 一般の根拠は upstream skill-creator と OpenAI 公式 docs で確認する。
 
 ## Guardrails
 
@@ -17,16 +16,17 @@ upstream の `$skill-creator` を必ず併用し、repo 固有の正本情報は
 - `CODEX_HOME` 配下には書き込まない。system skill は read と bundled script の実行だけに使う。
 - skill は「tgbt 上で AI エージェントが行う目的別作業指示」として書く。`tgbt` の正本仕様や作業ログを書かない。
 - `SKILL.md` は実行時に必要な指示へ絞る。補足説明用の `README.md`、`docs/`、`QUICK_REFERENCE.md` などは追加しない。
-- user が対象 skill を指定していない場合は、repo-local skill 全体をメンテナンス対象として扱う。
+- user が対象 skill を指定していない repo-local skill メンテナンス依頼では、`.agents/skills/*` 全体を対象にする。
 
 ## Workflow
 
 ### 1. Load upstream skill-creator
 
-- まず `${CODEX_HOME:-$HOME/.codex}/skills/.system/skill-creator/SKILL.md` を読み、以後の作業では `$skill-creator` の手順を使う。
+- まず `${CODEX_HOME:-$HOME/.codex}/skills/.system/skill-creator/SKILL.md` を読む。
 - 初期化、metadata 生成、validation は upstream scripts を優先する。
+- UI metadata を触る場合は upstream skill-creator の `references/openai_yaml.md` も確認する。
 
-### 2. Check repo-local rules when needed
+### 2. Check repo-local rules
 
 - `<tgbt-root>/AGENTS.md` を確認する。
 - repo-local skill の原則は、`<tgbt-root>/oracle/docs/ROUTING.md` と `<tgbt-root>/oracle/docs/dev_rule/ROUTING.md` を辿って `<tgbt-root>/oracle/docs/dev_rule/codex_skill.md` を参照する。
@@ -34,12 +34,11 @@ upstream の `$skill-creator` を必ず併用し、repo 固有の正本情報は
 
 ### 3. Decide targets and mode
 
-- user が skill 名を指定した場合は、その `<tgbt-root>/.agents/skills/<skill-name>` だけを対象にする。
-- user が対象を指定せず repo-local skill のメンテナンスを依頼した場合は、`<tgbt-root>/.agents/skills/*` を対象にする。
-- `<tgbt-root>/.agents/skills/<skill-name>` が存在しない場合は新規作成として扱う。
-- 既存 skill の修正・確認が明示されている場合は既存更新として扱う。
+- skill 名が指定された場合は、その `<tgbt-root>/.agents/skills/<skill-name>` だけを対象にする。
+- 対象指定なしのメンテナンス依頼では、`.agents/skills/*` を対象にする。
+- 対象が存在しなければ新規作成、存在していて修正・確認が明示されていれば既存更新として扱う。
 - 既存 skill があり、user の意図が新規作成か更新か曖昧な場合だけ確認する。
-- 既存更新では `init_skill.py` を再実行しない。`SKILL.md` と必要な bundled resources だけを編集する。
+- 既存更新では `init_skill.py` を再実行しない。
 
 ### 4. Fix the install root and naming
 
@@ -57,18 +56,20 @@ upstream の `$skill-creator` を必ず併用し、repo 固有の正本情報は
 
 - `scripts/`, `references/`, `assets/` は、実行時に直接役立つ場合だけ追加または更新する。
 - `SKILL.md` には、対象タスクをどう進めるかの実務原則と repo 固有 guardrails を書く。
+- `agents/openai.yaml` も同時に生成する。
 
 ### 6. Maintain existing skills
 
-既存更新では `init_skill.py` を使わず、既存内容を読んで必要最小限の差分にする。各 skill は次の観点で確認する。
+既存更新では、既存内容を読んで必要最小限の差分にする。各 skill は次の観点で確認する。
 
 - `<tgbt-root>/oracle` の明示内容や `<tgbt-root>/AGENTS.md` と矛盾していないか。
-- `SKILL.md` に、シンプル化・短縮可能な冗長指示が残っていないか。
+- `description` が用途、trigger 語、境界を前方に寄せて簡潔に示しているか。
+- `SKILL.md` が実行時に必要な指示へ絞られ、冗長な背景説明を含んでいないか。
+- 1 skill 1 job になっており、扱う範囲と扱わない範囲が曖昧でないか。
 - 繰り返しが多い、または機械的に検証すべき処理を `scripts/` に切り出す余地があるか。
-- OpenAI 公式 Codex skills docs と upstream `$skill-creator` の現在の guidance から見て、description、progressive disclosure、bundled resources、metadata に問題がないか。
-- 一般的な skill best practices から見て、1 skill 1 job になっているか、入出力や手順が曖昧でないか。
+- bundled resources と `agents/openai.yaml` が現在の `SKILL.md` とずれていないか。
 
-OpenAI 公式 docs を参照する場合は、公式ドメインの最新 docs を使う。特に description は implicit invocation の trigger になるため、用途と境界を前方に寄せて簡潔に書く。
+OpenAI 公式 docs を参照する場合は、公式ドメインの最新 docs を使う。
 
 ### 7. Generate or refresh UI metadata
 

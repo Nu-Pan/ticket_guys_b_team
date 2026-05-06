@@ -1,4 +1,4 @@
 interface:
   display_name: "Implement Task"
-  short_description: "tgbt 自体の実装修正をテスト追加・更新なしで進める"
-  default_prompt: "Use $implement-task to make a scoped tgbt implementation change without adding or updating tests."
+  short_description: "tgbt の局所的な実装修正をテスト追加なしで行う"
+  default_prompt: "Use $implement-task to implement a scoped low-level tgbt code change without adding or updating tests."
