@@ -50,6 +50,7 @@ class CodexWrapper(AgentWrapper):
         Returns:
             Codex CLI の実行結果と tgbt 側の呼び出しログ。
         """
+        # 実際の CLI 呼び出し処理は関数側に集約する。
         return _run_codex_cli(
             agent_profile=agent_profile,
             instruction=instruction,
@@ -294,6 +295,7 @@ def _ensure_codex_cli_is_available() -> None:
 
 def _smoke_test_cache_file_path() -> Path:
     """当日 smoke test 成功状態を記録するファイルパスを返す."""
+    # smoke test の成功日は tgbt 管理ディレクトリ直下に保存する。
     return TGBT_PATH.tgbt / _SMOKE_TEST_CACHE_FILE_NAME
 
 

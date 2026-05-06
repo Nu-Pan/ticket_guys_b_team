@@ -52,6 +52,7 @@ class CompletionCriterion(StrictModel):
     @classmethod
     def _validate_id(cls, value: str) -> str:
         """completion criterion ID の形式を検証する."""
+        # completion criterion 用の prefix で共通 ID 検証へ渡す。
         return _validate_prefixed_id(value, "COMP")
 
 
@@ -67,6 +68,7 @@ class RiskNote(StrictModel):
     @classmethod
     def _validate_id(cls, value: str) -> str:
         """risk note ID の形式を検証する."""
+        # risk note 用の prefix で共通 ID 検証へ渡す。
         return _validate_prefixed_id(value, "RISK")
 
 
@@ -82,6 +84,7 @@ class PlannedProcedure(StrictModel):
     @classmethod
     def _validate_id(cls, value: str) -> str:
         """planned procedure ID の形式を検証する."""
+        # planned procedure 用の prefix で共通 ID 検証へ渡す。
         return _validate_prefixed_id(value, "PROC")
 
 
@@ -98,6 +101,7 @@ class Assumption(StrictModel):
     @classmethod
     def _validate_id(cls, value: str) -> str:
         """assumption ID の形式を検証する."""
+        # assumption 用の prefix で共通 ID 検証へ渡す。
         return _validate_prefixed_id(value, "ASMP")
 
 
@@ -146,6 +150,7 @@ def render_plan_markdown(plan_id: str, plan: TgbtPlan) -> str:
     """
     TgbtPlan から人間閲覧用 Markdown を生成する。
     """
+    # TgbtPlan の各フィールドを人間閲覧用 section に対応付ける。
     return render_document(
         title=f"tgbt plan: {plan_id}",
         metadata=[

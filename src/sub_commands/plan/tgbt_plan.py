@@ -238,6 +238,7 @@ def _resolve_plan_id(plan_id: str) -> str:
     """
     plan 更新元として使う plan id を解決する。
     """
+    # 明示された plan id はそのまま更新元として扱う。
     if plan_id != "latest":
         return plan_id
 

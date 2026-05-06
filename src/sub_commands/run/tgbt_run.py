@@ -6,6 +6,7 @@ def tgbt_run_impl() -> None:
     """
     `tgbt run` の実装。
     """
+    # run は未実装であることを CLI 利用者に明示して終了する。
     raise tgbt_error(
         "tgbt run は未実装です",
         "将来の作業として tgbt run を実装する必要があります",

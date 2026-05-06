@@ -39,6 +39,7 @@ def render_prompt(blocks: Sequence[PromptBlock]) -> str:
     """
     Markdown 見出しブロック列から AI に渡す prompt を組み立てる。
     """
+    # 各 root block を Markdown のトップレベル見出しとして順番に描画する。
     lines: list[str] = []
     for block in blocks:
         lines.extend(_render_prompt_block(block, 1))
@@ -52,6 +53,7 @@ def _render_prompt_block(block: PromptBlock, level: int) -> list[str]:
     """
     prompt block とその子孫を Markdown 行へ描画する。
     """
+    # 現在の block 見出しを、指定された見出しレベルで先頭に置く。
     lines = [f"{'#' * level} {block.title}", ""]
 
     # 本文は見出し直下の block 内容として配置する。
@@ -70,6 +72,7 @@ def render_metadata_item(key: str, value: str) -> str:
     """
     Markdown document 先頭に置く metadata item を描画する。
     """
+    # metadata の値は機械的に読みやすいよう inline code として描画する。
     return f"- {key}: `{value}`"
 
 
@@ -77,6 +80,7 @@ def render_id_text_items(items: Sequence[HasIdText]) -> str:
     """
     id と text を持つ schema item の Markdown list を描画する。
     """
+    # 空リストは人間閲覧用 Markdown で明示的に「なし」と描画する。
     if len(items) == 0:
         return "- なし"
 
@@ -87,6 +91,7 @@ def render_plain_items(items: Sequence[str]) -> str:
     """
     文字列 item の Markdown list を描画する。
     """
+    # 空リストは人間閲覧用 Markdown で明示的に「なし」と描画する。
     if len(items) == 0:
         return "- なし"
 
@@ -97,6 +102,7 @@ def render_text_blocks(items: Sequence[HasText]) -> str:
     """
     text を持つ schema item を fenced code block として描画する。
     """
+    # 空リストは code block ではなく通常テキストで「なし」と描画する。
     if len(items) == 0:
         return "なし"
 
@@ -111,6 +117,7 @@ def render_document(
     """
     title、metadata、sections から Markdown document を組み立てる。
     """
+    # document title を最上位見出しとして先頭に置く。
     lines = [f"# {title}", ""]
 
     # 人間が先頭で補助情報を確認できるよう、metadata は section より前に集約する。

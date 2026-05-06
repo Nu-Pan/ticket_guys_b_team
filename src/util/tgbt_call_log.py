@@ -24,6 +24,7 @@ def reset_related_log_paths() -> None:
     """
     tgbt 呼び出し単位の関連ログパス収集状態を初期化する。
     """
+    # ContextVar 上の関連ログ一覧を空に戻す。
     _RELATED_LOG_PATHS.set(())
 
 
@@ -41,6 +42,7 @@ def get_exit_code(exc_obj: BaseException) -> int:
     """
     Typer/SystemExit 系の例外からプロセス終了コードを推定する。
     """
+    # Typer が意図的に投げる終了例外を最初に判定する。
     if isinstance(exc_obj, typer.Exit):
         return int(exc_obj.exit_code)
 
@@ -71,6 +73,7 @@ def write_tgbt_call_log(
 
     ログ保存に失敗しても、本来の CLI 終了挙動を壊さないため例外は外へ出さない。
     """
+    # ログ保存全体を握り、本来の CLI 終了経路を優先する。
     try:
         log_dir = TGBT_PATH.tgbt_logs_tgbt_call
         log_dir.mkdir(parents=True, exist_ok=True)
@@ -127,4 +130,5 @@ def get_related_log_paths() -> list[Path]:
     """
     現在の tgbt 呼び出しに関連するログパス一覧を返す。
     """
+    # ContextVar 内部の tuple を呼び出し元で扱いやすい list に変換する。
     return list(_RELATED_LOG_PATHS.get())

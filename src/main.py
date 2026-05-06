@@ -67,6 +67,7 @@ def run(
     ],
 ) -> None:
     """指定した Plan を起点に run を実行する。"""
+    # 現状の run 実装へ渡す値がまだ無いため、CLI 引数の未使用警告だけ避ける。
     _ = (plan_id,)
     tgbt_run_impl()
 
@@ -94,6 +95,7 @@ def _run_app_with_tgbt_call_log() -> None:
     """
     Typer app を実行し、tgbt 呼び出しログを保存する。
     """
+    # 1 回の tgbt 呼び出しに紐づく関連ログ収集状態を初期化する。
     reset_related_log_paths()
     exit_code = 0
     exc_obj: BaseException | None = None

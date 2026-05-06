@@ -73,6 +73,7 @@ def _run_required_command(command: list[str], instruction_file: Path) -> None:
     """
     明示指定されたエディタコマンドを実行する。
     """
+    # 明示指定されたコマンドは失敗時に即座にユーザーへ返す。
     try:
         completed = _run_command(command, instruction_file)
     except FileNotFoundError:
@@ -100,6 +101,7 @@ def _run_command(
     """
     指示文ファイルを引数に追加してエディタコマンドを起動する。
     """
+    # エディタ自身の終了コードを呼び出し元で判定できるよう例外化しない。
     return subprocess.run(
         [*command, str(instruction_file)],
         check=False,

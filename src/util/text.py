@@ -5,6 +5,7 @@ def stdtqs(text: str) -> str:
     """
     triple-quoted string を正規化する。
     """
+    # 行単位で前後の空行と共通インデントを処理する。
     lines = text.splitlines()
 
     # 先頭・末尾の空行だけを落としてから、共通インデントを解除する。

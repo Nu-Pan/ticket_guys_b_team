@@ -19,6 +19,7 @@ class TGBTRepoLock:
         """
         ロック対象のファイルパスを初期化する。
         """
+        # ロック取得前に、対象 path と file handle の初期状態だけを保持する。
         self._lock_file_path = TGBT_PATH.tgbt_lock
         self._lock_file: TextIO | None = None
 
@@ -65,6 +66,7 @@ class TGBTRepoLock:
         """
         repo 単位の排他ロックを解放する。
         """
+        # context manager の例外情報はロック解放処理では参照しない。
         _ = (exc_type, exc_obj, exc_tb)
 
         # ファイルを close すると flock も解放される。

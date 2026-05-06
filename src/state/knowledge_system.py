@@ -100,12 +100,14 @@ class KnowledgeSystem:
 
     def __init__(self, agent_wrapper: AgentWrapper | None = None) -> None:
         """知識システムを初期化する."""
+        # 指定がなければ本番用の Codex wrapper を使う。
         self._agent_wrapper = (
             agent_wrapper if agent_wrapper is not None else CodexWrapper()
         )
 
     def improve_knowledge_files(self) -> None:
         """知識ファイル群を正常化した上で、重複削除や短縮を行う."""
+        # 改善前に、既存知識ファイルを機械検査に通る状態へ揃える。
         self._normalize_knowledge_files()
         knowledge_files = self._load_all_valid_knowledge_files()
         if len(knowledge_files) == 0:
@@ -118,6 +120,7 @@ class KnowledgeSystem:
 
     def search(self, question: str) -> KnowledgeSearchResult:
         """repo についての質問に対して、知識ファイルと知識ソースファイルから回答する."""
+        # 検索前に、目次と知識ファイルの整合状態を最新化する。
         self._normalize_knowledge_files()
 
         # 既存知識だけで足りるか確認し、不足があれば調査結果を知識として追加する。
@@ -162,6 +165,7 @@ class KnowledgeSystem:
 
     def _normalize_knowledge_files(self) -> None:
         """全ての知識ファイルを機械的検査に合格する状態へ修正する."""
+        # 知識ファイル検査の前提として、知識ソース目次を現在の repo 状態へ揃える。
         self._normalize_index()
         TGBT_PATH.tgbt_knowledge_items.mkdir(parents=True, exist_ok=True)
 
@@ -196,6 +200,7 @@ class KnowledgeSystem:
 
     def _normalize_index(self) -> None:
         """知識ソースファイルの目次ファイルを現在の repo 状態に合わせる."""
+        # 目次保存先ディレクトリを、目次の読み書き前に必ず用意する。
         TGBT_PATH.tgbt_knowledge.mkdir(parents=True, exist_ok=True)
 
         # 現在の知識ソースファイルと既存目次を path で突き合わせる。
@@ -228,6 +233,7 @@ class KnowledgeSystem:
         knowledge_source_file: _KnowledgeSourceFile,
     ) -> str:
         """知識ソースファイル 1 件の目次説明を AI に生成させる."""
+        # 対象ファイルの path と hash を渡し、説明生成だけを agent に委譲する。
         result = self._run_agent(
             instruction=_prompt_instruction(
                 title="Generate knowledge index description",
@@ -261,6 +267,7 @@ class KnowledgeSystem:
         validation_message: str,
     ) -> KnowledgeFile:
         """不正な知識ファイルを AI に修正させる."""
+        # 修正時に参照できる知識ソース目次と既存参照先情報を集める。
         index = self._load_index()
         reference_targets = self._reference_file_targets_for_knowledge_path(
             knowledge_path=knowledge_path,
@@ -314,6 +321,7 @@ class KnowledgeSystem:
         knowledge_files: list[KnowledgeFile],
     ) -> list[KnowledgeFile]:
         """知識ファイル群の改善案を AI に生成させる."""
+        # 現在の有効な知識ファイル集合を渡し、置換後の全件集合を受け取る。
         result = self._run_agent(
             instruction=_prompt_instruction(
                 title="Improve tgbt knowledge files",
@@ -344,6 +352,7 @@ class KnowledgeSystem:
         knowledge_files: list[KnowledgeFile],
     ) -> list[KnowledgeFile]:
         """検索質問に対する知識ファイル候補を AI に選ばせる."""
+        # 候補元が空なら AI 呼び出しを省略して空候補を返す。
         if len(knowledge_files) == 0:
             return []
 
@@ -375,6 +384,7 @@ class KnowledgeSystem:
         candidates: list[KnowledgeFile],
     ) -> KnowledgeRelevanceResponse:
         """候補知識の本文を読ませ、関連性と十分性を AI に判定させる."""
+        # 候補が無ければ、不足情報を明示した判定結果を機械的に返す。
         if len(candidates) == 0:
             return KnowledgeRelevanceResponse(
                 relevant_knowledge_ids=[],
@@ -411,6 +421,7 @@ class KnowledgeSystem:
         existing_knowledge: list[KnowledgeFile],
     ) -> KnowledgeFile:
         """不足情報を知識ソースファイルから調査し、新しい知識ファイルを生成する."""
+        # 追加調査では最新の知識ソース目次を前提に対象ファイルを選ぶ。
         self._normalize_index()
         index = self._load_index()
         selected_paths = self._select_knowledge_source_files(
@@ -476,6 +487,7 @@ class KnowledgeSystem:
         relevant_files: list[KnowledgeFile],
     ) -> KnowledgeSearchResult:
         """関連知識ファイルを根拠に質問への最終回答を AI に生成させる."""
+        # 最終回答では、関連ありと判定済みの知識ファイルだけを根拠として渡す。
         result = self._run_agent(
             instruction=_prompt_instruction(
                 title="Answer tgbt knowledge question",
@@ -506,6 +518,7 @@ class KnowledgeSystem:
         index: KnowledgeIndex,
     ) -> list[str]:
         """不足情報の調査対象にする知識ソースファイルを AI に選ばせる."""
+        # 質問、不足情報、目次を渡して調査対象 path の候補を受け取る。
         result = self._run_agent(
             instruction=_prompt_instruction(
                 title="Select knowledge source files for tgbt knowledge research",
@@ -536,6 +549,7 @@ class KnowledgeSystem:
         output_schema: type[T],
     ) -> T:
         """AgentWrapper を構造化応答つきで呼び出し、型を検査する."""
+        # 知識システムの AI 呼び出しは READ profile と構造化応答で統一する。
         result = self._agent_wrapper.run(
             agent_profile=AgentProfile.READ,
             instruction=instruction,
@@ -564,6 +578,7 @@ class KnowledgeSystem:
 
     def _collect_knowledge_source_files(self) -> list[_KnowledgeSourceFile]:
         """現在の repo から知識ソースファイルを収集する."""
+        # repo root と除外設定を先に解決し、走査中の判定に使う。
         repo_root = TGBT_PATH.repo_root
         config = _load_knowledge_source_config()
         gitignore_patterns = _load_gitignore_patterns()
@@ -589,6 +604,7 @@ class KnowledgeSystem:
 
     def _load_index(self) -> KnowledgeIndex:
         """目次 JSON を読み込む。存在しない場合は空目次を返す."""
+        # 目次ファイル未作成時は、空の目次として扱う。
         index_path = TGBT_PATH.tgbt_knowledge_index
         if not index_path.exists():
             return KnowledgeIndex(entries=[])
@@ -606,6 +622,7 @@ class KnowledgeSystem:
 
     def _save_index(self, index: KnowledgeIndex) -> None:
         """目次 JSON を保存する."""
+        # 目次保存先ディレクトリを用意してから JSON として書き出す。
         TGBT_PATH.tgbt_knowledge.mkdir(parents=True, exist_ok=True)
         TGBT_PATH.tgbt_knowledge_index.write_text(
             json.dumps(
@@ -619,6 +636,7 @@ class KnowledgeSystem:
 
     def _check_knowledge_file(self, knowledge_path: Path) -> _KnowledgeCheckResult:
         """知識ファイルが front matter と参照 hash の検査に通るか確認する."""
+        # 読み込みや schema 検証に失敗した場合は修復対象として扱う。
         try:
             knowledge = self._read_knowledge_file(knowledge_path)
         except (OSError, ValidationError, ValueError) as error:
@@ -647,6 +665,7 @@ class KnowledgeSystem:
 
     def _read_knowledge_file(self, knowledge_path: Path) -> KnowledgeFile:
         """Markdown + YAML front matter の知識ファイルを読み込む."""
+        # Markdown を front matter と本文に分け、schema で検証済みの知識にする。
         text = knowledge_path.read_text(encoding="utf-8")
         metadata, body = _parse_knowledge_markdown(text)
         return KnowledgeFile(
@@ -657,6 +676,7 @@ class KnowledgeSystem:
 
     def _write_knowledge_file(self, knowledge: KnowledgeFile) -> None:
         """知識ファイルを Markdown + YAML front matter として保存する."""
+        # 保存先ディレクトリを用意し、保存前に参照整合性を検証する。
         TGBT_PATH.tgbt_knowledge_items.mkdir(parents=True, exist_ok=True)
         validation_error = self._validate_knowledge_references(knowledge)
         if validation_error is not None:
@@ -674,6 +694,7 @@ class KnowledgeSystem:
 
     def _load_all_valid_knowledge_files(self) -> list[KnowledgeFile]:
         """機械検査に合格する知識ファイルだけを読み込む."""
+        # 知識 item path を安定順で走査し、有効なものだけを収集する。
         knowledge_files: list[KnowledgeFile] = []
         for knowledge_path in _iter_knowledge_item_paths():
             check_result = self._check_knowledge_file(knowledge_path)
@@ -683,6 +704,7 @@ class KnowledgeSystem:
 
     def _replace_knowledge_files(self, knowledge_files: list[KnowledgeFile]) -> None:
         """知識ファイル群を指定された集合へ置き換える."""
+        # 置換対象ディレクトリを用意し、保持すべき knowledge id を先に確定する。
         TGBT_PATH.tgbt_knowledge_items.mkdir(parents=True, exist_ok=True)
         next_ids = {knowledge.knowledge_id for knowledge in knowledge_files}
 
@@ -696,6 +718,7 @@ class KnowledgeSystem:
 
     def _validate_knowledge_references(self, knowledge: KnowledgeFile) -> str | None:
         """知識ファイルの参照先が現在の知識ソースファイルと一致するか検査する."""
+        # valid ではない知識ファイルは参照検査前に不正として扱う。
         if knowledge.metadata.status != "valid":
             return "Knowledge metadata status is not valid."
 
@@ -717,6 +740,7 @@ class KnowledgeSystem:
         index: KnowledgeIndex,
     ) -> str:
         """知識ファイルが参照している知識ソースファイルの読取対象を描画する."""
+        # 壊れた知識ファイルでは参照先を安全に読めないため空 prompt にする。
         try:
             knowledge = self._read_knowledge_file(knowledge_path)
         except (OSError, ValidationError, ValueError):
@@ -730,6 +754,7 @@ class KnowledgeSystem:
 
     def _render_index_for_prompt(self, index: KnowledgeIndex) -> str:
         """目次 entry 一覧を prompt 用 Markdown に描画する."""
+        # 空の目次は Markdown list として明示的に「なし」と描画する。
         if len(index.entries) == 0:
             return _EMPTY_MARKDOWN_LIST
 
@@ -748,6 +773,7 @@ class KnowledgeSystem:
         entries: list[KnowledgeIndexEntry],
     ) -> str:
         """目次 entry を知識ソースファイルの読取対象として描画する."""
+        # 読取対象が無ければ prompt 本文としての空表現を返す。
         if len(entries) == 0:
             return _EMPTY_PROMPT_TEXT
 
@@ -767,6 +793,7 @@ class KnowledgeSystem:
         knowledge_files: list[KnowledgeFile],
     ) -> str:
         """知識ファイルの検索用 summary を prompt 用 Markdown に描画する."""
+        # 空の知識集合は Markdown list として明示的に「なし」と描画する。
         if len(knowledge_files) == 0:
             return _EMPTY_MARKDOWN_LIST
 
@@ -780,6 +807,7 @@ class KnowledgeSystem:
         knowledge_files: list[KnowledgeFile],
     ) -> str:
         """知識ファイル群を prompt 用の読取対象一覧として描画する."""
+        # 読取対象が無ければ prompt 本文としての空表現を返す。
         if len(knowledge_files) == 0:
             return _EMPTY_PROMPT_TEXT
 
@@ -806,6 +834,7 @@ class KnowledgeSystem:
 
     def _new_knowledge_id(self) -> str:
         """新規知識ファイル ID を生成する."""
+        # 時刻ベースの ID で、通常の連続生成でも衝突しにくくする。
         return datetime.now().strftime("knowledge-%Y%m%d-%H%M%S-%f")
 
 
@@ -814,16 +843,19 @@ def _prompt_instruction(
     children: list[MarkdownPromptBlock],
 ) -> list[MarkdownPromptBlock]:
     """AgentWrapper に渡す単一 root の prompt instruction を作る."""
+    # AgentWrapper の入力形式に合わせて root block 1 件の list に包む。
     return [MarkdownPromptBlock(title=title, children=children)]
 
 
 def _iter_knowledge_item_paths() -> list[Path]:
     """知識 item Markdown の path 一覧を安定順で返す."""
+    # ファイル処理順が実行ごとに揺れないよう path をソートする。
     return sorted(TGBT_PATH.tgbt_knowledge_items.glob("*.md"))
 
 
 def _parse_knowledge_markdown(text: str) -> tuple[KnowledgeFileMetadata, str]:
     """Markdown + YAML front matter を metadata と body に分割する."""
+    # knowledge file は YAML front matter で始まる形式だけを受け付ける。
     if not text.startswith(f"{_FRONT_MATTER_DELIMITER}\n"):
         raise ValueError("Knowledge file does not start with YAML front matter.")
 
@@ -839,6 +871,7 @@ def _parse_knowledge_markdown(text: str) -> tuple[KnowledgeFileMetadata, str]:
 
 def _render_knowledge_markdown(knowledge: KnowledgeFile) -> str:
     """知識ファイルを Markdown + YAML front matter へ描画する."""
+    # pydantic model から YAML front matter 用の dict を組み立てる。
     metadata = {
         "status": knowledge.metadata.status,
         "summary": knowledge.metadata.summary,
@@ -858,6 +891,7 @@ def _render_knowledge_markdown(knowledge: KnowledgeFile) -> str:
 
 def _hash_file(path: Path) -> str:
     """ファイル bytes の SHA-256 hash を返す."""
+    # 大きいファイルでも一定サイズずつ読んで hash を更新する。
     hasher = hashlib.new(_HASH_ALGORITHM)
     with path.open("rb") as file:
         for chunk in iter(lambda: file.read(1024 * 1024), b""):
@@ -867,11 +901,13 @@ def _hash_file(path: Path) -> str:
 
 def _relative_prompt_path(path: Path) -> str:
     """repo root からの相対 path を prompt 用に返す."""
+    # prompt 内では OS 依存の区切り文字を避けるため POSIX 形式にする。
     return path.relative_to(TGBT_PATH.repo_root).as_posix()
 
 
 def _load_knowledge_source_config() -> KnowledgeSourceConfig:
     """知識ソースファイル除外設定を読み込み、未作成なら既定値を永続化する."""
+    # 設定ファイルが無ければ既定値を作成して以後の実行で再利用する。
     config_path = TGBT_PATH.tgbt_knowledge_source_config
     if not config_path.exists():
         config = KnowledgeSourceConfig(
@@ -897,6 +933,7 @@ def _load_knowledge_source_config() -> KnowledgeSourceConfig:
 
 def _save_knowledge_source_config(config: KnowledgeSourceConfig) -> None:
     """知識ソースファイル除外設定を JSON として保存する."""
+    # tgbt 管理ディレクトリを用意してから設定 JSON を書き出す。
     TGBT_PATH.tgbt.mkdir(parents=True, exist_ok=True)
     TGBT_PATH.tgbt_knowledge_source_config.write_text(
         json.dumps(
@@ -911,6 +948,7 @@ def _save_knowledge_source_config(config: KnowledgeSourceConfig) -> None:
 
 def _load_gitignore_patterns() -> list[str]:
     """repo root の .gitignore から除外 pattern を読み込む."""
+    # .gitignore が無い repo では除外 pattern なしとして扱う。
     gitignore_path = TGBT_PATH.repo_root / _GITIGNORE_FILE_NAME
     if not gitignore_path.exists():
         return []
@@ -930,6 +968,7 @@ def _iter_repo_files(
     gitignore_patterns: list[str],
 ) -> list[Path]:
     """除外対象ディレクトリを枝刈りしながら repo 内ファイルを列挙する."""
+    # os.walk の dir_names を破壊的に絞り、不要なディレクトリへ descend しない。
     paths: list[Path] = []
     for current_root, dir_names, file_names in os.walk(repo_root):
         current_path = Path(current_root)
@@ -954,6 +993,7 @@ def _is_excluded_directory(
     gitignore_patterns: list[str],
 ) -> bool:
     """repo 走査時に descend しないディレクトリか判定する."""
+    # repo 相対 path と設定由来の除外部品を比較できる形に整える。
     relative_path = path.relative_to(TGBT_PATH.repo_root).as_posix()
     excluded_path_parts = set(config.excluded_path_parts)
 
@@ -972,6 +1012,7 @@ def _is_excluded_knowledge_source(
     gitignore_patterns: list[str],
 ) -> bool:
     """知識ソースファイル走査から除外する path か判定する."""
+    # path 判定で使いやすいよう、相対 path を Path と設定 set に変換する。
     relative = Path(relative_path)
     excluded_file_names = set(config.excluded_file_names)
     excluded_path_parts = set(config.excluded_path_parts)
@@ -990,6 +1031,7 @@ def _is_excluded_knowledge_source(
 
 def _matches_any_glob(relative_path: str, patterns: list[str]) -> bool:
     """設定ファイル由来の glob pattern に path が一致するか判定する."""
+    # 複数 pattern のうち 1 つでも一致すれば除外対象として扱う。
     return any(_matches_path_pattern(relative_path, pattern) for pattern in patterns)
 
 
@@ -998,6 +1040,7 @@ def _matches_any_gitignore_pattern(
     patterns: list[str],
 ) -> bool:
     """限定的な .gitignore pattern 判定を行う."""
+    # 後続 pattern が前段の判定を上書きできるよう順番に評価する。
     is_ignored = False
     for pattern in patterns:
         is_negation = pattern.startswith("!")
@@ -1009,6 +1052,7 @@ def _matches_any_gitignore_pattern(
 
 def _matches_path_pattern(relative_path: str, pattern: str) -> bool:
     """repo 相対 path に対する glob 風 pattern 判定を行う."""
+    # 空 pattern と否定 pattern は、この単体判定では一致なしとして扱う。
     cleaned_pattern = pattern.strip()
     if cleaned_pattern == "" or cleaned_pattern.startswith("!"):
         return False
@@ -1030,6 +1074,7 @@ def _matches_path_pattern(relative_path: str, pattern: str) -> bool:
 
 def _matches_directory_pattern(relative_path: str, pattern: str) -> bool:
     """ディレクトリ専用 pattern が path または親ディレクトリに一致するか判定する."""
+    # 名前だけの directory pattern は path の任意の構成要素と比較する。
     if "/" not in pattern:
         return pattern in Path(relative_path).parts
     return relative_path == pattern or relative_path.startswith(f"{pattern}/")
@@ -1037,6 +1082,7 @@ def _matches_directory_pattern(relative_path: str, pattern: str) -> bool:
 
 def _is_text_file_within_limit(path: Path, max_file_bytes: int) -> bool:
     """知識ソースとして扱えるサイズの UTF-8 text file か判定する."""
+    # サイズ確認と先頭サンプル読み込みに失敗したファイルは除外する。
     try:
         if path.stat().st_size > max_file_bytes:
             return False
