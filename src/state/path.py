@@ -96,6 +96,30 @@ class TGBTPath:
         return self.tgbt_plan_read / f"{plan_id}.md"
 
     @property
+    def tgbt_knowledge(self) -> Path:
+        """`<repo-root>/.tgbt/knowledge`"""
+        return self.tgbt / "knowledge"
+
+    @property
+    def tgbt_knowledge_source_config(self) -> Path:
+        """`<repo-root>/.tgbt/knowledge_source_config.json`"""
+        return self.tgbt / "knowledge_source_config.json"
+
+    @property
+    def tgbt_knowledge_index(self) -> Path:
+        """`<repo-root>/.tgbt/knowledge/index.json`"""
+        return self.tgbt_knowledge / "index.json"
+
+    @property
+    def tgbt_knowledge_items(self) -> Path:
+        """`<repo-root>/.tgbt/knowledge/items`"""
+        return self.tgbt_knowledge / "items"
+
+    def tgbt_knowledge_item_markdown(self, knowledge_id: str) -> Path:
+        """`<repo-root>/.tgbt/knowledge/items/<knowledge-id>.md`"""
+        return self.tgbt_knowledge_items / f"{knowledge_id}.md"
+
+    @property
     def agents_md(self) -> Path:
         """`<repo-root>/AGENTS.md`"""
         return self.repo_root / "AGENTS.md"

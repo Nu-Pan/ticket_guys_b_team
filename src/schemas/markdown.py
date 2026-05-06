@@ -22,17 +22,20 @@ class MarkdownSection:
 
 
 @dataclass(frozen=True)
-class MarkdownPromptBlock:
+class PromptBlock:
     """
-    AI に渡す prompt を構成する Markdown 見出しブロック。
+    AI に渡す prompt を構成するプロンプトブロック。
     """
 
     title: str
     body: str = ""
-    children: Sequence["MarkdownPromptBlock"] = ()
+    children: Sequence["PromptBlock"] = ()
 
 
-def render_prompt(blocks: Sequence[MarkdownPromptBlock]) -> str:
+MarkdownPromptBlock = PromptBlock
+
+
+def render_prompt(blocks: Sequence[PromptBlock]) -> str:
     """
     Markdown 見出しブロック列から AI に渡す prompt を組み立てる。
     """
@@ -45,7 +48,7 @@ def render_prompt(blocks: Sequence[MarkdownPromptBlock]) -> str:
     return "\n".join(lines)
 
 
-def _render_prompt_block(block: MarkdownPromptBlock, level: int) -> list[str]:
+def _render_prompt_block(block: PromptBlock, level: int) -> list[str]:
     """
     prompt block とその子孫を Markdown 行へ描画する。
     """

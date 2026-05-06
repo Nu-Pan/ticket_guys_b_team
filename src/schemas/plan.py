@@ -1,8 +1,9 @@
 # std
+import re
 from typing import ClassVar
 
 # pip
-from pydantic import BaseModel, ConfigDict
+from pydantic import BaseModel, ConfigDict, field_validator
 
 # local
 from schemas.markdown import (
@@ -14,9 +15,21 @@ from schemas.markdown import (
     render_text_blocks,
 )
 
+_PLAN_ID_PATTERN = re.compile(r"^[A-Z]+-\d{3}$")
+
 
 class StrictModel(BaseModel):
     model_config = ConfigDict(extra="forbid")
+
+
+def _validate_prefixed_id(value: str, prefix: str) -> str:
+    """
+    plan item ID が prefix と 3 桁連番形式に従うことを検証する。
+    """
+    # schema prompt で要求する ID 形式は機械的に検証できるため schema 側で弾く。
+    if not _PLAN_ID_PATTERN.fullmatch(value) or not value.startswith(f"{prefix}-"):
+        raise ValueError(f"ID must match {prefix}-001 format.")
+    return value
 
 
 class OriginalInstruction(StrictModel):
@@ -35,6 +48,12 @@ class CompletionCriterion(StrictModel):
     id: str  # e.g. "COMP-001"
     text: str
 
+    @field_validator("id")
+    @classmethod
+    def _validate_id(cls, value: str) -> str:
+        """completion criterion ID の形式を検証する."""
+        return _validate_prefixed_id(value, "COMP")
+
 
 class RiskNote(StrictModel):
     """
@@ -43,6 +62,12 @@ class RiskNote(StrictModel):
 
     id: str  # e.g. "RISK-001"
     text: str
+
+    @field_validator("id")
+    @classmethod
+    def _validate_id(cls, value: str) -> str:
+        """risk note ID の形式を検証する."""
+        return _validate_prefixed_id(value, "RISK")
 
 
 class PlannedProcedure(StrictModel):
@@ -53,6 +78,12 @@ class PlannedProcedure(StrictModel):
     id: str  # e.g. "PROC-001"
     text: str
 
+    @field_validator("id")
+    @classmethod
+    def _validate_id(cls, value: str) -> str:
+        """planned procedure ID の形式を検証する."""
+        return _validate_prefixed_id(value, "PROC")
+
 
 class Assumption(StrictModel):
     """
@@ -62,6 +93,12 @@ class Assumption(StrictModel):
 
     id: str  # e.g. "ASMP-001"
     text: str
+
+    @field_validator("id")
+    @classmethod
+    def _validate_id(cls, value: str) -> str:
+        """assumption ID の形式を検証する."""
+        return _validate_prefixed_id(value, "ASMP")
 
 
 class TgbtPlan(StrictModel):
@@ -94,6 +131,15 @@ ID rules:
     planned_procedures: list[PlannedProcedure]
     assumptions: list[Assumption]
     self_check_notes: list[str]
+
+    @field_validator("schema_version")
+    @classmethod
+    def _validate_schema_version(cls, value: str) -> str:
+        """plan schema version を現行値に固定する."""
+        # schema_version は運用上の固定値なので、生成指示だけでなく再検証でも保証する。
+        if value != "1":
+            raise ValueError('schema_version must be "1".')
+        return value
 
 
 def render_plan_markdown(plan_id: str, plan: TgbtPlan) -> str:

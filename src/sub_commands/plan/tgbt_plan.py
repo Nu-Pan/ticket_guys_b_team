@@ -13,6 +13,7 @@ from agent_wrapper.agent_wrapper import AgentProfile
 from agent_wrapper.codex_wrapper import CodexWrapper
 from schemas.markdown import MarkdownPromptBlock
 from schemas.plan import TgbtPlan, render_plan_markdown
+from state.knowledge_system import KnowledgeSystem
 from state.path import TGBT_PATH
 from util.error import tgbt_error
 from util.text import stdtqs
@@ -101,6 +102,9 @@ def _create_plan(instruction: str) -> str:
     instruction に従って plan を新しく作成する。
     作成したプランの ID を返す。
     """
+    # 新規ワークフロー開始時に、蓄積済み知識ファイルの品質を整える。
+    KnowledgeSystem().improve_knowledge_files()
+
     # 新規 plan id は tgbt 側で生成し、AI には決めさせない。
     plan_id = _new_plan_id()
 
