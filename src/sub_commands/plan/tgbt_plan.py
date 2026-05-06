@@ -284,7 +284,7 @@ def _run_plan_prompt(prompt_blocks: list[MarkdownPromptBlock]) -> TgbtPlan:
     """
     # plan 生成ではリポジトリを変更せず、構造化された最終応答だけを受け取る。
     result = CodexWrapper().run(
-        agent_profile=AgentProfile.READ,
+        agent_profile=AgentProfile.HIGH_READ,
         instruction=prompt_blocks,
         output_schema=TgbtPlan,
     )

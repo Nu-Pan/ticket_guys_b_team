@@ -549,9 +549,9 @@ class KnowledgeSystem:
         output_schema: type[T],
     ) -> T:
         """AgentWrapper を構造化応答つきで呼び出し、型を検査する."""
-        # 知識システムの AI 呼び出しは READ profile と構造化応答で統一する。
+        # 知識システムの AI 呼び出しは medium read profile と構造化応答で統一する。
         result = self._agent_wrapper.run(
-            agent_profile=AgentProfile.READ,
+            agent_profile=AgentProfile.MEDIUM_READ,
             instruction=instruction,
             output_schema=output_schema,
         )

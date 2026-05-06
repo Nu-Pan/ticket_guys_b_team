@@ -425,20 +425,98 @@ def _ensure_codex_settings() -> None:
         hide_agent_reasoning = false
 
         # ----
-        # プロファイル (read)
+        # プロファイル (high read)
         # ----
 
-        [profiles.tgbt_read]
+        [profiles.tgbt_high_read]
 
+        model = "gpt-5.5"
+        model_reasoning_effort = "high"
+        plan_mode_reasoning_effort = "high"
         sandbox_mode = "read-only"
         approval_policy = "never"
 
         # ----
-        # プロファイル (write)
+        # プロファイル (high write)
         # ----
 
-        [profiles.tgbt_write]
+        [profiles.tgbt_high_write]
 
+        model = "gpt-5.5"
+        model_reasoning_effort = "high"
+        plan_mode_reasoning_effort = "high"
+        sandbox_mode = "workspace-write"
+        approval_policy = "never"
+
+        # ----
+        # プロファイル (medium read)
+        # ----
+
+        [profiles.tgbt_medium_read]
+
+        model = "gpt-5.5"
+        model_reasoning_effort = "medium"
+        plan_mode_reasoning_effort = "medium"
+        sandbox_mode = "read-only"
+        approval_policy = "never"
+
+        # ----
+        # プロファイル (medium write)
+        # ----
+
+        [profiles.tgbt_medium_write]
+
+        model = "gpt-5.5"
+        model_reasoning_effort = "medium"
+        plan_mode_reasoning_effort = "medium"
+        sandbox_mode = "workspace-write"
+        approval_policy = "never"
+
+        # ----
+        # プロファイル (low read)
+        # ----
+
+        [profiles.tgbt_low_read]
+
+        model = "gpt-5.5"
+        model_reasoning_effort = "low"
+        plan_mode_reasoning_effort = "low"
+        sandbox_mode = "read-only"
+        approval_policy = "never"
+
+        # ----
+        # プロファイル (low write)
+        # ----
+
+        [profiles.tgbt_low_write]
+
+        model = "gpt-5.5"
+        model_reasoning_effort = "low"
+        plan_mode_reasoning_effort = "low"
+        sandbox_mode = "workspace-write"
+        approval_policy = "never"
+
+        # ----
+        # プロファイル (minimum read)
+        # ----
+
+        [profiles.tgbt_minimum_read]
+
+        model = "gpt-5.4-mini"
+        model_reasoning_effort = "low"
+        plan_mode_reasoning_effort = "low"
+        sandbox_mode = "read-only"
+        approval_policy = "never"
+
+        # ----
+        # プロファイル (minimum write)
+        # ----
+
+        [profiles.tgbt_minimum_write]
+
+        model = "gpt-5.4-mini"
+        model_reasoning_effort = "low"
+        plan_mode_reasoning_effort = "low"
         sandbox_mode = "workspace-write"
         approval_policy = "never"
 

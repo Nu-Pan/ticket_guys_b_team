@@ -16,8 +16,17 @@ class AgentProfile(Enum):
     エージェントに何かをさせる時のプロファイル
     """
 
-    READ = "tgbt_read"
-    WRITE = "tgbt_write"
+    HIGH_READ = "tgbt_high_read"
+    HIGH_WRITE = "tgbt_high_write"
+    MEDIUM_READ = "tgbt_medium_read"
+    MEDIUM_WRITE = "tgbt_medium_write"
+    LOW_READ = "tgbt_low_read"
+    LOW_WRITE = "tgbt_low_write"
+    MINIMUM_READ = "tgbt_minimum_read"
+    MINIMUM_WRITE = "tgbt_minimum_write"
+
+    READ = "tgbt_medium_read"
+    WRITE = "tgbt_medium_write"
 
 
 @dataclass(frozen=True)
