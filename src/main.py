@@ -1,20 +1,26 @@
 # std
+import os
 import sys
 from types import TracebackType
 from typing import Annotated
+from uuid import uuid4
 
 # pip
 import typer
 
 # local
+from sub_commands.knowledge.tgbt_knowledge import tgbt_knowledge_search_impl
 from sub_commands.plan.tgbt_plan import tgbt_plan_impl
 from sub_commands.run.tgbt_run import tgbt_run_impl
+from util.error import tgbt_error
 from util.tgbt_call_log import (
     get_exit_code,
     reset_related_log_paths,
     write_tgbt_call_log,
 )
 from util.tgbt_repo_lock import TGBTRepoLock
+
+_TGBT_ROOT_CALL_ID_ENV = "TGBT_ROOT_CALL_ID"
 
 # NOTE: `bin/tgbt` はこのファイルを直接実行するため、
 # local import は絶対 import にする。
@@ -23,6 +29,26 @@ _app = typer.Typer(
     help="ticket_guys_b_team command line interface.",
     no_args_is_help=True,
 )
+_knowledge_app = typer.Typer(
+    name="knowledge",
+    help="tgbt knowledge system commands.",
+    no_args_is_help=True,
+)
+_app.add_typer(_knowledge_app, name="knowledge")
+
+
+@_knowledge_app.command("search")
+def knowledge_search(
+    question: Annotated[
+        str,
+        typer.Argument(
+            help="Repository question to answer with the tgbt knowledge system.",
+        ),
+    ],
+) -> None:
+    """知識システムで repo についての質問に答える。"""
+    # 実装を呼び出し
+    tgbt_knowledge_search_impl(question)
 
 
 @_app.command("plan")
@@ -83,12 +109,39 @@ def main() -> None:
         or "-h" in sys.argv[1:]
     )
 
-    # help だけの呼び出しは repo lock 対象外とする。
+    # Codex CLI からの例外的な再入呼び出しでは、許可済み command だけを lock 外で通す。
+    is_reentrant_call = _TGBT_ROOT_CALL_ID_ENV in os.environ
     if is_help_only:
         _run_app_with_tgbt_call_log()
+    elif is_reentrant_call:
+        if not _is_reentrant_command_allowed(sys.argv[1:]):
+            raise tgbt_error(
+                "再入 tgbt 呼び出しが許可されていないサブコマンドです",
+                """
+                tgbt から起動された Codex CLI が呼び出せる tgbt サブコマンドは、
+                例外的に許可された `tgbt knowledge search` のみです。
+                """,
+                actual={"argv": ["tgbt", *sys.argv[1:]]},
+                expect={"allowed": "tgbt knowledge search <question>"},
+            )
+        _run_app_with_tgbt_call_log()
     else:
-        with TGBTRepoLock():
-            _run_app_with_tgbt_call_log()
+        previous_root_call_id = os.environ.get(_TGBT_ROOT_CALL_ID_ENV)
+        os.environ[_TGBT_ROOT_CALL_ID_ENV] = str(uuid4())
+        try:
+            with TGBTRepoLock():
+                _run_app_with_tgbt_call_log()
+        finally:
+            if previous_root_call_id is None:
+                os.environ.pop(_TGBT_ROOT_CALL_ID_ENV, None)
+            else:
+                os.environ[_TGBT_ROOT_CALL_ID_ENV] = previous_root_call_id
+
+
+def _is_reentrant_command_allowed(argv: list[str]) -> bool:
+    """再入 tgbt 呼び出しで実行を許可する command か判定する."""
+    # 現時点で stack 的再入が許可されているのは知識検索だけ。
+    return len(argv) >= 2 and argv[0] == "knowledge" and argv[1] == "search"
 
 
 def _run_app_with_tgbt_call_log() -> None:

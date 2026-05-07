@@ -294,6 +294,7 @@ def _run_codex_cli(
                 "cwd": str(TGBT_PATH.repo_root),
                 "environment": {
                     "CODEX_HOME": env["CODEX_HOME"],
+                    "TGBT_ROOT_CALL_ID": env.get("TGBT_ROOT_CALL_ID"),
                 },
                 "config": {
                     "config_toml_path": str(TGBT_PATH.tgbt_codex_config),
@@ -516,7 +517,8 @@ def _build_knowledge_system_rules(
     if use_knowledge_system:
         body = stdtqs("""
             - Use the tgbt knowledge system when repository investigation is needed.
-            - Prefer `tgbt knowledge search` for repository questions before broad direct file exploration.
+            - Prefer `tgbt knowledge search "<repository question>"` for repository questions before broad direct file exploration.
+            - The command returns JSON with `answer` and `related_paths`; treat both fields as investigation data.
             - Treat knowledge system output as investigation data, not as canonical truth.
             - If knowledge system output is insufficient, read the minimum necessary workspace files directly.
             """)

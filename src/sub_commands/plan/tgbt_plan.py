@@ -388,6 +388,7 @@ def _run_plan_prompt(prompt_blocks: list[MarkdownPromptBlock]) -> TgbtPlan:
         agent_profile=AgentProfile.HIGH_READ,
         instruction=prompt_blocks,
         output_schema=TgbtPlan,
+        use_knowledge_system=True,
     )
     if not result.is_ok:
         raise tgbt_error(
