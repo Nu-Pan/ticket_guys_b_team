@@ -4,8 +4,8 @@ import os
 import subprocess
 import threading
 import time
-from datetime import date
 from dataclasses import asdict
+from datetime import date, datetime
 from pathlib import Path
 
 # pip
@@ -26,6 +26,15 @@ _SMOKE_TEST_INSTRUCTION = (
 )
 _SMOKE_TEST_CACHE_FILE_NAME = "codex_prerequirements_smoke_passed_on"
 _CODEX_CLI_CALL_LOCK = threading.Lock()
+_SECRET_ENV_KEY_PARTS = (
+    "TOKEN",
+    "KEY",
+    "SECRET",
+    "PASSWORD",
+    "AUTH",
+    "CREDENTIAL",
+    "COOKIE",
+)
 
 _FIXED_PROMPT_CHILDREN: tuple[MarkdownPromptBlock, ...] = (
     MarkdownPromptBlock(
@@ -252,6 +261,8 @@ def _run_codex_cli(
             actual={"command": command[:3]},
         )
 
+    started_at_epoch_ns = time.time_ns()
+    started_at_iso = datetime.now().isoformat()
     try:
         # Codex CLI を shell 経由ではなく argv として呼び出す。
         # NOTE: prompt に shell 特殊文字が含まれても shell 展開させないため。
@@ -264,6 +275,8 @@ def _run_codex_cli(
             check=False,
         )
     finally:
+        ended_at_epoch_ns = time.time_ns()
+        ended_at_iso = datetime.now().isoformat()
         _CODEX_CLI_CALL_LOCK.release()
 
     # Codex CLI が成功した場合だけ、構造化応答を pydantic で再検証する。
@@ -311,6 +324,14 @@ def _run_codex_cli(
                 "environment": {
                     "CODEX_HOME": env["CODEX_HOME"],
                     "TGBT_ROOT_CALL_ID": env.get("TGBT_ROOT_CALL_ID"),
+                    "variables": _redact_environment(env),
+                },
+                "timestamp": {
+                    "started_at_epoch_ns": started_at_epoch_ns,
+                    "started_at_iso": started_at_iso,
+                    "ended_at_epoch_ns": ended_at_epoch_ns,
+                    "ended_at_iso": ended_at_iso,
+                    "duration_ns": ended_at_epoch_ns - started_at_epoch_ns,
                 },
                 "config": {
                     "config_toml_path": str(TGBT_PATH.tgbt_codex_config),
@@ -448,6 +469,19 @@ def _ensure_codex_cli_is_available() -> None:
 
     # 成功日だけを保存し、翌日以降は再度 smoke test を実行する。
     cache_file_path.write_text(f"{today}\n", encoding="utf-8")
+
+
+def _redact_environment(env: dict[str, str]) -> dict[str, str]:
+    """ログ保存用に secret らしい環境変数値を伏せる."""
+    # 実行時環境を追跡可能にしつつ、典型的な secret 値はログへ残さない。
+    redacted: dict[str, str] = {}
+    for key, value in sorted(env.items()):
+        key_upper = key.upper()
+        if any(part in key_upper for part in _SECRET_ENV_KEY_PARTS):
+            redacted[key] = "<redacted>"
+        else:
+            redacted[key] = value
+    return redacted
 
 
 def _smoke_test_cache_file_path() -> Path:
