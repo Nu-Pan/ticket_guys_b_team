@@ -372,9 +372,42 @@ def _ensure_codex_cli_is_available() -> None:
         agent_profile=AgentProfile.READ,
         instruction=[
             MarkdownPromptBlock(
-                title="Task instruction",
+                title="Task",
                 body=_SMOKE_TEST_INSTRUCTION,
-            )
+            ),
+            MarkdownPromptBlock(
+                title="Authority rules",
+                body="Follow the fixed prompt and this smoke-test task.",
+            ),
+            MarkdownPromptBlock(
+                title="Input handling rules",
+                body="No external inputs are provided.",
+            ),
+            MarkdownPromptBlock(
+                title="Read targets",
+                body="- No workspace files should be read.",
+            ),
+            MarkdownPromptBlock(
+                title="Task-specific rules",
+                body="Return only the expected smoke-test text.",
+            ),
+            MarkdownPromptBlock(
+                title="Operational parameters",
+                body="- expected response: "
+                f"`{_SMOKE_TEST_EXPECTED_RESPONSE}`",
+            ),
+            MarkdownPromptBlock(
+                title="Inputs",
+                body="- No additional inputs.",
+            ),
+            MarkdownPromptBlock(
+                title="Uncertainty handling",
+                body="If unable to return the expected text, fail plainly.",
+            ),
+            MarkdownPromptBlock(
+                title="Self check",
+                body="Confirm the response exactly matches the expected text.",
+            ),
         ],
         check_cli_availability=False,
     )
