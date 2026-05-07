@@ -61,6 +61,8 @@ class AgentWrapper(ABC):
         agent_profile: AgentProfile,
         instruction: list[MarkdownPromptBlock],
         output_schema: type[BaseModel] | None = None,
+        use_knowledge_system: bool = False,
+        caller_schema_prompt: str | None = None,
     ) -> AgentRunResult:
         """
         エージェントに作業を実行させる。
