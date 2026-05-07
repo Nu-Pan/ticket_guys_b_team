@@ -39,6 +39,7 @@ class AgentRunResult:
     reponse: str
     log_file_path: Path
     structured_response: BaseModel | None = None
+    error_message: str | None = None
 
 
 class AgentWrapper(ABC):

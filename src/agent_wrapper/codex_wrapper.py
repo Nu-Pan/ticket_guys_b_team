@@ -394,6 +394,10 @@ def _run_codex_cli(
         reponse=completed.stdout,
         log_file_path=log_file_path,
         structured_response=structured_response,
+        error_message=_agent_error_message(
+            completed=completed,
+            structured_response_error=structured_response_error,
+        ),
     )
 
 
@@ -468,7 +472,29 @@ def _ensure_codex_cli_is_available() -> None:
         )
 
     # 成功日だけを保存し、翌日以降は再度 smoke test を実行する。
+    cache_file_path.parent.mkdir(parents=True, exist_ok=True)
     cache_file_path.write_text(f"{today}\n", encoding="utf-8")
+
+
+def _agent_error_message(
+    completed: subprocess.CompletedProcess[str],
+    structured_response_error: str | None,
+) -> str | None:
+    """呼び出し元が再試行判断に使う失敗理由を短く返す."""
+    # 成功時は呼び出し元へ余計な失敗情報を渡さない。
+    if completed.returncode == 0 and structured_response_error is None:
+        return None
+
+    # Structured Output の検証失敗は plan 再生成時の最重要情報として扱う。
+    if structured_response_error is not None:
+        return structured_response_error
+
+    # CLI 自体が失敗した場合は、stderr を優先して返す。
+    stderr = completed.stderr.strip()
+    if stderr != "":
+        return stderr
+
+    return f"Codex CLI exited with code {completed.returncode}."
 
 
 def _redact_environment(env: dict[str, str]) -> dict[str, str]:
@@ -486,8 +512,8 @@ def _redact_environment(env: dict[str, str]) -> dict[str, str]:
 
 def _smoke_test_cache_file_path() -> Path:
     """当日 smoke test 成功状態を記録するファイルパスを返す."""
-    # smoke test の成功日は tgbt 管理ディレクトリ直下に保存する。
-    return TGBT_PATH.tgbt / _SMOKE_TEST_CACHE_FILE_NAME
+    # smoke test の成功日は Codex CLI runtime state と同じ private 領域へ保存する。
+    return TGBT_PATH.tgbt_codex / _SMOKE_TEST_CACHE_FILE_NAME
 
 
 def _is_smoke_test_cache_valid(cache_file_path: Path, today: str) -> bool:

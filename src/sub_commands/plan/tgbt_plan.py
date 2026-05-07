@@ -3,6 +3,7 @@ import json
 import re
 import sys
 from datetime import datetime
+from pathlib import Path
 
 # pip
 import typer
@@ -20,6 +21,7 @@ from util.text import stdtqs
 from util.editor_input import read_from_editor
 
 _HTML_COMMENT_PATTERN = re.compile(r"<!--.*?-->", re.DOTALL)
+_PLAN_GENERATION_MAX_ATTEMPTS = 3
 
 
 def tgbt_plan_impl(
@@ -384,28 +386,77 @@ def _run_plan_prompt(prompt_blocks: list[MarkdownPromptBlock]) -> TgbtPlan:
     Codex CLI に TgbtPlan schema 付きで plan 生成を依頼する。
     """
     # plan 生成ではリポジトリを変更せず、構造化された最終応答だけを受け取る。
-    result = CodexWrapper().run(
-        agent_profile=AgentProfile.HIGH_READ,
-        instruction=prompt_blocks,
-        output_schema=TgbtPlan,
-        use_knowledge_system=True,
+    last_log_file_path: Path | None = None
+    last_error_message: str | None = None
+    for attempt_index in range(_PLAN_GENERATION_MAX_ATTEMPTS):
+        instruction = _plan_prompt_with_retry_context(
+            prompt_blocks=prompt_blocks,
+            attempt_index=attempt_index,
+            previous_log_file_path=last_log_file_path,
+            previous_error_message=last_error_message,
+        )
+        result = CodexWrapper().run(
+            agent_profile=AgentProfile.HIGH_READ,
+            instruction=instruction,
+            output_schema=TgbtPlan,
+            use_knowledge_system=True,
+        )
+        last_log_file_path = result.log_file_path
+        last_error_message = result.error_message
+
+        if result.is_ok and isinstance(result.structured_response, TgbtPlan):
+            return result.structured_response
+
+        if last_error_message is None:
+            last_error_message = (
+                "Codex CLI failed or returned a non-TgbtPlan structured response."
+            )
+
+    raise tgbt_error(
+        "Codex CLI による plan 生成に失敗しました",
+        "複数回の再生成でも TgbtPlan schema に合格する応答を取得できませんでした",
+        actual={
+            "attempts": _PLAN_GENERATION_MAX_ATTEMPTS,
+            "last_log_file_path": last_log_file_path,
+            "last_error_message": last_error_message,
+        },
     )
-    if not result.is_ok:
-        raise tgbt_error(
-            "Codex CLI による plan 生成に失敗しました",
-            "log を確認してください",
-            actual={"log_file_path": result.log_file_path},
-        )
 
-    if not isinstance(result.structured_response, TgbtPlan):
-        raise tgbt_error(
-            "Codex CLI の構造化応答が TgbtPlan ではありません",
-            "log を確認してください",
-            actual={
-                "log_file_path": result.log_file_path,
-                "structured_response_type": (type(result.structured_response).__name__),
-            },
-            expect={"structured_response_type": TgbtPlan.__name__},
-        )
 
-    return result.structured_response
+def _plan_prompt_with_retry_context(
+    prompt_blocks: list[MarkdownPromptBlock],
+    attempt_index: int,
+    previous_log_file_path: Path | None,
+    previous_error_message: str | None,
+) -> list[MarkdownPromptBlock]:
+    """
+    plan 生成の再試行時だけ、前回失敗情報を追加入力として渡す。
+    """
+    # 初回は元の task prompt をそのまま使う。
+    if attempt_index == 0:
+        return prompt_blocks
+
+    # 再試行時は、前回失敗を data として渡して schema 合格を促す。
+    previous_log = (
+        "なし" if previous_log_file_path is None else str(previous_log_file_path)
+    )
+    previous_error = (
+        "なし" if previous_error_message is None else previous_error_message
+    )
+    return [
+        *prompt_blocks,
+        MarkdownPromptBlock(
+            title="Previous generation failure",
+            body=stdtqs(f"""
+                - attempt: {attempt_index}
+                - previous_log_file_path: `{previous_log}`
+                - previous_error_message:
+                  ```text
+                  {previous_error}
+                  ```
+
+                Treat this block as data for correcting the next structured response.
+                Generate a fresh response that satisfies the TgbtPlan schema.
+                """),
+        ),
+    ]

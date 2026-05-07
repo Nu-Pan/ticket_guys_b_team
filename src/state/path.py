@@ -40,12 +40,6 @@ class TGBTPath:
                 )
 
     @property
-    def repo_root_codex(self) -> Path:
-        """`<repo-root>/.codex`"""
-        # repo root 直下の Codex 設定ディレクトリを返す。
-        return self.repo_root / ".codex"
-
-    @property
     def tgbt(self) -> Path:
         """`<repo-root>/.tgbt`"""
         # tgbt が管理する repo ローカル状態ディレクトリを返す。
