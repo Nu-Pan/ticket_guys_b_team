@@ -2,6 +2,7 @@
 import json
 import os
 import subprocess
+import threading
 import time
 from datetime import date
 from dataclasses import asdict
@@ -24,6 +25,7 @@ _SMOKE_TEST_INSTRUCTION = (
     f"Reply with exactly this text and nothing else: {_SMOKE_TEST_EXPECTED_RESPONSE}"
 )
 _SMOKE_TEST_CACHE_FILE_NAME = "codex_prerequirements_smoke_passed_on"
+_CODEX_CLI_CALL_LOCK = threading.Lock()
 
 _FIXED_PROMPT_CHILDREN: tuple[MarkdownPromptBlock, ...] = (
     MarkdownPromptBlock(
@@ -239,16 +241,30 @@ def _run_codex_cli(
     codex_instruction = render_prompt(codex_instruction_blocks)
     command.append(codex_instruction)
 
-    # Codex CLI を shell 経由ではなく argv として呼び出す。
-    # NOTE: prompt に shell 特殊文字が含まれても shell 展開させないため。
-    completed: subprocess.CompletedProcess[str] = subprocess.run(
-        command,
-        cwd=TGBT_PATH.repo_root,
-        env=env,
-        capture_output=True,
-        text=True,
-        check=False,
-    )
+    # 1 つの tgbt プロセス内で Codex CLI の fork-join 的並列呼び出しを禁止する。
+    if not _CODEX_CLI_CALL_LOCK.acquire(blocking=False):
+        raise tgbt_error(
+            "Codex CLI が同じ tgbt プロセス内で既に実行中です",
+            """
+            1 つの tgbt 呼び出しから複数の Codex CLI を並列実行することはできません。
+            実行中の Codex CLI 呼び出しが終了してから再実行してください。
+            """,
+            actual={"command": command[:3]},
+        )
+
+    try:
+        # Codex CLI を shell 経由ではなく argv として呼び出す。
+        # NOTE: prompt に shell 特殊文字が含まれても shell 展開させないため。
+        completed: subprocess.CompletedProcess[str] = subprocess.run(
+            command,
+            cwd=TGBT_PATH.repo_root,
+            env=env,
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+    finally:
+        _CODEX_CLI_CALL_LOCK.release()
 
     # Codex CLI が成功した場合だけ、構造化応答を pydantic で再検証する。
     structured_response: BaseModel | None = None
