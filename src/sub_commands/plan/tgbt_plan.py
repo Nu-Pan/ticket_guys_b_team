@@ -25,7 +25,7 @@ from schemas.plan import (
     render_plan_markdown,
 )
 from state.knowledge_system import KnowledgeSystem
-from state.path import TGBT_PATH
+from state.path import TGBT_PATH, repo_notation_path
 from util.error import tgbt_error
 from util.tgbt_call_log import record_related_log_path
 from util.text import stdtqs
@@ -112,8 +112,8 @@ def _render_plan_command_report(result: _PlanCommandResult) -> str:
         "",
         f"- status: `{status}`",
         f"- plan_id: `{result.plan_id}`",
-        f"- plan_json_path: `{_repo_relative_path(plan_json_path)}`",
-        f"- plan_markdown_path: `{_repo_relative_path(plan_markdown_path)}`",
+        f"- plan_json_path: `{repo_notation_path(plan_json_path)}`",
+        f"- plan_markdown_path: `{repo_notation_path(plan_markdown_path)}`",
     ]
 
     # 不合格終了時だけ、最後に観測した未解決指摘を人間向けレポートへ含める。
@@ -134,14 +134,6 @@ def _render_plan_command_report(result: _PlanCommandResult) -> str:
         )
 
     return "\n".join(lines)
-
-
-def _repo_relative_path(path: Path) -> str:
-    """
-    repo root からの相対 path を POSIX 表記で返す。
-    """
-    # CLI 出力では環境依存の絶対 path ではなく、仕様通り repo 相対 path を出す。
-    return path.relative_to(TGBT_PATH.repo_root).as_posix()
 
 
 def _render_review_findings(review: PlanReview | None) -> str:

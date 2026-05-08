@@ -105,6 +105,7 @@ Field rules:
 - knowledge.metadata.status: Use "valid" only when the body is supported by references.
 - knowledge.metadata.summary: Write a short Japanese search summary.
 - knowledge.metadata.references: Include every knowledge source file used as evidence.
+- knowledge.metadata.references.path: Use `<repo-root>/...` notation for repository paths.
 - knowledge.body: Keep the Markdown body short, preferably 10-30 lines.
 - knowledge.body: Remove unsupported or stale claims instead of preserving them.
 """
@@ -120,6 +121,7 @@ class KnowledgeImprovementResponse(StrictKnowledgeModel):
     TGBT_OUTPUT_SCHEMA_PROMPT: ClassVar[str] = """\
 Field rules:
 - knowledge_files: Return the full replacement set of knowledge files to keep.
+- knowledge_files.metadata.references.path: Use `<repo-root>/...` notation for repository paths.
 - Prefer fewer, shorter files when content overlaps.
 - Remove claims not supported by the referenced knowledge source files.
 - Keep each body short, preferably 10-30 lines.
@@ -185,6 +187,7 @@ Field rules:
 - knowledge.metadata.status: Use "valid".
 - knowledge.metadata.summary: Write a short Japanese search summary.
 - knowledge.metadata.references: Include every provided knowledge source file used.
+- knowledge.metadata.references.path: Use `<repo-root>/...` notation for repository paths.
 - knowledge.body: Answer the missing information using only provided files.
 - knowledge.body: Keep the Markdown body short, preferably 10-30 lines.
 """
@@ -201,6 +204,7 @@ class KnowledgeAnswerResponse(StrictKnowledgeModel):
 Field rules:
 - answer: Answer the user's repository question in Japanese.
 - related_paths: Include every knowledge source file path related to the answer.
+- related_paths: Use `<repo-root>/...` notation for repository paths.
 - Do not include paths that were not used as evidence.
 """
 

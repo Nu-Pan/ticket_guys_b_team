@@ -53,6 +53,17 @@ _FIXED_PROMPT_CHILDREN: tuple[MarkdownPromptBlock, ...] = (
             """),
     ),
     MarkdownPromptBlock(
+        title="Path notation rules",
+        body=stdtqs("""
+            - Write paths under the repository operated on by tgbt as `<repo-root>/...`.
+            - Write paths under the ticket_guys_b_team repository as `<tgbt-root>/...`.
+            - When writing a path relative to a repository root, always use either `<repo-root>` or `<tgbt-root>`.
+            - Write the Codex home directory as `CODEX_HOME`, not as `.codex` or a home-relative path.
+            - Write paths under the user's home directory using the `HOME` environment variable.
+            - Write paths outside those categories as absolute paths.
+            """),
+    ),
+    MarkdownPromptBlock(
         title="Authority rules",
         body=stdtqs("""
             - If this prompt contains conflicting rules, the fixed safety and access restrictions take precedence.

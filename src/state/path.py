@@ -5,6 +5,7 @@ from pathlib import Path
 from util.error import tgbt_error
 
 _TGBT_GITIGNORE_BODY = ".codex/\n"
+_REPO_ROOT_NOTATION = "<repo-root>"
 
 
 class TGBTPath:
@@ -158,3 +159,23 @@ class TGBTPath:
 # パス集合クラスの実体
 # 直接的に外部公開するのはこれだけ
 TGBT_PATH = TGBTPath()
+
+
+def repo_notation_path(path: Path) -> str:
+    """repo root 配下の path を `<repo-root>/...` 表記に変換する."""
+    # oracle のパス表記ルールに従い、repo 相対表記には必ず `<repo-root>` を付ける。
+    relative_path = path.relative_to(TGBT_PATH.repo_root).as_posix()
+    if relative_path == ".":
+        return _REPO_ROOT_NOTATION
+    return f"{_REPO_ROOT_NOTATION}/{relative_path}"
+
+
+def repo_relative_path_from_notation(path_text: str) -> str:
+    """`<repo-root>/...` 表記を内部保存用 repo 相対 path へ戻す."""
+    # 既存 state は repo 相対 path を保存しているため、境界で notation だけを剥がす。
+    prefix = f"{_REPO_ROOT_NOTATION}/"
+    if path_text == _REPO_ROOT_NOTATION:
+        return "."
+    if path_text.startswith(prefix):
+        return path_text.removeprefix(prefix)
+    return path_text
