@@ -1,6 +1,6 @@
 # std
 import re
-from typing import ClassVar
+from typing import ClassVar, Literal
 
 # pip
 from pydantic import BaseModel, ConfigDict, field_validator
@@ -144,6 +144,45 @@ ID rules:
         if value != "1":
             raise ValueError('schema_version must be "1".')
         return value
+
+
+class PlanReviewFinding(StrictModel):
+    """
+    plan review で検出した指摘。
+    """
+
+    id: str  # e.g. "RVW-001"
+    severity: Literal["major", "minor"]
+    text: str
+
+    @field_validator("id")
+    @classmethod
+    def _validate_id(cls, value: str) -> str:
+        """plan review finding ID の形式を検証する."""
+        # review finding 用の prefix で共通 ID 検証へ渡す。
+        return _validate_prefixed_id(value, "RVW")
+
+
+class PlanReview(StrictModel):
+    """
+    `tgbt plan` が AI 自己レビューで受け取る構造化レビュー結果。
+    """
+
+    TGBT_OUTPUT_SCHEMA_PROMPT: ClassVar[str] = """\
+Field rules:
+- findings: Record concrete review findings for the current plan.
+- self_check_notes: Record concise checks performed before finalizing the review.
+
+Severity rules:
+- major: The plan should not be shown to the user until this is fixed.
+- minor: The plan can be shown if no major findings remain.
+
+ID rules:
+- findings ids: RVW-001, RVW-002, ...
+"""
+
+    findings: list[PlanReviewFinding]
+    self_check_notes: list[str]
 
 
 def render_plan_markdown(plan_id: str, plan: TgbtPlan) -> str:
