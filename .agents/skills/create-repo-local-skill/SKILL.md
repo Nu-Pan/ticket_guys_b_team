@@ -29,7 +29,7 @@ upstream の `$skill-creator` を必ず併用し、repo 固有ルールは `<tgb
 ### 2. Check repo-local rules
 
 - `<tgbt-root>/AGENTS.md` を確認する。
-- repo-local skill の原則は、`<tgbt-root>/oracle/docs/ROUTING.md` と `<tgbt-root>/oracle/docs/dev_rule/ROUTING.md` を辿って `<tgbt-root>/oracle/docs/dev_rule/codex_skill.md` を参照する。
+- repo-local skill の原則は、`<tgbt-root>/oracle/docs/ROUTING.md`、`<tgbt-root>/oracle/docs/dev_rule/ROUTING.md`、`<tgbt-root>/oracle/docs/dev_rule/skills/ROUTING.md` を辿って、`<tgbt-root>/oracle/docs/dev_rule/skills/general_rule.md` と `<tgbt-root>/oracle/docs/dev_rule/skills/create_repo_local_skill.md` を参照する。
 - path 表記、AI 管理ドキュメント、`<tgbt-root>/.venv`、依存導入、`<tgbt-root>/oracle` の扱いが論点になる場合だけ、対応する `<tgbt-root>/oracle/docs/dev_rule/*.md` を読む。
 
 ### 3. Decide targets and mode
