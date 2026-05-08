@@ -462,7 +462,7 @@ def _ensure_codex_cli_is_available() -> None:
 
     # 本命呼び出しの前提確認なので、ここでは再帰的な事前確認を行わない。
     result = _run_codex_cli(
-        agent_profile=AgentProfile.READ,
+        agent_profile=AgentProfile.MINIMUM_READ,
         instruction=[
             MarkdownPromptBlock(
                 title="Task",
@@ -862,8 +862,8 @@ def _ensure_codex_settings() -> None:
         [profiles.tgbt_minimum_read]
 
         model = "gpt-5.4-mini"
-        model_reasoning_effort = "low"
-        plan_mode_reasoning_effort = "low"
+        model_reasoning_effort = "minimal"
+        plan_mode_reasoning_effort = "minimal"
         sandbox_mode = "read-only"
         approval_policy = "never"
 
@@ -874,8 +874,8 @@ def _ensure_codex_settings() -> None:
         [profiles.tgbt_minimum_write]
 
         model = "gpt-5.4-mini"
-        model_reasoning_effort = "low"
-        plan_mode_reasoning_effort = "low"
+        model_reasoning_effort = "minimal"
+        plan_mode_reasoning_effort = "minimal"
         sandbox_mode = "workspace-write"
         approval_policy = "never"
 
