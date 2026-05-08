@@ -171,6 +171,100 @@ compose_prompt() {
         "$user_prompt"
 }
 
+git_status_is_clean() {
+    [[ -z "$(git status --porcelain --untracked-files=all)" ]]
+}
+
+ensure_git_status_is_clean() {
+    if ! git_status_is_clean; then
+        git status --short --untracked-files=all >&2
+        fail 'git working tree is not clean'
+    fi
+}
+
+local_default_branch() {
+    local remote_head
+    if remote_head="$(git symbolic-ref --quiet --short refs/remotes/origin/HEAD 2>/dev/null)"; then
+        local branch_name="${remote_head#origin/}"
+        if git show-ref --verify --quiet "refs/heads/${branch_name}"; then
+            printf '%s\n' "$branch_name"
+            return 0
+        fi
+    fi
+
+    local branch_name
+    for branch_name in main master; do
+        if git show-ref --verify --quiet "refs/heads/${branch_name}"; then
+            printf '%s\n' "$branch_name"
+            return 0
+        fi
+    done
+
+    return 1
+}
+
+create_fanout_branch() {
+    local timestamp="$1"
+    local result_var="$2"
+
+    local default_branch
+    default_branch="$(local_default_branch)" || fail 'failed to determine local default branch'
+
+    local default_commit
+    default_commit="$(git rev-parse "${default_branch}^{commit}")" || {
+        fail "failed to resolve local default branch commit: ${default_branch}"
+    }
+
+    local branch_name="fanout/${timestamp}-${SCRIPT_NAME%.sh}-$$"
+    git switch -c "$branch_name" "$default_commit" || {
+        fail "failed to create fanout branch: ${branch_name}"
+    }
+
+    printf -v "$result_var" '%s' "$branch_name"
+}
+
+relative_to_tgbt_root() {
+    local path="$1"
+
+    if [[ "$path" == "${TGBT_ROOT}/"* ]]; then
+        printf '%s\n' "${path#"${TGBT_ROOT}/"}"
+    else
+        printf '%s\n' "$path"
+    fi
+}
+
+commit_successful_fanout_result() {
+    local target_file="$1"
+    local index="$2"
+    local total="$3"
+
+    if git_status_is_clean; then
+        printf 'no changes to commit: %s\n' "$target_file"
+        return 0
+    fi
+
+    git add -A || return 1
+    if git diff --cached --quiet; then
+        printf 'no staged changes to commit: %s\n' "$target_file"
+        return 0
+    fi
+
+    local target_label
+    target_label="$(relative_to_tgbt_root "$target_file")"
+
+    git commit -m "fanout: ${index}/${total} ${target_label}" || return 1
+}
+
+discard_failed_fanout_result() {
+    if git_status_is_clean; then
+        return 0
+    fi
+
+    git status --short --untracked-files=all
+    git reset --hard HEAD || return 1
+    git clean -fd || return 1
+}
+
 main() {
     if [[ "${1:-}" == "-h" || "${1:-}" == "--help" ]]; then
         usage
@@ -214,6 +308,8 @@ main() {
     target_root="$(cd "$target_dir" && pwd -P)" || return 1
     cd "$TGBT_ROOT" || return 1
 
+    ensure_git_status_is_clean
+
     local user_prompt
     if [[ "$prompt_mode" == "-" ]]; then
         user_prompt="$(cat)"
@@ -237,6 +333,10 @@ main() {
     printf 'target_dir: %s\n' "$target_root"
     printf 'file_pattern: %s\n' "$file_pattern"
     printf 'dangerously_bypass_approvals_and_sandbox: %s\n' "$dangerously_bypass_approvals_and_sandbox"
+
+    local fanout_branch
+    create_fanout_branch "$timestamp" fanout_branch
+    printf 'fanout_branch: %s\n' "$fanout_branch"
     printf 'log_file: %s\n\n' "$log_file"
 
     local files=()
@@ -271,10 +371,18 @@ main() {
         fi
 
         if codex exec "${codex_exec_args[@]}" "$codex_prompt"; then
-            printf '===== success: %s =====\n\n' "$file"
+            if commit_successful_fanout_result "$file" "$index" "${#files[@]}"; then
+                printf '===== success: %s =====\n\n' "$file"
+            else
+                local status=$?
+                failure_count=$((failure_count + 1))
+                discard_failed_fanout_result || true
+                printf '===== failure: %s (commit exit %d) =====\n\n' "$file" "$status"
+            fi
         else
             local status=$?
             failure_count=$((failure_count + 1))
+            discard_failed_fanout_result || true
             printf '===== failure: %s (exit %d) =====\n\n' "$file" "$status"
         fi
     done
@@ -282,6 +390,7 @@ main() {
     printf 'fanout-file-codex completed\n'
     printf 'total_files: %d\n' "${#files[@]}"
     printf 'failed_files: %d\n' "$failure_count"
+    printf 'fanout_branch: %s\n' "$fanout_branch"
     printf 'log_file: %s\n' "$log_file"
 
     if (( failure_count > 0 )); then
