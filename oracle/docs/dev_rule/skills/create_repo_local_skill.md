@@ -1,12 +1,3 @@
-
-# スキルの扱いについての原則
-
-- 開発作業一般に関する断片的な正本情報は `<tgbt-root>/oracle` に書く
-- そのうえで、個別具体的な `tgbt` の開発作業の指示（パターン別指示）は `<tgbt-root>/.agents/skills/*` にリポジトリローカルなスキルとしてパッケージングする
-- 基本的に、人間が AI に何かを依頼する時はリポジトリ固有スキルを指定することとする
-- リポジトリ固有スキルから作業指示がロードされる事を前提に、作業方法についての指示は `<tgbt-root>/AGENTS.md` に極力書かない
-- `$HOME/.codex` 配下の system skill の編集は禁止
-
 # スキル `create-repo-local-skill`
 
 - リポジトリローカルなスキルのメンテナンス・新規作成は `<tgbt-root>/.agents/skills/create-repo-local-skill` を用いることとする
