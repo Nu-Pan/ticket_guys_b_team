@@ -2,6 +2,7 @@
 import json
 import re
 import sys
+from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path
 
@@ -34,6 +35,28 @@ _PLAN_GENERATION_MAX_ATTEMPTS = 3
 _PLAN_REVIEW_MAX_ATTEMPTS = 3
 
 
+@dataclass(frozen=True)
+class _PlanCommandResult:
+    """
+    `tgbt plan` の保存結果と review 状態。
+    """
+
+    plan_id: str
+    review_result: "_PlanReviewResult"
+
+
+@dataclass(frozen=True)
+class _PlanReviewResult:
+    """
+    plan review loop の最終状態。
+    """
+
+    plan: TgbtPlan
+    passed: bool
+    machine_findings: list[str]
+    review: PlanReview | None
+
+
 def tgbt_plan_impl(
     instruction_source: str | None,
     plan_id: str | None,
@@ -56,12 +79,72 @@ def tgbt_plan_impl(
 
     # 作成・更新処理を呼び出す
     if plan_id is None:
-        plan_id = _create_plan(instruction)
+        result = _create_plan(instruction)
     else:
-        plan_id = _udate_plan(instruction, plan_id)
+        result = _udate_plan(instruction, plan_id)
 
-    # tgbt plan の結果として、人間閲覧用 Markdown を標準出力へ表示する。
-    typer.echo(TGBT_PATH.tgbt_plan_markdown(plan_id).read_text(encoding="utf-8"))
+    # tgbt plan の結果として、人間閲覧用 Markdown と保存先レポートを標準出力へ表示する。
+    typer.echo(_render_plan_command_report(result))
+
+
+def _render_plan_command_report(result: _PlanCommandResult) -> str:
+    """
+    plan Markdown と planning 結果レポートを標準出力用に組み立てる。
+    """
+    # plan ファイル自体へ review 履歴を混ぜないため、実行結果は標準出力だけに足す。
+    plan_markdown_path = TGBT_PATH.tgbt_plan_markdown(result.plan_id)
+    plan_json_path = TGBT_PATH.tgbt_plan_json(result.plan_id)
+    status = "passed" if result.review_result.passed else "not_passed"
+    lines = [
+        plan_markdown_path.read_text(encoding="utf-8"),
+        "",
+        "## Planning Result",
+        "",
+        f"- status: `{status}`",
+        f"- plan_id: `{result.plan_id}`",
+        f"- plan_json_path: `{_repo_relative_path(plan_json_path)}`",
+        f"- plan_markdown_path: `{_repo_relative_path(plan_markdown_path)}`",
+    ]
+
+    # 不合格終了時だけ、最後に観測した未解決指摘を人間向けレポートへ含める。
+    if not result.review_result.passed:
+        lines.extend(
+            [
+                "- review_attempts_reached: "
+                f"`{_PLAN_REVIEW_MAX_ATTEMPTS}`",
+                "",
+                "### Unresolved Machine Findings",
+                "",
+                _render_machine_findings(result.review_result.machine_findings),
+                "",
+                "### Last AI Review Findings",
+                "",
+                _render_review_findings(result.review_result.review),
+            ]
+        )
+
+    return "\n".join(lines)
+
+
+def _repo_relative_path(path: Path) -> str:
+    """
+    repo root からの相対 path を POSIX 表記で返す。
+    """
+    # CLI 出力では環境依存の絶対 path ではなく、仕様通り repo 相対 path を出す。
+    return path.relative_to(TGBT_PATH.repo_root).as_posix()
+
+
+def _render_review_findings(review: PlanReview | None) -> str:
+    """
+    AI review の指摘を標準出力用 Markdown に描画する。
+    """
+    # review 取得前に失敗した場合にも、レポートの形を崩さず明示する。
+    if review is None or len(review.findings) == 0:
+        return "- none"
+    return "\n".join(
+        f"- `{finding.id}` `{finding.severity}` {finding.text}"
+        for finding in review.findings
+    )
 
 
 def _read_instruction_from_editor(initial_instruction: str = "") -> str:
@@ -109,7 +192,7 @@ def _is_instruction_empty(instruction: str) -> bool:
     return normalized_instruction == "# 作業指示"
 
 
-def _create_plan(instruction: str) -> str:
+def _create_plan(instruction: str) -> _PlanCommandResult:
     """
     instruction に従って plan を新しく作成する。
     作成したプランの ID を返す。
@@ -193,19 +276,22 @@ def _create_plan(instruction: str) -> str:
         ),
     ]
     plan = _run_plan_prompt(prompt_blocks)
-    plan = _review_and_revise_plan(
+    review_result = _review_and_revise_plan(
         plan=plan,
         task_prompt_blocks=prompt_blocks,
         expected_original_instructions=[instruction],
     )
-    _save_plan(plan_id, plan)
-    return plan_id
+    _save_plan(plan_id, review_result.plan)
+    return _PlanCommandResult(
+        plan_id=plan_id,
+        review_result=review_result,
+    )
 
 
 def _udate_plan(
     instruction: str,
     plan_id: str,
-) -> str:
+) -> _PlanCommandResult:
     """
     instruction に従って既存 plan から修正版 plan を新規作成する。
     """
@@ -297,7 +383,7 @@ def _udate_plan(
         ),
     ]
     updated_plan = _run_plan_prompt(prompt_blocks)
-    updated_plan = _review_and_revise_plan(
+    review_result = _review_and_revise_plan(
         plan=updated_plan,
         task_prompt_blocks=prompt_blocks,
         expected_original_instructions=[
@@ -308,10 +394,13 @@ def _udate_plan(
 
     # 既存 plan は履歴として残し、修正版 plan は新しい ID で保存する。
     updated_plan_id = _new_plan_id()
-    _save_plan(updated_plan_id, updated_plan)
+    _save_plan(updated_plan_id, review_result.plan)
 
     # 正常終了
-    return updated_plan_id
+    return _PlanCommandResult(
+        plan_id=updated_plan_id,
+        review_result=review_result,
+    )
 
 
 def _new_plan_id() -> str:
@@ -408,7 +497,7 @@ def _review_and_revise_plan(
     plan: TgbtPlan,
     task_prompt_blocks: list[MarkdownPromptBlock],
     expected_original_instructions: list[str],
-) -> TgbtPlan:
+) -> _PlanReviewResult:
     """
     生成済み plan を機械検査と AI review に通し、必要なら修正する。
     """
@@ -425,12 +514,14 @@ def _review_and_revise_plan(
             machine_findings=last_machine_findings,
         )
         if len(last_machine_findings) == 0 and not _has_major_findings(last_review):
-            return plan
+            return _PlanReviewResult(
+                plan=plan,
+                passed=True,
+                machine_findings=last_machine_findings,
+                review=last_review,
+            )
 
-        # 最終 review で不合格なら、未合格の plan を保存せずに終了する。
-        if review_index == _PLAN_REVIEW_MAX_ATTEMPTS - 1:
-            break
-
+        # その回で出た指摘を受けて修正し、次回 loop または最終出力へ進む。
         plan = _revise_plan(
             plan=plan,
             task_prompt_blocks=task_prompt_blocks,
@@ -438,16 +529,16 @@ def _review_and_revise_plan(
             review=last_review,
         )
 
-    raise tgbt_error(
-        "plan の自己レビューに合格しませんでした",
-        "機械検査または AI レビューの major 指摘が残っているため plan を保存できません",
-        actual={
-            "review_attempts": _PLAN_REVIEW_MAX_ATTEMPTS,
-            "machine_findings": last_machine_findings,
-            "review": (
-                last_review.model_dump(mode="json") if last_review is not None else None
-            ),
-        },
+    # 最大回数に達した場合も、最後の修正版 plan を機械修正してから保存する。
+    plan, last_machine_findings = _inspect_and_repair_plan(
+        plan=plan,
+        expected_original_instructions=expected_original_instructions,
+    )
+    return _PlanReviewResult(
+        plan=plan,
+        passed=False,
+        machine_findings=last_machine_findings,
+        review=last_review,
     )
 
 
