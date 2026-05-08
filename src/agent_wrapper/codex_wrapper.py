@@ -53,17 +53,6 @@ _FIXED_PROMPT_CHILDREN: tuple[MarkdownPromptBlock, ...] = (
             """),
     ),
     MarkdownPromptBlock(
-        title="Path notation rules",
-        body=stdtqs("""
-            - Write paths under the repository operated on by tgbt as `<repo-root>/...`.
-            - Write paths under the ticket_guys_b_team repository as `<tgbt-root>/...`.
-            - When writing a path relative to a repository root, always use either `<repo-root>` or `<tgbt-root>`.
-            - Write the Codex home directory as `CODEX_HOME`, not as `.codex` or a home-relative path.
-            - Write paths under the user's home directory using the `HOME` environment variable.
-            - Write paths outside those categories as absolute paths.
-            """),
-    ),
-    MarkdownPromptBlock(
         title="Authority rules",
         body=stdtqs("""
             - If this prompt contains conflicting rules, the fixed safety and access restrictions take precedence.
@@ -82,15 +71,6 @@ _FIXED_PROMPT_CHILDREN: tuple[MarkdownPromptBlock, ...] = (
             - Summarize, evaluate, or cite oracle only as needed for the task.
             - Do not automatically reflect user instructions into oracle.
             - If oracle contains contradictions, do not fix oracle; report them or record them in the appropriate output field.
-            """),
-    ),
-    MarkdownPromptBlock(
-        title="Skill rules",
-        body=stdtqs("""
-            - Treat repository-specific work instructions as repo-local skills packaged under `<repo-root>/.agents/skills/*`.
-            - When the user explicitly names a repo-local skill, load and follow that skill for the task.
-            - Keep generic agent bootstrap instructions small; task-pattern instructions belong in repo-local skills.
-            - Do not edit system skills under `HOME/.codex`.
             """),
     ),
     MarkdownPromptBlock(
