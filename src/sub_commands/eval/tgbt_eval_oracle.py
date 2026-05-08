@@ -13,7 +13,7 @@ from util.text import stdtqs
 
 def tgbt_eval_oracle_impl() -> None:
     """
-    `<repo-root>/oracle` を評価し、人間向けレポートを標準出力へ表示する。
+    `<repo-root>/oracle` の問題点を評価して人間向けレポートを表示する。
     """
     # 評価対象の oracle が存在しなければ、AI 呼び出し前に入力不備として止める。
     oracle_path = TGBT_PATH.repo_root / "oracle"
@@ -63,10 +63,17 @@ def tgbt_eval_oracle_impl() -> None:
                 title="Task-specific rules",
                 body=stdtqs("""
                     - Evaluate contradictions within oracle.
-                    - Evaluate opportunities to simplify existing oracle text.
-                    - Evaluate opportunities to optimize existing oracle document structure.
+                    - Evaluate contradictions across multiple oracle documents.
+                    - Evaluate wording variations that may be mistaken for separate concepts.
+                    - Evaluate path context mixups such as `<tgbt-root>` and `<repo-root>`.
+                    - Evaluate conflicts in AI permission boundaries such as read-only, no-read, and editable areas.
+                    - Evaluate conflicts in responsibility boundaries between skills.
+                    - Evaluate obvious typos in referenced file names, directory names, skill names, and command names.
+                    - Evaluate broken Markdown structure that may cause readers to misunderstand the content.
+                    - Evaluate typos, omissions, wrong characters, and obviously broken Japanese text.
                     - Do not evaluate missing oracle coverage as a defect.
                     - Do not propose additions for product details that oracle does not already state.
+                    - Do not evaluate ROUTING.md correctness.
                     """),
             ),
             MarkdownPromptBlock(

@@ -60,7 +60,7 @@ def knowledge_search(
 
 @_eval_app.command("oracle")
 def eval_oracle() -> None:
-    """oracle の矛盾・簡略化余地・文章構造最適化余地を評価する。"""
+    """oracle の矛盾・誤記・権限境界などの問題点を評価する。"""
     # 実装を呼び出し
     tgbt_eval_oracle_impl()
 
