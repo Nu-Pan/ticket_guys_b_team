@@ -1,13 +1,13 @@
 ---
 name: eval-oracle
-description: Evaluate existing tgbt oracle text without editing it. Use for contradictions, typos, and wording issues; do not use for ROUTING.md correctness.
+description: Evaluate existing tgbt oracle text without editing it. Use for contradictions, typos, path/context mixups, permission-boundary conflicts, and wording issues; do not use for ROUTING.md correctness.
 ---
 
 # Eval Oracle
 
 ## Overview
 
-`<tgbt-root>/oracle/**` の既存記述を読み、論理的な矛盾、typo、誤解を招く表記ゆれを評価して人間へ返す。
+`<tgbt-root>/oracle/**` の既存記述を読み、論理的な矛盾、typo、誤解を招く表記ゆれ、パス文脈や AI 権限境界の衝突を評価して人間へ返す。
 
 ## Guardrails
 
@@ -23,8 +23,11 @@ description: Evaluate existing tgbt oracle text without editing it. Use for cont
 
 - 複数の oracle ファイル間、または同一ファイル内での論理的な矛盾。
 - 同じ概念、用語、パス、コマンド、責務についての説明が衝突している箇所。
+- `<tgbt-root>` と `<repo-root>` などの文脈依存パス表記が、別文脈の意味で使われている箇所。
+- AI が編集禁止、閲覧禁止、編集可能とされる対象や境界が、別の oracle 本文の明示記述と衝突している箇所。
+- スキル間の責務分担や、あるスキルの対象外事項と別スキルの対象事項が衝突している箇所。
 - oracle 本文が参照しているファイル、コマンド、概念名が、別の oracle 本文の明示記述と衝突している箇所。
-- typo、明らかな脱字、誤字、Markdown 構造の軽微な破綻。
+- typo、明らかな脱字、誤字、読み手が意味を取り違える Markdown 構造の破綻。
 - 表記ゆれのうち、読み手や実装者が別概念として誤解しそうなもの。
 
 評価しない:
