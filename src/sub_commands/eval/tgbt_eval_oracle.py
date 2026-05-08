@@ -68,6 +68,8 @@ def tgbt_eval_oracle_impl() -> None:
                     - Evaluate path context mixups such as `<tgbt-root>` and `<repo-root>`.
                     - Evaluate conflicts in AI permission boundaries such as read-only, no-read, and editable areas.
                     - Evaluate conflicts in responsibility boundaries between skills.
+                    - Evaluate opportunities to simplify oracle wording without changing its meaning.
+                    - Evaluate opportunities to optimize oracle document structure without adding missing coverage.
                     - Evaluate obvious typos in referenced file names, directory names, skill names, and command names.
                     - Evaluate broken Markdown structure that may cause readers to misunderstand the content.
                     - Evaluate typos, omissions, wrong characters, and obviously broken Japanese text.
