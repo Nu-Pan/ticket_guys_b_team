@@ -29,7 +29,7 @@ class TGBTPath:
         else:
             current = Path.cwd()
             for candidate in (current, *current.parents):
-                if (candidate / ".git").is_dir():
+                if (candidate / ".git").exists():
                     self._repo_root = candidate
                     return self._repo_root
             else:
