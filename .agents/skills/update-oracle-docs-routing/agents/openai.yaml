@@ -1,0 +1,4 @@
+interface:
+  display_name: "Update Oracle Docs Routing"
+  short_description: "oracle/docs の ROUTING.md を更新"
+  default_prompt: "Use $update-oracle-docs-routing to normalize and update a specified oracle/docs ROUTING.md."

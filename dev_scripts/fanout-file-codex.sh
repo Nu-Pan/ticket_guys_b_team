@@ -22,6 +22,7 @@ Arguments:
   <target-dir>      Directory to enumerate recursively.
   <file-pattern>    Glob pattern matched against each relative file path.
                     A basename match is also accepted for simple patterns.
+                    Use <dir> to enumerate directories instead of files.
   -                 Read the prompt from stdin. Without this argument, an
                     editor is opened for prompt input.
 USAGE
@@ -145,6 +146,11 @@ prompt_is_effectively_empty() {
 collect_files() {
     local target_root="$1"
     local file_pattern="$2"
+
+    if [[ "$file_pattern" == "<dir>" ]]; then
+        find "$target_root" -type d -print0 | sort -z
+        return 0
+    fi
 
     local path
     while IFS= read -r -d '' path; do

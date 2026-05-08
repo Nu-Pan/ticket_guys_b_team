@@ -6,6 +6,7 @@
 - `ROUTING.md` を辿れば、適切な .md ファイルにアクセス可能である
 - 「`<tgbt-root>/oracle` 直下」には `ROUTING.md` を作成しない
 - `<tgbt-root>/oracle/docs/ROUTING.md` の存在は `<tgbt-root>/AGENTS.md` から辿ることが出来る
+- `<tgbt-root>/oracle/docs` 配下のファイルは AI 編集不可とされている (`<tgbt-root>/oracle/docs/dev_rule/oracle.md`, `<tgbt-root>/AGENTS.md`) が、この規則を優越して `ROUTING.md` は AI 編集可能とする
 
 # `ROUTING.md` のフォーマット
 

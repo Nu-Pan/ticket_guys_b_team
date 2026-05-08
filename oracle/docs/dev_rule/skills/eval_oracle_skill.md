@@ -9,15 +9,8 @@
 
 - ドキュメント間に論理的な矛盾点は有るか？
 - typo のような初歩的な問題は存在しないか？
-- `<tgbt-root>/oracle/docs` 配下の各階層の `ROUTING.md` のファイル・ディレクトリリストに過不足はないか？
-- そもそも `ROUTING.md` を作り忘れていないか？
 
 # 評価しない観点
 
 - （`<tgbt-root>/oracle` は不完全であることを前提としているので） `<tgbt-root>/oracle` で言及が漏れている要素の指摘は不要
-
-# ファイルシステム上の実体とルーティング情報の矛盾検出方法
-
-- `ROUTING.md` の矛盾チェック処理は可能な限りスクリプトで実現する
-- e.g. 「`ROUTING.md` 上のファイルリスト」と「実際のファイルシステム上のファイルリスト」はスクリプトで検証する
-- `ROUTING.md` のフォーマットについては `oracle/docs/dev_rule/docs_routing_policy.md` を参照
+- `ROUTING.md` の正しさには関知しない（スキル `update-oracle-docs-routing` で面倒を見る）
