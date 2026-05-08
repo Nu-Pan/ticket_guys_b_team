@@ -92,7 +92,7 @@ def tgbt_plan_impl(
     if plan_id is None:
         result = _create_plan(instruction)
     else:
-        result = _udate_plan(instruction, plan_id)
+        result = _update_plan(instruction, plan_id)
 
     # tgbt plan の結果として、人間閲覧用 Markdown と保存先レポートを標準出力へ表示する。
     typer.echo(_render_plan_command_report(result))
@@ -324,7 +324,7 @@ def _create_plan(instruction: str) -> _PlanCommandResult:
     )
 
 
-def _udate_plan(
+def _update_plan(
     instruction: str,
     plan_id: str,
 ) -> _PlanCommandResult:
@@ -508,6 +508,12 @@ def _resolve_plan_id(plan_id: str) -> str:
         return plan_id
 
     # plan id は固定幅日時なので、文字列順で最も大きいものを最新として扱う。
+    if not TGBT_PATH.tgbt_plan.exists():
+        raise tgbt_error(
+            "latest に対応する plan が見つかりません",
+            "既存 plan を作成してから再実行してください",
+            actual={"plan_dir_path": TGBT_PATH.tgbt_plan},
+        )
     plan_paths = sorted(TGBT_PATH.tgbt_plan.glob("*.json"))
     if len(plan_paths) == 0:
         raise tgbt_error(

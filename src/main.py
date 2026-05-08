@@ -81,7 +81,7 @@ def plan(
         typer.Option(
             "--plan-id",
             help=(
-                "Existing plan identifier to revise into a new plan. "
+                "Existing plan identifier to revise in place. "
                 "Use 'latest' for the newest plan."
             ),
         ),
@@ -90,7 +90,7 @@ def plan(
     """
     作業計画書を作成する。
     plan_id 未指定の場合は新規に計画書を作成する。
-    plan_id を指定された場合は既存計画書から修正版計画書を新規作成する。
+    plan_id を指定された場合は既存計画書を加筆・修正する。
     """
     # 実装を呼び出し
     tgbt_plan_impl(
