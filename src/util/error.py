@@ -1,13 +1,14 @@
 # std
-from typing import Any
+from collections.abc import Mapping
+
 import typer
 
 
 def tgbt_error(
     summary: str,
     next: str = "",
-    actual: dict[str, Any] = dict(),
-    expect: dict[str, Any] = dict(),
+    actual: Mapping[str, object] | None = None,
+    expect: Mapping[str, object] | None = None,
     exc_obj: int | BaseException = 1,
 ) -> BaseException:
     """
@@ -19,6 +20,10 @@ def tgbt_error(
     ```
     のような使い方をする。
     """
+    # 省略された補助情報を、表示用の空 mapping に揃える。
+    actual = {} if actual is None else actual
+    expect = {} if expect is None else expect
+
     # エラー内容をダンプ
     typer.echo(f"summary: {summary}")
     typer.echo(f"next: {next}")

@@ -4,10 +4,18 @@ from typing import Protocol, Sequence
 
 
 class HasText(Protocol):
+    """
+    Markdown 描画対象として text を持つ構造を表す protocol。
+    """
+
     text: str
 
 
 class HasIdText(HasText, Protocol):
+    """
+    Markdown list 描画対象として id と text を持つ構造を表す protocol。
+    """
+
     id: str
 
 

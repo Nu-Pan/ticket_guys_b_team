@@ -4,18 +4,20 @@ from pathlib import Path
 # tgbt
 from util.error import tgbt_error
 
+_TGBT_GITIGNORE_BODY = ".codex/\n"
+
 
 class TGBTPath:
     """
     tgbt 起動時に一意に決まるファイル・ディレクトリパスを集めたクラス
     """
 
-    def __init__(self):
+    def __init__(self) -> None:
         """
         コンストラクタ
         """
         # repo root は初回解決後にキャッシュする。
-        self._repo_root = None
+        self._repo_root: Path | None = None
 
     @property
     def repo_root(self) -> Path:
@@ -46,14 +48,28 @@ class TGBTPath:
         return self.repo_root / ".tgbt"
 
     @property
+    def tgbt_gitignore(self) -> Path:
+        """`<repo-root>/.tgbt/.gitignore`"""
+        # `.tgbt` 配下の git 管理対象を制御する ignore file path を返す。
+        return self.tgbt / ".gitignore"
+
+    def ensure_tgbt_dir(self) -> None:
+        """tgbt 管理ディレクトリと git 管理ルールを用意する。"""
+        # `.tgbt` は必要になったタイミングで動的に作成する。
+        self.tgbt.mkdir(parents=True, exist_ok=True)
+
+        # `.codex` だけを git 管理対象外にし、それ以外の `.tgbt` 配下は追跡可能にする。
+        self.tgbt_gitignore.write_text(_TGBT_GITIGNORE_BODY, encoding="utf-8")
+
+    @property
     def tgbt_codex(self) -> Path:
-        """`<repo-root>/.tgbt/.codex`"""
+        """`CODEX_HOME`"""
         # tgbt 管理下で Codex CLI に渡す CODEX_HOME を返す。
         return self.tgbt / ".codex"
 
     @property
     def tgbt_codex_config(self) -> Path:
-        """`<repo-root>/.tgbt/.codex/config.toml`"""
+        """`CODEX_HOME/config.toml`"""
         # tgbt 管理下の Codex CLI config path を返す。
         return self.tgbt_codex / "config.toml"
 

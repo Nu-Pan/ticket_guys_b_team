@@ -19,6 +19,10 @@ _PLAN_ID_PATTERN = re.compile(r"^[A-Z]+-\d{3}$")
 
 
 class StrictModel(BaseModel):
+    """
+    plan schema 全体で追加 field を禁止するための基底 model。
+    """
+
     model_config = ConfigDict(extra="forbid")
 
 

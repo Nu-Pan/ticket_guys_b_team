@@ -75,6 +75,7 @@ def write_tgbt_call_log(
     """
     # ログ保存全体を握り、本来の CLI 終了経路を優先する。
     try:
+        TGBT_PATH.ensure_tgbt_dir()
         log_dir = TGBT_PATH.tgbt_logs_tgbt_call
         log_dir.mkdir(parents=True, exist_ok=True)
         log_file_path = log_dir / f"{time.time_ns()}.json"

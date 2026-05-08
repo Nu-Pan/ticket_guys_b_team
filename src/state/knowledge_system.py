@@ -52,7 +52,7 @@ _DEFAULT_EXCLUDED_PATH_PARTS = (
     "memo",
     "node_modules",
 )
-_DEFAULT_EXCLUDED_FILE_NAMES = ("README.md",)
+_DEFAULT_EXCLUDED_FILE_NAMES: tuple[str, ...] = ()
 _DEFAULT_EXCLUDED_GLOBS = (
     "*.Identifier",
     "*.egg-info/**",
@@ -167,6 +167,7 @@ class KnowledgeSystem:
         """全ての知識ファイルを機械的検査に合格する状態へ修正する."""
         # 知識ファイル検査の前提として、知識ソース目次を現在の repo 状態へ揃える。
         self._normalize_index()
+        TGBT_PATH.ensure_tgbt_dir()
         TGBT_PATH.tgbt_knowledge_items.mkdir(parents=True, exist_ok=True)
 
         # 不正な知識ファイルだけを AI 修正対象にする。
@@ -201,6 +202,7 @@ class KnowledgeSystem:
     def _normalize_index(self) -> None:
         """知識ソースファイルの目次ファイルを現在の repo 状態に合わせる."""
         # 目次保存先ディレクトリを、目次の読み書き前に必ず用意する。
+        TGBT_PATH.ensure_tgbt_dir()
         TGBT_PATH.tgbt_knowledge.mkdir(parents=True, exist_ok=True)
 
         # 現在の知識ソースファイルと既存目次を path で突き合わせる。
@@ -660,6 +662,7 @@ class KnowledgeSystem:
     def _save_index(self, index: KnowledgeIndex) -> None:
         """目次 JSON を保存する."""
         # 目次保存先ディレクトリを用意してから JSON として書き出す。
+        TGBT_PATH.ensure_tgbt_dir()
         TGBT_PATH.tgbt_knowledge.mkdir(parents=True, exist_ok=True)
         TGBT_PATH.tgbt_knowledge_index.write_text(
             json.dumps(
@@ -714,6 +717,7 @@ class KnowledgeSystem:
     def _write_knowledge_file(self, knowledge: KnowledgeFile) -> None:
         """知識ファイルを Markdown + YAML front matter として保存する."""
         # 保存先ディレクトリを用意し、保存前に参照整合性を検証する。
+        TGBT_PATH.ensure_tgbt_dir()
         TGBT_PATH.tgbt_knowledge_items.mkdir(parents=True, exist_ok=True)
         validation_error = self._validate_knowledge_references(knowledge)
         if validation_error is not None:
@@ -742,6 +746,7 @@ class KnowledgeSystem:
     def _replace_knowledge_files(self, knowledge_files: list[KnowledgeFile]) -> None:
         """知識ファイル群を指定された集合へ置き換える."""
         # 置換対象ディレクトリを用意し、保持すべき knowledge id を先に確定する。
+        TGBT_PATH.ensure_tgbt_dir()
         TGBT_PATH.tgbt_knowledge_items.mkdir(parents=True, exist_ok=True)
         next_ids = {knowledge.knowledge_id for knowledge in knowledge_files}
 
@@ -1040,7 +1045,7 @@ def _load_knowledge_source_config() -> KnowledgeSourceConfig:
 def _save_knowledge_source_config(config: KnowledgeSourceConfig) -> None:
     """知識ソースファイル除外設定を JSON として保存する."""
     # tgbt 管理ディレクトリを用意してから設定 JSON を書き出す。
-    TGBT_PATH.tgbt.mkdir(parents=True, exist_ok=True)
+    TGBT_PATH.ensure_tgbt_dir()
     TGBT_PATH.tgbt_knowledge_source_config.write_text(
         json.dumps(
             config.model_dump(mode="json"),

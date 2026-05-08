@@ -9,6 +9,7 @@ from uuid import uuid4
 import typer
 
 # local
+from sub_commands.eval.tgbt_eval_oracle import tgbt_eval_oracle_impl
 from sub_commands.knowledge.tgbt_knowledge import tgbt_knowledge_search_impl
 from sub_commands.plan.tgbt_plan import tgbt_plan_impl
 from sub_commands.run.tgbt_run import tgbt_run_impl
@@ -18,7 +19,7 @@ from util.tgbt_call_log import (
     reset_related_log_paths,
     write_tgbt_call_log,
 )
-from util.tgbt_repo_lock import TGBTRepoLock
+from util.tgbt_repo_lock import TGBTRepoLock, TGBTRepoLockUnavailable
 
 _TGBT_ROOT_CALL_ID_ENV = "TGBT_ROOT_CALL_ID"
 
@@ -34,7 +35,13 @@ _knowledge_app = typer.Typer(
     help="tgbt knowledge system commands.",
     no_args_is_help=True,
 )
+_eval_app = typer.Typer(
+    name="eval",
+    help="tgbt evaluation commands.",
+    no_args_is_help=True,
+)
 _app.add_typer(_knowledge_app, name="knowledge")
+_app.add_typer(_eval_app, name="eval")
 
 
 @_knowledge_app.command("search")
@@ -51,6 +58,13 @@ def knowledge_search(
     tgbt_knowledge_search_impl(question)
 
 
+@_eval_app.command("oracle")
+def eval_oracle() -> None:
+    """oracle の矛盾・簡略化余地・文章構造最適化余地を評価する。"""
+    # 実装を呼び出し
+    tgbt_eval_oracle_impl()
+
+
 @_app.command("plan")
 def plan(
     instruction_source: Annotated[
@@ -58,7 +72,7 @@ def plan(
         typer.Argument(
             help=(
                 "Use '-' to read instruction text from stdin. "
-                "Other text is inserted before opening the editor."
+                "Omit this argument to open an editor."
             ),
         ),
     ] = None,
@@ -115,7 +129,7 @@ def main() -> None:
         _run_app_with_tgbt_call_log()
     elif is_reentrant_call:
         if not _is_reentrant_command_allowed(sys.argv[1:]):
-            raise tgbt_error(
+            error = tgbt_error(
                 "再入 tgbt 呼び出しが許可されていないサブコマンドです",
                 """
                 tgbt から起動された Codex CLI が呼び出せる tgbt サブコマンドは、
@@ -124,13 +138,23 @@ def main() -> None:
                 actual={"argv": ["tgbt", *sys.argv[1:]]},
                 expect={"allowed": "tgbt knowledge search <question>"},
             )
+            _write_startup_failure_tgbt_call_log(error)
+            raise error
         _run_app_with_tgbt_call_log()
     else:
         previous_root_call_id = os.environ.get(_TGBT_ROOT_CALL_ID_ENV)
         os.environ[_TGBT_ROOT_CALL_ID_ENV] = str(uuid4())
+        app_was_entered = False
         try:
             with TGBTRepoLock():
+                app_was_entered = True
                 _run_app_with_tgbt_call_log()
+        except BaseException as error:
+            if not app_was_entered and not isinstance(
+                error, TGBTRepoLockUnavailable
+            ):
+                _write_startup_failure_tgbt_call_log(error)
+            raise
         finally:
             if previous_root_call_id is None:
                 os.environ.pop(_TGBT_ROOT_CALL_ID_ENV, None)
@@ -142,6 +166,20 @@ def _is_reentrant_command_allowed(argv: list[str]) -> bool:
     """再入 tgbt 呼び出しで実行を許可する command か判定する."""
     # 現時点で stack 的再入が許可されているのは知識検索だけ。
     return len(argv) >= 2 and argv[0] == "knowledge" and argv[1] == "search"
+
+
+def _write_startup_failure_tgbt_call_log(error: BaseException) -> None:
+    """
+    Typer app 実行前に失敗した tgbt 呼び出しのログを保存する。
+    """
+    # app 実行前の拒否でも、tgbt 呼び出し自体の結果を追跡可能にする。
+    reset_related_log_paths()
+    write_tgbt_call_log(
+        argv=["tgbt", *sys.argv[1:]],
+        exit_code=get_exit_code(error),
+        exc_obj=error,
+        exc_tb=error.__traceback__,
+    )
 
 
 def _run_app_with_tgbt_call_log() -> None:

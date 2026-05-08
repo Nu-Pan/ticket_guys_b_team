@@ -7,9 +7,8 @@ readonly SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd -P)"
 readonly TGBT_ROOT="$(cd "${SCRIPT_DIR}/.." && pwd -P)"
 
 "${SCRIPT_DIR}/fanout-file-codex.sh" \
-    --dangerously-bypass-approvals-and-sandbox \
-    "${TGBT_ROOT}/.agents/skills" \
-    "<dir>" \
+    "${TGBT_ROOT}/oracle/docs" \
+    "*" \
     - <<'PROMPT'
-$create-repo-local-skill を使用してください
+$apply-oracle-to-implements を使用してください
 PROMPT

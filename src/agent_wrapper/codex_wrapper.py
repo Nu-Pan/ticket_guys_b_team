@@ -25,6 +25,12 @@ _SMOKE_TEST_INSTRUCTION = (
     f"Reply with exactly this text and nothing else: {_SMOKE_TEST_EXPECTED_RESPONSE}"
 )
 _SMOKE_TEST_CACHE_FILE_NAME = "codex_prerequirements_smoke_passed_on"
+_CODEX_UPDATE_COMMAND: tuple[str, ...] = (
+    "npm",
+    "install",
+    "-g",
+    "@openai/codex@latest",
+)
 _CODEX_CLI_CALL_LOCK = threading.Lock()
 _SECRET_ENV_KEY_PARTS = (
     "TOKEN",
@@ -300,6 +306,7 @@ def _run_codex_cli(
                 is_ok = False
 
     # 実行内容を後から確認できるように Codex CLI 呼び出しログを保存する。
+    TGBT_PATH.ensure_tgbt_dir()
     log_dir = TGBT_PATH.tgbt_logs_codex_call
     log_dir.mkdir(parents=True, exist_ok=True)
     log_file_path = log_dir / f"{time.time_ns()}.json"
@@ -409,6 +416,30 @@ def _ensure_codex_cli_is_available() -> None:
     if _is_smoke_test_cache_valid(cache_file_path, today):
         return
 
+    # Codex CLI の更新コマンドが正常終了することを本命呼び出し前に確認する。
+    update_result = subprocess.run(
+        list(_CODEX_UPDATE_COMMAND),
+        cwd=TGBT_PATH.repo_root,
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    if update_result.returncode != 0:
+        raise tgbt_error(
+            "Codex CLI 実行可能状態の事前チェックに失敗しました",
+            """
+            Codex CLI の更新コマンドが正常終了しませんでした。
+            Codex CLI のインストール状態、npm の実行環境、ネットワーク接続を確認してください。
+            """,
+            actual={
+                "command": list(_CODEX_UPDATE_COMMAND),
+                "cwd": str(TGBT_PATH.repo_root),
+                "returncode": update_result.returncode,
+                "stdout": update_result.stdout,
+                "stderr": update_result.stderr,
+            },
+        )
+
     # 本命呼び出しの前提確認なので、ここでは再帰的な事前確認を行わない。
     result = _run_codex_cli(
         agent_profile=AgentProfile.READ,
@@ -472,6 +503,7 @@ def _ensure_codex_cli_is_available() -> None:
         )
 
     # 成功日だけを保存し、翌日以降は再度 smoke test を実行する。
+    TGBT_PATH.ensure_tgbt_dir()
     cache_file_path.parent.mkdir(parents=True, exist_ok=True)
     cache_file_path.write_text(f"{today}\n", encoding="utf-8")
 
@@ -682,7 +714,7 @@ def _get_output_schema_prompt(output_schema: type[BaseModel]) -> str:
 
 def _ensure_codex_settings() -> None:
     """Codex CLI の設定ファイルを tgbt が想定する内容へ更新する."""
-    # `<repo-root>/.tgbt/.codex/config.toml` に書き込む設定本文を組み立てる。
+    # `CODEX_HOME/config.toml` に書き込む設定本文を組み立てる。
     body = stdtqs("""
         # ----
         # グローバル設定
@@ -830,5 +862,6 @@ def _ensure_codex_settings() -> None:
         """)
 
     # Codex CLI が参照する tgbt 管理下の設定ファイルを更新する。
+    TGBT_PATH.ensure_tgbt_dir()
     TGBT_PATH.tgbt_codex.mkdir(parents=True, exist_ok=True)
     TGBT_PATH.tgbt_codex_config.write_text(body, encoding="utf-8")

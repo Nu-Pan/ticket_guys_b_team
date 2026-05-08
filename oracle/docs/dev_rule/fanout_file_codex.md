@@ -62,3 +62,9 @@
 - スキル `fanout_create-repo-local-skill` を全てのスキルに対して適用するスクリプト
 - `--dangerously-bypass-approvals-and-sandbox` を使用する
 - プロンプトとして `$create-repo-local-skill を使用してください` だけを入力する
+
+
+## `fanout_apply_oracle_to_implements.sh`
+
+- スキル `apply-oracle-to-implements` を `<tgbt-root>/stacle/docs` 配下の全てのファイルについて実行するスクリプト
+- プロンプトとして `$apply-oracle-to-implements を使用してください` だけを入力する

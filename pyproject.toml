@@ -8,7 +8,7 @@ license = {file = "LICENSE"}
 urls = {repository = "https://github.com/Nu-Pan/ticket_guys_b_team"}
 
 dynamic = ["version"]
-requires-python = ">=3.12"
+requires-python = "==3.12.3"
 
 dependencies = [
     "pydantic>=2.0.0",
@@ -18,10 +18,3 @@ dependencies = [
 
 [tool.setuptools.package-dir]
 ticket-guy-b-team = "src"
-
-[project.optional-dependencies]
-test = [
-    "pytest>=8.3.5",
-    "pytest-cov>=6.0.0",
-    "pyright>=1.1.397",
-]

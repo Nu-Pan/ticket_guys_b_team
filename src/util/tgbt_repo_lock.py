@@ -10,6 +10,12 @@ from state.path import TGBT_PATH
 from util.error import tgbt_error
 
 
+class TGBTRepoLockUnavailable(SystemExit):
+    """
+    repo 単位の tgbt 排他ロックを取得できなかったことを表す終了例外。
+    """
+
+
 class TGBTRepoLock:
     """
     同一リポジトリ上の tgbt 呼び出しを直列化する排他ロック。
@@ -28,7 +34,7 @@ class TGBTRepoLock:
         repo 単位の排他ロックを取得する。
         """
         # `.tgbt` 配下の lock file を、OS の advisory lock の対象として使う。
-        self._lock_file_path.parent.mkdir(parents=True, exist_ok=True)
+        TGBT_PATH.ensure_tgbt_dir()
         lock_file = self._lock_file_path.open("a+", encoding="utf-8")
 
         try:
@@ -41,7 +47,7 @@ class TGBTRepoLock:
                 実行中の tgbt が終了してから、もう一度実行してください。
                 """,
                 actual={"lock_file_path": self._lock_file_path},
-                exc_obj=SystemExit(1),
+                exc_obj=TGBTRepoLockUnavailable(1),
             )
 
         # ロックファイルの内容はデバッグ用であり、排他判定には使わない。
