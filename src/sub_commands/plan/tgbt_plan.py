@@ -13,7 +13,16 @@ from pydantic import ValidationError
 from agent_wrapper.agent_wrapper import AgentProfile
 from agent_wrapper.codex_wrapper import CodexWrapper
 from schemas.markdown import MarkdownPromptBlock
-from schemas.plan import PlanReview, TgbtPlan, render_plan_markdown
+from schemas.plan import (
+    Assumption,
+    CompletionCriterion,
+    OriginalInstruction,
+    PlannedProcedure,
+    PlanReview,
+    RiskNote,
+    TgbtPlan,
+    render_plan_markdown,
+)
 from state.knowledge_system import KnowledgeSystem
 from state.path import TGBT_PATH
 from util.error import tgbt_error
@@ -407,7 +416,7 @@ def _review_and_revise_plan(
     last_machine_findings: list[str] = []
     last_review: PlanReview | None = None
     for review_index in range(_PLAN_REVIEW_MAX_ATTEMPTS):
-        last_machine_findings = _inspect_plan(
+        plan, last_machine_findings = _inspect_and_repair_plan(
             plan=plan,
             expected_original_instructions=expected_original_instructions,
         )
@@ -442,13 +451,19 @@ def _review_and_revise_plan(
     )
 
 
-def _inspect_plan(
+def _inspect_and_repair_plan(
     plan: TgbtPlan,
     expected_original_instructions: list[str],
-) -> list[str]:
+) -> tuple[TgbtPlan, list[str]]:
     """
-    AI を使わずに検出できる plan の構造不備を列挙する。
+    AI を使わずに修正可能な plan 不備を直し、残った構造不備を列挙する。
     """
+    # 安全に決定できる正規化を先に行い、AI へ回す指摘を必要最小限にする。
+    plan = _repair_plan_mechanically(
+        plan=plan,
+        expected_original_instructions=expected_original_instructions,
+    )
+
     # pydantic schema では表現しきれない空欄と空 list を検査する。
     findings: list[str] = []
     if len(plan.original_instructions) == 0:
@@ -485,7 +500,7 @@ def _inspect_plan(
     if any(item.strip() == "" for item in plan.self_check_notes):
         findings.append("self_check_notes must not contain blank items.")
 
-    # ID 重複は plan 更新時の追跡性を壊すため field ごとに検査する。
+    # ID 重複は機械修正後にも残っている場合だけ AI 指摘へ回す。
     findings.extend(
         [
             *_find_duplicate_id_findings(
@@ -506,7 +521,86 @@ def _inspect_plan(
             ),
         ]
     )
-    return findings
+    return plan, findings
+
+
+def _repair_plan_mechanically(
+    plan: TgbtPlan,
+    expected_original_instructions: list[str],
+) -> TgbtPlan:
+    """
+    内容判断なしで一意に決まる plan の機械的修正を適用する。
+    """
+    # original_instructions は tgbt 側の入力履歴から一意に復元できる。
+    repaired_plan = plan.model_copy(deep=True)
+    repaired_plan.original_instructions = [
+        OriginalInstruction(text=instruction)
+        for instruction in expected_original_instructions
+    ]
+
+    # 空白だけの項目は情報を持たないため除去し、重複 ID の後続分だけ空き ID へ移す。
+    used_completion_ids: set[str] = set()
+    repaired_plan.completion_criteria = [
+        CompletionCriterion(
+            id=_deduplicate_id(item.id, "COMP", used_completion_ids),
+            text=item.text,
+        )
+        for item in repaired_plan.completion_criteria
+        if item.text.strip() != ""
+    ]
+
+    used_risk_ids: set[str] = set()
+    repaired_plan.risk_notes = [
+        RiskNote(
+            id=_deduplicate_id(item.id, "RISK", used_risk_ids),
+            text=item.text,
+        )
+        for item in repaired_plan.risk_notes
+        if item.text.strip() != ""
+    ]
+
+    used_procedure_ids: set[str] = set()
+    repaired_plan.planned_procedures = [
+        PlannedProcedure(
+            id=_deduplicate_id(item.id, "PROC", used_procedure_ids),
+            text=item.text,
+        )
+        for item in repaired_plan.planned_procedures
+        if item.text.strip() != ""
+    ]
+
+    used_assumption_ids: set[str] = set()
+    repaired_plan.assumptions = [
+        Assumption(
+            id=_deduplicate_id(item.id, "ASMP", used_assumption_ids),
+            text=item.text,
+        )
+        for item in repaired_plan.assumptions
+        if item.text.strip() != ""
+    ]
+    repaired_plan.self_check_notes = [
+        note for note in repaired_plan.self_check_notes if note.strip() != ""
+    ]
+    return repaired_plan
+
+
+def _deduplicate_id(item_id: str, prefix: str, used_ids: set[str]) -> str:
+    """
+    既出 ID の場合だけ、同じ prefix の未使用 ID へ置き換える。
+    """
+    # 初出 ID は既存 plan 更新時の追跡性を保つためにそのまま採用する。
+    if item_id not in used_ids:
+        used_ids.add(item_id)
+        return item_id
+
+    # 重複した後続 item は、現時点で空いている最小の連番 ID に寄せる。
+    index = 1
+    while True:
+        candidate_id = f"{prefix}-{index:03}"
+        if candidate_id not in used_ids:
+            used_ids.add(candidate_id)
+            return candidate_id
+        index += 1
 
 
 def _find_duplicate_id_findings(field_name: str, item_ids: list[str]) -> list[str]:
