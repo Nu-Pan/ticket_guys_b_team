@@ -16,5 +16,8 @@ dependencies = [
     "typer",
 ]
 
+[project.optional-dependencies]
+test = []
+
 [tool.setuptools.package-dir]
 ticket-guy-b-team = "src"
