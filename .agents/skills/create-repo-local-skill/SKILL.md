@@ -67,6 +67,8 @@ upstream の `$skill-creator` を必ず併用し、repo 固有ルールは `<tgb
 - `SKILL.md` が実行時に必要な指示へ絞られ、冗長な背景説明を含んでいないか。
 - 1 skill 1 job になっており、扱う範囲と扱わない範囲が曖昧でないか。
 - 繰り返しが多い、または機械的に検証すべき処理を `scripts/` に切り出す余地があるか。
+- OpenAI 公式 docs と照らし合わせて、問題または改善余地がないか。
+- 一般的な skill ベストプラクティスと照らし合わせて、問題または改善余地がないか。
 - bundled resources と `agents/openai.yaml` が現在の `SKILL.md` とずれていないか。
 
 OpenAI 公式 docs を参照する場合は、公式ドメインの最新 docs を使う。

@@ -18,7 +18,7 @@ description: Investigate current tgbt repo behavior without editing files. Use f
 - `<tgbt-root>/oracle` は断片的な正本仕様として扱い、調査対象がその断片仕様に関係するときだけ参照する。
 - 参照した `<tgbt-root>/oracle` の明示内容と実装・既存テストが衝突する場合は、`<tgbt-root>/oracle` を正本として扱い、衝突箇所を事実として分けて報告する。
 - プロダクトビジョンや抽象設計を確定せず、repo から観測できる事実の整理に徹する。
-- `<repo-root>/.codex/` と runtime state の `<repo-root>/.tgbt/.codex/` を混同しない。両者は役割が違う可能性があるので、必ず実装を中心に、必要なら関連する既存テストも証拠として意味を確認する。
+- Codex の通常 state/config を指す場合は `CODEX_HOME` と表記し、tgbt 実行時に隔離される runtime state の `<repo-root>/.tgbt/.codex` と混同しない。両者は役割が違う可能性があるので、必ず実装を中心に、必要なら関連する既存テストも証拠として意味を確認する。
 - この `<tgbt-root>` 上で `tgbt` を実行して自己開発させない。unit test の live mode も使わない。
 
 ## Evidence Order

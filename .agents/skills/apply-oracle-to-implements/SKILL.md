@@ -15,7 +15,7 @@ description: Reflect tgbt oracle changes or specified oracle documents into tgbt
 - `<tgbt-root>/README.md`、`<tgbt-root>/AGENTS.md`、`<tgbt-root>/memo/**` は編集してはいけない。`memo/**` は閲覧も禁止。
 - oracle に未記載の仕様は、既存実装と局所文脈から必要最小限だけ判断する。
 - high-level な仕様判断、public interface 変更、依存追加、永続データ形式変更、大規模リファクタが必要なら、人間確認事項として切り出す。
-- テスト追加・更新を前提にしない。確認は変更対象に近い `pyright`、import 確認、必要最小限の smoke 確認を優先する。
+- テストは追加・更新しない。確認は変更対象に近い `pyright`、import 確認、必要最小限の smoke 確認を優先する。
 - 作業中に追加修正してよいのは、発見した致命的な実装問題、または根本問題の解決に必要な連鎖的問題に限る。
 
 ## Oracle Scope
@@ -47,7 +47,7 @@ description: Reflect tgbt oracle changes or specified oracle documents into tgbt
 - 既存設計、既存責務、既存 import 構造に沿っているか。
 - 変更対象と読み取り対象が必要最小限か。
 - 編集・閲覧制約に反する作業を含んでいないか。
-- 確認方法が変更対象に近い最小限のものになっているか。
+- テスト追加・更新を含まず、確認方法が変更対象に近い最小限のものになっているか。
 - 不確実性、未確認事項、連鎖的に発生しうる問題を明示しているか。
 
 ### 3. Implement narrowly

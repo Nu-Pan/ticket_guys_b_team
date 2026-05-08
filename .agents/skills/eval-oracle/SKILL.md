@@ -1,6 +1,6 @@
 ---
 name: eval-oracle
-description: Evaluate existing tgbt oracle text without editing it. Use for contradictions, ROUTING.md drift, broken references, typos, or terminology inconsistencies inside the tgbt oracle directory.
+description: Evaluate existing tgbt oracle text without editing it. Use for contradictions, typos, ROUTING.md missing files, or ROUTING.md/filesystem mismatches inside the tgbt oracle directory.
 ---
 
 # Eval Oracle
@@ -24,6 +24,7 @@ description: Evaluate existing tgbt oracle text without editing it. Use for cont
 - 複数の oracle ファイル間、または同一ファイル内での論理的な矛盾。
 - 同じ概念、用語、パス、コマンド、責務についての説明が衝突している箇所。
 - 各階層の `ROUTING.md` のファイル・ディレクトリリストと、同階層の実ファイル・ディレクトリ構成との過不足。
+- `<tgbt-root>/oracle/docs/` 配下の階層に `ROUTING.md` が存在しない箇所。
 - 参照先ファイルや routing の記述と実ファイル構成の不整合。
 - typo、明らかな脱字、誤字、Markdown 構造の軽微な破綻。
 - 表記ゆれのうち、読み手や実装者が別概念として誤解しそうなもの。

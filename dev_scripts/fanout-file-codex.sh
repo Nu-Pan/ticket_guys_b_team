@@ -10,8 +10,13 @@ readonly LOG_DIR="${TGBT_ROOT}/dev_scripts/logs/fanout-file-codex"
 usage() {
     cat <<USAGE
 Usage:
-  ${SCRIPT_NAME} <target-dir> <file-pattern>
-  ${SCRIPT_NAME} <target-dir> <file-pattern> -
+  ${SCRIPT_NAME} [--dangerously-bypass-approvals-and-sandbox] <target-dir> <file-pattern>
+  ${SCRIPT_NAME} [--dangerously-bypass-approvals-and-sandbox] <target-dir> <file-pattern> -
+
+Options:
+  --dangerously-bypass-approvals-and-sandbox
+                    Pass Codex CLI's same-named option. Use only when this
+                    script is running against a tightly scoped target set.
 
 Arguments:
   <target-dir>      Directory to enumerate recursively.
@@ -166,6 +171,24 @@ main() {
         return 0
     fi
 
+    local dangerously_bypass_approvals_and_sandbox=false
+    while [[ "${1:-}" == --* ]]; do
+        case "$1" in
+            --dangerously-bypass-approvals-and-sandbox)
+                dangerously_bypass_approvals_and_sandbox=true
+                shift
+                ;;
+            --help)
+                usage
+                return 0
+                ;;
+            *)
+                usage >&2
+                return 2
+                ;;
+        esac
+    done
+
     if (( $# != 2 && $# != 3 )); then
         usage >&2
         return 2
@@ -207,6 +230,7 @@ main() {
     printf 'fanout-file-codex started\n'
     printf 'target_dir: %s\n' "$target_root"
     printf 'file_pattern: %s\n' "$file_pattern"
+    printf 'dangerously_bypass_approvals_and_sandbox: %s\n' "$dangerously_bypass_approvals_and_sandbox"
     printf 'log_file: %s\n\n' "$log_file"
 
     local files=()
@@ -233,7 +257,14 @@ main() {
         local codex_prompt
         codex_prompt="$(compose_prompt "$file" "$user_prompt")"
 
-        if codex exec "$codex_prompt"; then
+        local codex_exec_args=("-C" "$TGBT_ROOT")
+        if [[ "$dangerously_bypass_approvals_and_sandbox" == true ]]; then
+            codex_exec_args+=("--dangerously-bypass-approvals-and-sandbox")
+        else
+            codex_exec_args+=("--add-dir" "$target_root" "-s" "workspace-write")
+        fi
+
+        if codex exec "${codex_exec_args[@]}" "$codex_prompt"; then
             printf '===== success: %s =====\n\n' "$file"
         else
             local status=$?
