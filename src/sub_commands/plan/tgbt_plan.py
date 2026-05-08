@@ -32,6 +32,7 @@ from util.text import stdtqs
 from util.editor_input import read_from_editor
 
 _HTML_COMMENT_PATTERN = re.compile(r"<!--.*?-->", re.DOTALL)
+_UNSUPPORTED_HEADING_PATTERN = re.compile(r"#{2,6}(?:\s|$)")
 _PLAN_GENERATION_MAX_ATTEMPTS = 3
 _PLAN_REVIEW_MAX_ATTEMPTS = 3
 
@@ -187,7 +188,7 @@ def _extract_instruction_body(instruction: str) -> str:
 
 def _adjust_instruction_heading_levels(instruction: str) -> str:
     """
-    人間指示内のトップレベル見出しを prompt 本文用の深さへ調整する。
+    人間指示内で許可された見出しを prompt 本文用の深さへ調整する。
     """
     lines: list[str] = []
     in_fenced_code = False
@@ -196,9 +197,18 @@ def _adjust_instruction_heading_levels(instruction: str) -> str:
         if stripped_line.startswith("```"):
             in_fenced_code = not in_fenced_code
 
-        if not in_fenced_code and line.startswith("# "):
-            lines.append(f"### {line[2:]}")
-            continue
+        if not in_fenced_code:
+            # 人間指示ファイルで使える見出しは `#` だけに限定する。
+            if stripped_line.startswith("# "):
+                lines.append(f"### {stripped_line[2:]}")
+                continue
+            if _UNSUPPORTED_HEADING_PATTERN.match(stripped_line):
+                raise tgbt_error(
+                    "人間指示に利用できない見出しレベルが含まれています",
+                    "人間指示で見出しを使う場合は `#` だけを使ってください。",
+                    actual={"line": line},
+                    expect={"heading": "# <text>"},
+                )
 
         lines.append(line)
 
