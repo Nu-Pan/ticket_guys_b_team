@@ -85,6 +85,15 @@ _FIXED_PROMPT_CHILDREN: tuple[MarkdownPromptBlock, ...] = (
             """),
     ),
     MarkdownPromptBlock(
+        title="Skill rules",
+        body=stdtqs("""
+            - Treat repository-specific work instructions as repo-local skills packaged under `<repo-root>/.agents/skills/*`.
+            - When the user explicitly names a repo-local skill, load and follow that skill for the task.
+            - Keep generic agent bootstrap instructions small; task-pattern instructions belong in repo-local skills.
+            - Do not edit system skills under `HOME/.codex`.
+            """),
+    ),
+    MarkdownPromptBlock(
         title="Access restrictions",
         body=stdtqs("""
             - Do not read or edit files/directories forbidden by this prompt, the task prompt, repo-local instructions, or read targets.
