@@ -2,7 +2,7 @@
 from typing import ClassVar, Literal
 
 # pip
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 
 class StrictKnowledgeModel(BaseModel):
@@ -37,7 +37,28 @@ class KnowledgeIndex(StrictKnowledgeModel):
     知識ソースファイルの目次ファイル。
     """
 
-    entries: list[KnowledgeIndexEntry]
+    entries: dict[str, KnowledgeIndexEntry]
+
+    @model_validator(mode="before")
+    @classmethod
+    def _normalize_entries(cls, data: object) -> object:
+        """旧 list 形式を path をキーにした dict 形式へ正規化する."""
+        # 既存 state との互換性を保ち、保存時は oracle に沿った dict 形式へ寄せる。
+        if not isinstance(data, dict):
+            return data
+
+        entries = data.get("entries")
+        if not isinstance(entries, list):
+            return data
+
+        normalized: dict[str, object] = {}
+        for entry in entries:
+            if isinstance(entry, dict):
+                path = entry.get("path")
+                if isinstance(path, str):
+                    normalized[path] = entry
+
+        return {**data, "entries": normalized}
 
 
 class KnowledgeSourceConfig(StrictKnowledgeModel):

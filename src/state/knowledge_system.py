@@ -214,23 +214,21 @@ class KnowledgeSystem:
         knowledge_source_files = self._collect_knowledge_source_files()
         current_by_path = {item.relative_path: item for item in knowledge_source_files}
         existing_index = self._load_index()
-        existing_by_path = {entry.path: entry for entry in existing_index.entries}
+        existing_by_path = existing_index.entries
 
         # 新規または hash 不一致のファイルだけ AI に説明生成を依頼する。
-        entries: list[KnowledgeIndexEntry] = []
+        entries: dict[str, KnowledgeIndexEntry] = {}
         for relative_path in sorted(current_by_path):
             current = current_by_path[relative_path]
             existing = existing_by_path.get(relative_path)
             if existing is not None and existing.hash == current.hash:
-                entries.append(existing)
+                entries[relative_path] = existing
             else:
                 description = self._generate_index_description(current)
-                entries.append(
-                    KnowledgeIndexEntry(
-                        path=current.relative_path,
-                        description=description,
-                        hash=current.hash,
-                    )
+                entries[relative_path] = KnowledgeIndexEntry(
+                    path=current.relative_path,
+                    description=description,
+                    hash=current.hash,
                 )
 
         self._save_index(KnowledgeIndex(entries=entries))
@@ -473,7 +471,9 @@ class KnowledgeSystem:
             repo_relative_path_from_notation(path) for path in selected_paths
         }
         selected_entries = [
-            entry for entry in index.entries if entry.path in selected_path_set
+            entry
+            for entry in index.entries.values()
+            if entry.path in selected_path_set
         ]
         result = self._run_agent(
             instruction=_prompt_instruction(
@@ -588,7 +588,7 @@ class KnowledgeSystem:
             ),
             output_schema=KnowledgeSourceFileSelectionResponse,
         )
-        available_paths = {entry.path for entry in index.entries}
+        available_paths = set(index.entries)
         selected_paths: list[str] = []
         for path in result.paths[:_RESEARCH_FILE_LIMIT]:
             relative_path = repo_relative_path_from_notation(path)
@@ -660,7 +660,7 @@ class KnowledgeSystem:
         # 目次ファイル未作成時は、空の目次として扱う。
         index_path = TGBT_PATH.tgbt_knowledge_index
         if not index_path.exists():
-            return KnowledgeIndex(entries=[])
+            return KnowledgeIndex(entries={})
 
         try:
             return KnowledgeIndex.model_validate_json(
@@ -808,7 +808,9 @@ class KnowledgeSystem:
             repo_relative_path_from_notation(reference.path)
             for reference in knowledge.metadata.references
         }
-        entries = [entry for entry in index.entries if entry.path in referenced_paths]
+        entries = [
+            entry for entry in index.entries.values() if entry.path in referenced_paths
+        ]
         return self._render_index_entries_as_read_targets(entries)
 
     def _render_index_for_prompt(self, index: KnowledgeIndex) -> str:
@@ -818,7 +820,7 @@ class KnowledgeSystem:
             return _EMPTY_MARKDOWN_LIST
 
         lines: list[str] = []
-        for entry in index.entries:
+        for entry in index.entries.values():
             lines.append(f"## {_repo_notation_text(entry.path)}")
             lines.append("")
             lines.append(f"- hash: `{entry.hash}`")
