@@ -17,6 +17,10 @@
 - `tgbt` を開発する環境について記述
 - 使用するOS、エディタ、言語、実行環境の管理ルール…
 
+# `fanout_file_codex.md`
+
+- `tgbt` 上での Codex CLI 呼び出しをファイル単位呼び出しに機械的に展開する補助スクリプトの正本仕様を記述
+
 # `oracle.md`
 
 - `<tgbt-root>` 上で Codex CLI を用いて `tgbt` 自体の開発を行う際の `<tgbt-root>/oracle` の取り扱いについて記述
