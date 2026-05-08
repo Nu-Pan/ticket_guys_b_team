@@ -19,7 +19,7 @@ from util.tgbt_call_log import (
     reset_related_log_paths,
     write_tgbt_call_log,
 )
-from util.tgbt_repo_lock import TGBTRepoLock, TGBTRepoLockUnavailable
+from util.tgbt_repo_lock import TGBTRepoLock
 
 _TGBT_ROOT_CALL_ID_ENV = "TGBT_ROOT_CALL_ID"
 
@@ -150,9 +150,7 @@ def main() -> None:
                 app_was_entered = True
                 _run_app_with_tgbt_call_log()
         except BaseException as error:
-            if not app_was_entered and not isinstance(
-                error, TGBTRepoLockUnavailable
-            ):
+            if not app_was_entered:
                 _write_startup_failure_tgbt_call_log(error)
             raise
         finally:
