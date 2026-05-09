@@ -34,6 +34,7 @@ from schemas.knowledge import (
 from schemas.markdown import MarkdownPromptBlock
 from state.path import (
     TGBT_PATH,
+    repo_glob_pattern_from_notation,
     repo_notation_path,
     repo_relative_path_from_notation,
 )
@@ -1224,7 +1225,7 @@ def _matches_any_gitignore_pattern(
 def _matches_path_pattern(relative_path: str, pattern: str) -> bool:
     """repo 相対 path に対する glob 風 pattern 判定を行う."""
     # 空 pattern と否定 pattern は、この単体判定では一致なしとして扱う。
-    cleaned_pattern = pattern.strip()
+    cleaned_pattern = repo_glob_pattern_from_notation(pattern.strip())
     if cleaned_pattern == "" or cleaned_pattern.startswith("!"):
         return False
 
