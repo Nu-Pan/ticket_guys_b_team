@@ -65,15 +65,14 @@ class FanoutRunner:
 
     def run(self) -> int:
         """サブコマンドに対応する fanout 処理全体を実行する。"""
-        # fanout 開始前に対象一覧と git 状態を確定する。
-        targets = self._build_targets()
+        # fanout 開始前に実行条件と起点ブランチを確定する。
         self._write_line(f"tgbt root: {TGBT_ROOT}")
         self._write_line(f"subcommand: {self.subcommand}")
-        self._write_line(f"target count: {len(targets)}")
 
         try:
             self._ensure_clean_worktree()
             branch_name = self._create_fanout_branch()
+            targets = self._build_targets()
         except FanoutError as error:
             self._write_line(f"ERROR: {error}")
             self._write_line(f"log file: {self.log_path}")
@@ -82,6 +81,7 @@ class FanoutRunner:
         # 個別 Codex 呼び出しは常に clean な git 状態から開始する。
         failures = 0
         self._write_line(f"fanout branch: {branch_name}")
+        self._write_line(f"target count: {len(targets)}")
         for index, target in enumerate(targets, start=1):
             self._write_line("")
             self._write_line(f"target {index}/{len(targets)}: {target.commit_label}")
