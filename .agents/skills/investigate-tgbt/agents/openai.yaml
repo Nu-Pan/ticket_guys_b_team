@@ -1,4 +1,4 @@
 interface:
   display_name: "Investigate TGBT"
   short_description: "tgbt repo の現状挙動を根拠付きで調査する"
-  default_prompt: "Use $investigate-tgbt to investigate current tgbt repo behavior without editing files."
+  default_prompt: "Use $investigate-tgbt to investigate current tgbt repo behavior with repo evidence, without editing files."
