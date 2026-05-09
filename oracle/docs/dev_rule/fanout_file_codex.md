@@ -56,13 +56,13 @@
 - 備考
     - なし
 
-## `create-repo-rocal-skill`
+## `create-repo-local-skill`
 
 - 対象
     - `<tgbt-root>/.agents/skills/` 直下のディレクトリを対象とする
 - プロンプト
     ```
-    `<対象ディレクトリパス>` だけを対象にスキル $create-repo-rocal-skill を実行してください。
+    `<対象ディレクトリパス>` だけを対象にスキル $create-repo-local-skill を実行してください。
     ```
 - 備考
     -  `<tgbt-root>/.agents` 配下は AI 編集不可であるため `--dangerously-bypass-approvals-and-sandbox` を使用する
