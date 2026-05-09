@@ -43,6 +43,7 @@ from util.text import stdtqs
 _INDEX_JSON_INDENT = 2
 _FRONT_MATTER_DELIMITER = "---"
 _HASH_ALGORITHM = "sha256"
+_MAX_KNOWLEDGE_IMPROVEMENT_ATTEMPTS = 3
 _MAX_KNOWLEDGE_REPAIR_ATTEMPTS = 3
 _MAX_SEARCH_RESEARCH_ATTEMPTS = 5
 _SEARCH_TOP_N = 5
@@ -112,16 +113,29 @@ class KnowledgeSystem:
 
     def improve_knowledge_files(self) -> None:
         """知識ファイル群を正常化した上で、重複削除や短縮を行う."""
-        # 改善前に、既存知識ファイルを機械検査に通る状態へ揃える。
-        self._normalize_knowledge_files()
-        knowledge_files = self._load_all_valid_knowledge_files()
-        if len(knowledge_files) == 0:
-            return
+        # 正規化と品質改善を、改善結果が安定するか上限に達するまで反復する。
+        for _ in range(_MAX_KNOWLEDGE_IMPROVEMENT_ATTEMPTS):
+            self._normalize_knowledge_files()
+            knowledge_files = self._load_all_valid_knowledge_files()
+            if len(knowledge_files) == 0:
+                return
 
-        # 品質改善は全件置換として扱い、AI の出力後に再度機械検査を通す。
-        improved = self._improve_knowledge_files(knowledge_files)
-        self._replace_knowledge_files(improved)
-        self._normalize_knowledge_files()
+            before_snapshot = {
+                knowledge.knowledge_id: knowledge.model_dump(mode="json")
+                for knowledge in knowledge_files
+            }
+
+            # 品質改善は全件置換として扱い、AI の出力後に再度機械検査を通す。
+            improved = self._improve_knowledge_files(knowledge_files)
+            self._replace_knowledge_files(improved)
+            self._normalize_knowledge_files()
+
+            after_snapshot = {
+                knowledge.knowledge_id: knowledge.model_dump(mode="json")
+                for knowledge in self._load_all_valid_knowledge_files()
+            }
+            if after_snapshot == before_snapshot:
+                return
 
     def search(self, question: str) -> KnowledgeSearchResult:
         """repo についての質問に対して、知識ファイルと知識ソースファイルから回答する."""
