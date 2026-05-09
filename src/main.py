@@ -71,7 +71,7 @@ def plan(
         str | None,
         typer.Argument(
             help=(
-                "Use '-' to read instruction text from stdin. "
+                "Use trailing '-' to read instruction text from stdin. "
                 "Omit this argument to open an editor."
             ),
         ),
@@ -92,6 +92,16 @@ def plan(
     plan_id 未指定の場合は新規に計画書を作成する。
     plan_id を指定された場合は既存計画書を加筆・修正する。
     """
+    # `-` は標準入力指示を表す特別な末尾引数としてだけ受け入れる。
+    if instruction_source == "-" and sys.argv[-1] != "-":
+        raise tgbt_error(
+            "不正な指示文入力元が指定されました",
+            "`-` で標準入力から指示文を渡す場合は、"
+            "サブコマンド引数の末尾に指定してください。",
+            actual={"argv": ["tgbt", *sys.argv[1:]]},
+            expect={"instruction_source": "trailing '-'"},
+        )
+
     # 実装を呼び出し
     tgbt_plan_impl(
         instruction_source,
