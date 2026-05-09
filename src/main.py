@@ -117,9 +117,8 @@ def run(
     ],
 ) -> None:
     """指定した Plan を起点に run を実行する。"""
-    # 現状の run 実装へ渡す値がまだ無いため、CLI 引数の未使用警告だけ避ける。
-    _ = (plan_id,)
-    tgbt_run_impl()
+    # 実装を呼び出し。
+    tgbt_run_impl(plan_id)
 
 
 def main() -> None:

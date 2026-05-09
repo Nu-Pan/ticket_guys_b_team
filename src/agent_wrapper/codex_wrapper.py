@@ -13,6 +13,7 @@ from pydantic import BaseModel, ValidationError
 
 # local
 from schemas.markdown import MarkdownPromptBlock, render_prompt
+from state.git import auto_commit_uncommitted_changes
 from state.path import TGBT_PATH
 from util.error import tgbt_error
 from util.tgbt_call_log import record_related_log_path
@@ -305,6 +306,11 @@ def _run_codex_cli(
         ended_at_epoch_ns = time.time_ns()
         ended_at_iso = datetime.now().isoformat()
         _CODEX_CLI_CALL_LOCK.release()
+
+    # Codex CLI セッション完了後の未コミット差分は、後続 AI のレビュー手がかりとして保存する。
+    auto_commit_uncommitted_changes(
+        f"tgbt codex: {agent_profile.value} {started_at_iso}"
+    )
 
     # Codex CLI が成功した場合だけ、構造化応答を pydantic で再検証する。
     structured_response: BaseModel | None = None
