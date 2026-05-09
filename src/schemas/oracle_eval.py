@@ -57,30 +57,17 @@ class OracleContradiction(OracleEvalFinding):
         return _validate_prefixed_id(value, "CNTR")
 
 
-class OracleSimplificationOpportunity(OracleEvalFinding):
+class OracleIssue(OracleEvalFinding):
     """
-    oracle の意味を変えずに簡略化できる可能性。
-    """
-
-    @field_validator("id")
-    @classmethod
-    def _validate_id(cls, value: str) -> str:
-        """simplification opportunity ID の形式を検証する."""
-        # simplification opportunity 用の prefix で共通 ID 検証へ渡す。
-        return _validate_prefixed_id(value, "SIMP")
-
-
-class OracleStructureOpportunity(OracleEvalFinding):
-    """
-    oracle の文章構造を最適化できる可能性。
+    oracle 内の矛盾以外の明示的な問題点。
     """
 
     @field_validator("id")
     @classmethod
     def _validate_id(cls, value: str) -> str:
-        """structure opportunity ID の形式を検証する."""
-        # structure opportunity 用の prefix で共通 ID 検証へ渡す。
-        return _validate_prefixed_id(value, "STRC")
+        """issue ID の形式を検証する."""
+        # oracle issue 用の prefix で共通 ID 検証へ渡す。
+        return _validate_prefixed_id(value, "ISSUE")
 
 
 class OracleEvalReport(StrictModel):
@@ -92,25 +79,23 @@ class OracleEvalReport(StrictModel):
 Field rules:
 - schema_version: Use "1".
 - contradictions: Record only contradictions found within oracle itself.
-- simplification_opportunities: Record only opportunities to simplify existing oracle text without changing its meaning.
-- structure_opportunities: Record only opportunities to improve existing oracle text structure.
+- issues: Record only explicit oracle issues other than contradictions, including simplification opportunities and document structure optimization opportunities.
 - self_check_notes: Record concise checks performed before finalizing the report.
 
 Scope rules:
 - Evaluate only existing `<repo-root>/oracle` content and `<repo-root>/oracle/tests` content if present.
 - Do not evaluate missing oracle coverage as a defect.
 - Do not propose product specifications that are not already present in oracle.
+- Do not evaluate ROUTING.md correctness.
 
 ID rules:
 - contradictions ids: CNTR-001, CNTR-002, ...
-- simplification_opportunities ids: SIMP-001, SIMP-002, ...
-- structure_opportunities ids: STRC-001, STRC-002, ...
+- issues ids: ISSUE-001, ISSUE-002, ...
 """
 
     schema_version: str
     contradictions: list[OracleContradiction]
-    simplification_opportunities: list[OracleSimplificationOpportunity]
-    structure_opportunities: list[OracleStructureOpportunity]
+    issues: list[OracleIssue]
     self_check_notes: list[str]
 
     @field_validator("schema_version")
@@ -139,12 +124,8 @@ def render_oracle_eval_report(report: OracleEvalReport) -> str:
                 body=render_id_text_items(report.contradictions),
             ),
             MarkdownSection(
-                title="Simplification Opportunities",
-                body=render_id_text_items(report.simplification_opportunities),
-            ),
-            MarkdownSection(
-                title="Structure Opportunities",
-                body=render_id_text_items(report.structure_opportunities),
+                title="Issues",
+                body=render_id_text_items(report.issues),
             ),
             MarkdownSection(
                 title="Self Check Notes",

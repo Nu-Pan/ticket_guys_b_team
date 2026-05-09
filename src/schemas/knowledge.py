@@ -2,7 +2,7 @@
 from typing import ClassVar, Literal
 
 # pip
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 
 class StrictKnowledgeModel(BaseModel):
@@ -37,7 +37,28 @@ class KnowledgeIndex(StrictKnowledgeModel):
     知識ソースファイルの目次ファイル。
     """
 
-    entries: list[KnowledgeIndexEntry]
+    entries: dict[str, KnowledgeIndexEntry]
+
+    @model_validator(mode="before")
+    @classmethod
+    def _normalize_entries(cls, data: object) -> object:
+        """旧 list 形式を path をキーにした dict 形式へ正規化する."""
+        # 既存 state との互換性を保ち、保存時は oracle に沿った dict 形式へ寄せる。
+        if not isinstance(data, dict):
+            return data
+
+        entries = data.get("entries")
+        if not isinstance(entries, list):
+            return data
+
+        normalized: dict[str, object] = {}
+        for entry in entries:
+            if isinstance(entry, dict):
+                path = entry.get("path")
+                if isinstance(path, str):
+                    normalized[path] = entry
+
+        return {**data, "entries": normalized}
 
 
 class KnowledgeSourceConfig(StrictKnowledgeModel):
@@ -105,6 +126,7 @@ Field rules:
 - knowledge.metadata.status: Use "valid" only when the body is supported by references.
 - knowledge.metadata.summary: Write a short Japanese search summary.
 - knowledge.metadata.references: Include every knowledge source file used as evidence.
+- knowledge.metadata.references.path: Use `<repo-root>/...` notation for repository paths.
 - knowledge.body: Keep the Markdown body short, preferably 10-30 lines.
 - knowledge.body: Remove unsupported or stale claims instead of preserving them.
 """
@@ -120,6 +142,7 @@ class KnowledgeImprovementResponse(StrictKnowledgeModel):
     TGBT_OUTPUT_SCHEMA_PROMPT: ClassVar[str] = """\
 Field rules:
 - knowledge_files: Return the full replacement set of knowledge files to keep.
+- knowledge_files.metadata.references.path: Use `<repo-root>/...` notation for repository paths.
 - Prefer fewer, shorter files when content overlaps.
 - Remove claims not supported by the referenced knowledge source files.
 - Keep each body short, preferably 10-30 lines.
@@ -185,6 +208,7 @@ Field rules:
 - knowledge.metadata.status: Use "valid".
 - knowledge.metadata.summary: Write a short Japanese search summary.
 - knowledge.metadata.references: Include every provided knowledge source file used.
+- knowledge.metadata.references.path: Use `<repo-root>/...` notation for repository paths.
 - knowledge.body: Answer the missing information using only provided files.
 - knowledge.body: Keep the Markdown body short, preferably 10-30 lines.
 """
@@ -201,6 +225,7 @@ class KnowledgeAnswerResponse(StrictKnowledgeModel):
 Field rules:
 - answer: Answer the user's repository question in Japanese.
 - related_paths: Include every knowledge source file path related to the answer.
+- related_paths: Use `<repo-root>/...` notation for repository paths.
 - Do not include paths that were not used as evidence.
 """
 

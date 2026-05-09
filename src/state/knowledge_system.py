@@ -23,6 +23,7 @@ from schemas.knowledge import (
     KnowledgeImprovementResponse,
     KnowledgeIndex,
     KnowledgeIndexEntry,
+    KnowledgeReference,
     KnowledgeRelevanceResponse,
     KnowledgeRepairResponse,
     KnowledgeResearchResponse,
@@ -31,7 +32,11 @@ from schemas.knowledge import (
     KnowledgeSourceFileSelectionResponse,
 )
 from schemas.markdown import MarkdownPromptBlock
-from state.path import TGBT_PATH
+from state.path import (
+    TGBT_PATH,
+    repo_notation_path,
+    repo_relative_path_from_notation,
+)
 from util.error import tgbt_error
 from util.text import stdtqs
 
@@ -209,23 +214,21 @@ class KnowledgeSystem:
         knowledge_source_files = self._collect_knowledge_source_files()
         current_by_path = {item.relative_path: item for item in knowledge_source_files}
         existing_index = self._load_index()
-        existing_by_path = {entry.path: entry for entry in existing_index.entries}
+        existing_by_path = existing_index.entries
 
         # 新規または hash 不一致のファイルだけ AI に説明生成を依頼する。
-        entries: list[KnowledgeIndexEntry] = []
+        entries: dict[str, KnowledgeIndexEntry] = {}
         for relative_path in sorted(current_by_path):
             current = current_by_path[relative_path]
             existing = existing_by_path.get(relative_path)
             if existing is not None and existing.hash == current.hash:
-                entries.append(existing)
+                entries[relative_path] = existing
             else:
                 description = self._generate_index_description(current)
-                entries.append(
-                    KnowledgeIndexEntry(
-                        path=current.relative_path,
-                        description=description,
-                        hash=current.hash,
-                    )
+                entries[relative_path] = KnowledgeIndexEntry(
+                    path=current.relative_path,
+                    description=description,
+                    hash=current.hash,
                 )
 
         self._save_index(KnowledgeIndex(entries=entries))
@@ -240,7 +243,7 @@ class KnowledgeSystem:
             instruction=_prompt_instruction(
                 task="Generate one knowledge source index description for the target file.",
                 read_targets=stdtqs(f"""
-                    - path: `{knowledge_source_file.relative_path}`
+                    - path: `{_repo_notation_text(knowledge_source_file.relative_path)}`
                     - purpose: Read facts that should be summarized for search.
                     - treatment: data
                     """),
@@ -253,7 +256,7 @@ class KnowledgeSystem:
                     MarkdownPromptBlock(
                         title="Target file",
                         body=stdtqs(f"""
-                            - path: `{knowledge_source_file.relative_path}`
+                            - path: `{_repo_notation_text(knowledge_source_file.relative_path)}`
                             - hash: `{knowledge_source_file.hash}`
                             """),
                     ),
@@ -464,9 +467,13 @@ class KnowledgeSystem:
                 },
             )
 
-        selected_path_set = set(selected_paths)
+        selected_path_set = {
+            repo_relative_path_from_notation(path) for path in selected_paths
+        }
         selected_entries = [
-            entry for entry in index.entries if entry.path in selected_path_set
+            entry
+            for entry in index.entries.values()
+            if entry.path in selected_path_set
         ]
         result = self._run_agent(
             instruction=_prompt_instruction(
@@ -541,7 +548,13 @@ class KnowledgeSystem:
             ),
             output_schema=KnowledgeAnswerResponse,
         )
-        return result.result
+        return result.result.model_copy(
+            update={
+                "related_paths": [
+                    _repo_notation_text(path) for path in result.result.related_paths
+                ]
+            }
+        )
 
     def _select_knowledge_source_files(
         self,
@@ -575,12 +588,13 @@ class KnowledgeSystem:
             ),
             output_schema=KnowledgeSourceFileSelectionResponse,
         )
-        available_paths = {entry.path for entry in index.entries}
-        return [
-            path
-            for path in result.paths[:_RESEARCH_FILE_LIMIT]
-            if path in available_paths
-        ]
+        available_paths = set(index.entries)
+        selected_paths: list[str] = []
+        for path in result.paths[:_RESEARCH_FILE_LIMIT]:
+            relative_path = repo_relative_path_from_notation(path)
+            if relative_path in available_paths:
+                selected_paths.append(relative_path)
+        return selected_paths
 
     def _run_agent[T: BaseModel](
         self,
@@ -646,7 +660,7 @@ class KnowledgeSystem:
         # 目次ファイル未作成時は、空の目次として扱う。
         index_path = TGBT_PATH.tgbt_knowledge_index
         if not index_path.exists():
-            return KnowledgeIndex(entries=[])
+            return KnowledgeIndex(entries={})
 
         try:
             return KnowledgeIndex.model_validate_json(
@@ -719,6 +733,7 @@ class KnowledgeSystem:
         # 保存先ディレクトリを用意し、保存前に参照整合性を検証する。
         TGBT_PATH.ensure_tgbt_dir()
         TGBT_PATH.tgbt_knowledge_items.mkdir(parents=True, exist_ok=True)
+        knowledge = _normalize_knowledge_reference_paths(knowledge)
         validation_error = self._validate_knowledge_references(knowledge)
         if validation_error is not None:
             raise tgbt_error(
@@ -765,7 +780,8 @@ class KnowledgeSystem:
             return "Knowledge metadata status is not valid."
 
         for reference in knowledge.metadata.references:
-            path = TGBT_PATH.repo_root / reference.path
+            relative_path = repo_relative_path_from_notation(reference.path)
+            path = TGBT_PATH.repo_root / relative_path
             if not path.is_file():
                 return f"Referenced file does not exist: {reference.path}"
             actual_hash = _hash_file(path)
@@ -789,9 +805,12 @@ class KnowledgeSystem:
             return _EMPTY_PROMPT_TEXT
 
         referenced_paths = {
-            reference.path for reference in knowledge.metadata.references
+            repo_relative_path_from_notation(reference.path)
+            for reference in knowledge.metadata.references
         }
-        entries = [entry for entry in index.entries if entry.path in referenced_paths]
+        entries = [
+            entry for entry in index.entries.values() if entry.path in referenced_paths
+        ]
         return self._render_index_entries_as_read_targets(entries)
 
     def _render_index_for_prompt(self, index: KnowledgeIndex) -> str:
@@ -801,8 +820,8 @@ class KnowledgeSystem:
             return _EMPTY_MARKDOWN_LIST
 
         lines: list[str] = []
-        for entry in index.entries:
-            lines.append(f"## {entry.path}")
+        for entry in index.entries.values():
+            lines.append(f"## {_repo_notation_text(entry.path)}")
             lines.append("")
             lines.append(f"- hash: `{entry.hash}`")
             lines.append("")
@@ -821,7 +840,7 @@ class KnowledgeSystem:
 
         lines: list[str] = []
         for entry in entries:
-            lines.append(f"## {entry.path}")
+            lines.append(f"## {_repo_notation_text(entry.path)}")
             lines.append("")
             lines.append(f"- hash: `{entry.hash}`")
             lines.append("- read: Read this file from the repository workspace.")
@@ -869,7 +888,8 @@ class KnowledgeSystem:
             else:
                 for reference in knowledge.metadata.references:
                     lines.append(
-                        f"  - `{reference.path}` hash `{reference.hash}`"
+                        f"  - `{_repo_notation_text(reference.path)}` "
+                        f"hash `{reference.hash}`"
                     )
             lines.append("")
         return "\n".join(lines).strip()
@@ -1000,6 +1020,23 @@ def _render_knowledge_markdown(knowledge: KnowledgeFile) -> str:
     return f"{_FRONT_MATTER_DELIMITER}\n{front_matter}\n{_FRONT_MATTER_DELIMITER}\n{body}\n"
 
 
+def _normalize_knowledge_reference_paths(knowledge: KnowledgeFile) -> KnowledgeFile:
+    """知識ファイル参照 path を内部保存用 repo 相対表記へ正規化する."""
+    # AI には `<repo-root>/...` 表記を見せるが、既存 state 形式は repo 相対 path のまま保つ。
+    metadata = knowledge.metadata.model_copy(
+        update={
+            "references": [
+                KnowledgeReference(
+                    path=repo_relative_path_from_notation(reference.path),
+                    hash=reference.hash,
+                )
+                for reference in knowledge.metadata.references
+            ]
+        }
+    )
+    return knowledge.model_copy(update={"metadata": metadata})
+
+
 def _hash_file(path: Path) -> str:
     """ファイル bytes の SHA-256 hash を返す."""
     # 大きいファイルでも一定サイズずつ読んで hash を更新する。
@@ -1011,9 +1048,18 @@ def _hash_file(path: Path) -> str:
 
 
 def _relative_prompt_path(path: Path) -> str:
-    """repo root からの相対 path を prompt 用に返す."""
-    # prompt 内では OS 依存の区切り文字を避けるため POSIX 形式にする。
-    return path.relative_to(TGBT_PATH.repo_root).as_posix()
+    """repo root 配下の path を prompt 用 `<repo-root>/...` 表記で返す."""
+    # prompt 内では oracle のパス表記ルールに従い、repo root 表記を明示する。
+    return repo_notation_path(path)
+
+
+def _repo_notation_text(path_text: str) -> str:
+    """repo 相対 path 文字列を `<repo-root>/...` 表記へ揃える."""
+    # 既に notation 付きの場合と既存 state の repo 相対表記を同じ表示へ正規化する。
+    relative_path = repo_relative_path_from_notation(path_text)
+    if relative_path == ".":
+        return "<repo-root>"
+    return f"<repo-root>/{relative_path}"
 
 
 def _load_knowledge_source_config() -> KnowledgeSourceConfig:

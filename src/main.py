@@ -19,7 +19,7 @@ from util.tgbt_call_log import (
     reset_related_log_paths,
     write_tgbt_call_log,
 )
-from util.tgbt_repo_lock import TGBTRepoLock, TGBTRepoLockUnavailable
+from util.tgbt_repo_lock import TGBTRepoLock
 
 _TGBT_ROOT_CALL_ID_ENV = "TGBT_ROOT_CALL_ID"
 
@@ -60,7 +60,7 @@ def knowledge_search(
 
 @_eval_app.command("oracle")
 def eval_oracle() -> None:
-    """oracle の矛盾・簡略化余地・文章構造最適化余地を評価する。"""
+    """oracle の矛盾・誤記・権限境界などの問題点を評価する。"""
     # 実装を呼び出し
     tgbt_eval_oracle_impl()
 
@@ -81,7 +81,7 @@ def plan(
         typer.Option(
             "--plan-id",
             help=(
-                "Existing plan identifier to revise into a new plan. "
+                "Existing plan identifier to revise in place. "
                 "Use 'latest' for the newest plan."
             ),
         ),
@@ -90,7 +90,7 @@ def plan(
     """
     作業計画書を作成する。
     plan_id 未指定の場合は新規に計画書を作成する。
-    plan_id を指定された場合は既存計画書から修正版計画書を新規作成する。
+    plan_id を指定された場合は既存計画書を加筆・修正する。
     """
     # 実装を呼び出し
     tgbt_plan_impl(
@@ -150,9 +150,7 @@ def main() -> None:
                 app_was_entered = True
                 _run_app_with_tgbt_call_log()
         except BaseException as error:
-            if not app_was_entered and not isinstance(
-                error, TGBTRepoLockUnavailable
-            ):
+            if not app_was_entered:
                 _write_startup_failure_tgbt_call_log(error)
             raise
         finally:

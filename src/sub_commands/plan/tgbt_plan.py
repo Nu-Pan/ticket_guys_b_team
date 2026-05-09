@@ -25,13 +25,14 @@ from schemas.plan import (
     render_plan_markdown,
 )
 from state.knowledge_system import KnowledgeSystem
-from state.path import TGBT_PATH
+from state.path import TGBT_PATH, repo_notation_path
 from util.error import tgbt_error
 from util.tgbt_call_log import record_related_log_path
 from util.text import stdtqs
 from util.editor_input import read_from_editor
 
 _HTML_COMMENT_PATTERN = re.compile(r"<!--.*?-->", re.DOTALL)
+_UNSUPPORTED_HEADING_PATTERN = re.compile(r"#{2,6}(?:\s|$)")
 _PLAN_GENERATION_MAX_ATTEMPTS = 3
 _PLAN_REVIEW_MAX_ATTEMPTS = 3
 
@@ -91,7 +92,7 @@ def tgbt_plan_impl(
     if plan_id is None:
         result = _create_plan(instruction)
     else:
-        result = _udate_plan(instruction, plan_id)
+        result = _update_plan(instruction, plan_id)
 
     # tgbt plan の結果として、人間閲覧用 Markdown と保存先レポートを標準出力へ表示する。
     typer.echo(_render_plan_command_report(result))
@@ -112,8 +113,8 @@ def _render_plan_command_report(result: _PlanCommandResult) -> str:
         "",
         f"- status: `{status}`",
         f"- plan_id: `{result.plan_id}`",
-        f"- plan_json_path: `{_repo_relative_path(plan_json_path)}`",
-        f"- plan_markdown_path: `{_repo_relative_path(plan_markdown_path)}`",
+        f"- plan_json_path: `{repo_notation_path(plan_json_path)}`",
+        f"- plan_markdown_path: `{repo_notation_path(plan_markdown_path)}`",
     ]
 
     # 不合格終了時だけ、最後に観測した未解決指摘を人間向けレポートへ含める。
@@ -134,14 +135,6 @@ def _render_plan_command_report(result: _PlanCommandResult) -> str:
         )
 
     return "\n".join(lines)
-
-
-def _repo_relative_path(path: Path) -> str:
-    """
-    repo root からの相対 path を POSIX 表記で返す。
-    """
-    # CLI 出力では環境依存の絶対 path ではなく、仕様通り repo 相対 path を出す。
-    return path.relative_to(TGBT_PATH.repo_root).as_posix()
 
 
 def _render_review_findings(review: PlanReview | None) -> str:
@@ -195,7 +188,7 @@ def _extract_instruction_body(instruction: str) -> str:
 
 def _adjust_instruction_heading_levels(instruction: str) -> str:
     """
-    人間指示内のトップレベル見出しを prompt 本文用の深さへ調整する。
+    人間指示内で許可された見出しを prompt 本文用の深さへ調整する。
     """
     lines: list[str] = []
     in_fenced_code = False
@@ -204,9 +197,18 @@ def _adjust_instruction_heading_levels(instruction: str) -> str:
         if stripped_line.startswith("```"):
             in_fenced_code = not in_fenced_code
 
-        if not in_fenced_code and line.startswith("# "):
-            lines.append(f"### {line[2:]}")
-            continue
+        if not in_fenced_code:
+            # 人間指示ファイルで使える見出しは `#` だけに限定する。
+            if stripped_line.startswith("# "):
+                lines.append(f"### {stripped_line[2:]}")
+                continue
+            if _UNSUPPORTED_HEADING_PATTERN.match(stripped_line):
+                raise tgbt_error(
+                    "人間指示に利用できない見出しレベルが含まれています",
+                    "人間指示で見出しを使う場合は `#` だけを使ってください。",
+                    actual={"line": line},
+                    expect={"heading": "# <text>"},
+                )
 
         lines.append(line)
 
@@ -322,7 +324,7 @@ def _create_plan(instruction: str) -> _PlanCommandResult:
     )
 
 
-def _udate_plan(
+def _update_plan(
     instruction: str,
     plan_id: str,
 ) -> _PlanCommandResult:
@@ -506,6 +508,12 @@ def _resolve_plan_id(plan_id: str) -> str:
         return plan_id
 
     # plan id は固定幅日時なので、文字列順で最も大きいものを最新として扱う。
+    if not TGBT_PATH.tgbt_plan.exists():
+        raise tgbt_error(
+            "latest に対応する plan が見つかりません",
+            "既存 plan を作成してから再実行してください",
+            actual={"plan_dir_path": TGBT_PATH.tgbt_plan},
+        )
     plan_paths = sorted(TGBT_PATH.tgbt_plan.glob("*.json"))
     if len(plan_paths) == 0:
         raise tgbt_error(
