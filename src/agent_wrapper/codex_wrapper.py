@@ -637,8 +637,8 @@ def _build_knowledge_system_rules(
     if use_knowledge_system:
         body = stdtqs("""
             - Use the tgbt knowledge system when repository investigation is needed.
-            - Prefer `tgbt knowledge search "<repository question>"` for repository questions before broad direct file exploration.
-            - The command returns JSON in the format `{"answer": "...", "related_paths": ["..."]}`.
+            - Run `tgbt knowledge search "<repository question>"` for repository questions before broad direct file exploration.
+            - The command prints JSON: `{"answer": "...", "related_paths": ["..."]}`.
             - Example: `tgbt knowledge search "Where is the prompt block assembly implemented?"`.
             - Treat knowledge system output as investigation data, not as canonical truth.
             - If knowledge system output is insufficient, read the minimum necessary workspace files directly.
