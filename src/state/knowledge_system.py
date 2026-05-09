@@ -31,7 +31,7 @@ from schemas.knowledge import (
     KnowledgeSourceConfig,
     KnowledgeSourceFileSelectionResponse,
 )
-from schemas.markdown import MarkdownPromptBlock
+from schemas.markdown import MarkdownPromptBlock, render_fenced_text
 from state.path import (
     TGBT_PATH,
     repo_glob_pattern_from_notation,
@@ -315,7 +315,7 @@ class KnowledgeSystem:
                     ),
                     MarkdownPromptBlock(
                         title="Validation failure",
-                        body=validation_message,
+                        body=render_fenced_text(validation_message),
                     ),
                     MarkdownPromptBlock(
                         title="Original knowledge file path",
@@ -395,7 +395,10 @@ class KnowledgeSystem:
                     """),
                 operational_parameters=f"- max selected ids: {_SEARCH_TOP_N}",
                 input_blocks=[
-                    MarkdownPromptBlock(title="Question", body=question),
+                    MarkdownPromptBlock(
+                        title="Question",
+                        body=render_fenced_text(question),
+                    ),
                     MarkdownPromptBlock(
                         title="Knowledge summaries",
                         body=self._render_knowledge_summaries_for_prompt(
@@ -442,7 +445,10 @@ class KnowledgeSystem:
                     - Judge relevance using only the listed candidate knowledge files.
                     """),
                 input_blocks=[
-                    MarkdownPromptBlock(title="Question", body=question),
+                    MarkdownPromptBlock(
+                        title="Question",
+                        body=render_fenced_text(question),
+                    ),
                     MarkdownPromptBlock(
                         title="Candidate knowledge files",
                         body=self._render_knowledge_files_for_prompt(candidates),
@@ -502,10 +508,13 @@ class KnowledgeSystem:
                     - Include every selected source file used as evidence in metadata references.
                     """),
                 input_blocks=[
-                    MarkdownPromptBlock(title="Question", body=question),
+                    MarkdownPromptBlock(
+                        title="Question",
+                        body=render_fenced_text(question),
+                    ),
                     MarkdownPromptBlock(
                         title="Missing information",
-                        body=missing_information,
+                        body=render_fenced_text(missing_information),
                     ),
                     MarkdownPromptBlock(
                         title="Existing relevant knowledge",
@@ -552,7 +561,10 @@ class KnowledgeSystem:
                     - Answer using only the listed relevant knowledge files.
                     """),
                 input_blocks=[
-                    MarkdownPromptBlock(title="Question", body=question),
+                    MarkdownPromptBlock(
+                        title="Question",
+                        body=render_fenced_text(question),
+                    ),
                     MarkdownPromptBlock(
                         title="Relevant knowledge files",
                         body=self._render_knowledge_files_for_prompt(relevant_files),
@@ -588,10 +600,13 @@ class KnowledgeSystem:
                     """),
                 operational_parameters=f"- max selected paths: {_RESEARCH_FILE_LIMIT}",
                 input_blocks=[
-                    MarkdownPromptBlock(title="Question", body=question),
+                    MarkdownPromptBlock(
+                        title="Question",
+                        body=render_fenced_text(question),
+                    ),
                     MarkdownPromptBlock(
                         title="Missing information",
-                        body=missing_information,
+                        body=render_fenced_text(missing_information),
                     ),
                     MarkdownPromptBlock(
                         title="Knowledge source file index",

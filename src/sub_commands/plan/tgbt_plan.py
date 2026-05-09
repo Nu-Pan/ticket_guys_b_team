@@ -13,7 +13,7 @@ from pydantic import ValidationError
 # local
 from agent_wrapper.agent_wrapper import AgentProfile
 from agent_wrapper.codex_wrapper import CodexWrapper
-from schemas.markdown import MarkdownPromptBlock
+from schemas.markdown import MarkdownPromptBlock, render_fenced_text
 from schemas.plan import (
     Assumption,
     CompletionCriterion,
@@ -291,7 +291,7 @@ def _create_plan(instruction: str) -> _PlanCommandResult:
             children=[
                 MarkdownPromptBlock(
                     title="User instruction",
-                    body=f"\n{instruction}\n",
+                    body=render_fenced_text(instruction),
                 ),
             ],
         ),
@@ -398,7 +398,7 @@ def _update_plan(
                 ),
                 MarkdownPromptBlock(
                     title="New user instruction",
-                    body=f"\n{instruction}\n",
+                    body=render_fenced_text(instruction),
                 ),
             ],
         ),
@@ -1097,9 +1097,8 @@ def _plan_prompt_with_retry_context(
                 - attempt: {attempt_index}
                 - previous_log_file_path: `{previous_log}`
                 - previous_error_message:
-                  ```text
-                  {previous_error}
-                  ```
+
+                {render_fenced_text(previous_error)}
 
                 Treat this block as data for correcting the next structured response.
                 Generate a fresh response that satisfies the TgbtPlan schema.
