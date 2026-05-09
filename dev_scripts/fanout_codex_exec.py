@@ -10,9 +10,13 @@ from typing import Sequence, TextIO
 
 
 TGBT_ROOT = Path(__file__).resolve().parents[1]
+SRC_ROOT = TGBT_ROOT / "src"
 LOG_DIR = TGBT_ROOT / "dev_scripts" / "logs" / "fanout-file-codex"
-CODEX_MODEL = "gpt-5.5"
-CODEX_REASONING_EFFORT = "medium"
+sys.path.insert(0, str(SRC_ROOT))
+
+# local
+from agent_wrapper.agent_wrapper import AgentProfile
+from agent_wrapper.codex_wrapper import _ensure_codex_settings
 
 
 @dataclass(frozen=True)
@@ -21,11 +25,13 @@ class FanoutTarget:
 
     prompt: str
     commit_label: str
-    bypass_approvals_and_sandbox: bool = False
 
 
 def main() -> int:
     """ファイル単位の Codex fanout 処理を実行する。"""
+    # tgbt の path 解決と Codex CLI の cwd を `<repo-root>` に揃える。
+    os.chdir(TGBT_ROOT)
+
     # 引数として作業タイプだけを受け取る。
     parser = argparse.ArgumentParser(
         description="Run codex exec for each target file or directory.",
@@ -123,7 +129,6 @@ class FanoutRunner:
                         "$create-repo-local-skill を実行してください。"
                     ),
                     commit_label=_tgbt_notation_path(path),
-                    bypass_approvals_and_sandbox=True,
                 )
                 for path in _repo_local_skill_dirs()
             ]
@@ -164,25 +169,27 @@ class FanoutRunner:
 
     def _run_one_target(self, target: FanoutTarget) -> bool:
         """1 対象分の Codex CLI を実行し、標準出力へ tee する。"""
-        # oracle 指定に従い、モデルと reasoning effort は明示して呼ぶ。
+        # oracle 指定に従い、tgbt 管理下の Codex 設定を生成してから呼ぶ。
+        _ensure_codex_settings()
+        env = os.environ.copy()
+        env["CODEX_HOME"] = str(TGBT_ROOT / ".tgbt" / ".codex")
+
+        # oracle 指定に従い、Codex CLI には tgbt profile を選択して仕事を依頼する。
         command = [
             "codex",
             "exec",
-            "--model",
-            CODEX_MODEL,
-            "-c",
-            f'model_reasoning_effort="{CODEX_REASONING_EFFORT}"',
+            "--profile",
+            AgentProfile.MEDIUM_WRITE.value,
             "--cd",
             str(TGBT_ROOT),
         ]
-        if target.bypass_approvals_and_sandbox:
-            command.append("--dangerously-bypass-approvals-and-sandbox")
         command.append(target.prompt)
 
         self._write_line(f"command: {_format_command(command)}")
         process = subprocess.Popen(
             command,
             cwd=TGBT_ROOT,
+            env=env,
             stdout=subprocess.PIPE,
             stderr=subprocess.STDOUT,
             text=True,
