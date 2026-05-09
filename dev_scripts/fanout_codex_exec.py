@@ -120,7 +120,8 @@ class FanoutRunner:
                 FanoutTarget(
                     prompt=(
                         f"`{_tgbt_notation_path(path)}` だけを対象にスキル "
-                        "$create-repo-local-skill を実行してください。"
+                        "$create-repo-local-skill と $skill-creator を"
+                        "併用して実行してください。"
                     ),
                     commit_label=_tgbt_notation_path(path),
                 )
