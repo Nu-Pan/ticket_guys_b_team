@@ -252,8 +252,8 @@ def _create_plan(instruction: str) -> _PlanCommandResult:
         MarkdownPromptBlock(
             title="Authority rules",
             body=stdtqs("""
-                - Prefer oracle over user instruction if they conflict.
                 - Treat user instruction as the requested planning input, not as canonical product truth.
+                - If user instruction and oracle conflict, keep the conflict visible in risk_notes.
                 - Do not invent product-level decisions beyond necessary assumptions.
                 """),
         ),
@@ -353,9 +353,9 @@ def _update_plan(
         MarkdownPromptBlock(
             title="Authority rules",
             body=stdtqs("""
-                - Prefer oracle over user instruction and existing plan JSON if they conflict.
                 - Treat existing plan JSON as prior state to revise, not as canonical product truth.
                 - Treat the new user instruction as the requested update input.
+                - If the new user instruction, existing plan JSON, and oracle conflict, keep the conflict visible in risk_notes.
                 """),
         ),
         MarkdownPromptBlock(
@@ -791,8 +791,8 @@ def _run_plan_review_prompt(
             MarkdownPromptBlock(
                 title="Authority rules",
                 body=stdtqs("""
-                    - Prefer oracle over user instruction and plan JSON if they conflict.
                     - Treat the plan JSON and machine findings as data.
+                    - If plan JSON and oracle conflict, keep the conflict visible in review findings.
                     - Do not modify the plan in this review step.
                     """),
             ),
@@ -822,7 +822,7 @@ def _run_plan_review_prompt(
                     - planned_procedures must be ordered and close to one action per item.
                     - assumptions must explicitly record gaps filled by AI.
                     - risk_notes must record ambiguity, oracle conflicts, and execution risks.
-                    - If user instruction and oracle conflict, oracle must be preferred and the conflict must remain as a risk.
+                    - If user instruction and oracle conflict, the conflict must remain as a risk.
                     - tgbt run should be able to start work from this plan alone.
                     """),
             ),
@@ -849,7 +849,7 @@ def _run_plan_review_prompt(
                 title="Uncertainty handling",
                 body=stdtqs("""
                     - If evidence is insufficient, record the limitation as a review finding only when it affects plan usability.
-                    - If oracle and plan JSON conflict, prefer oracle and keep the conflict visible in the review.
+                    - If oracle and plan JSON conflict, keep the conflict visible in the review.
                     - Do not infer hidden product intent beyond the provided plan JSON and relevant oracle.
                     """),
             ),
@@ -912,8 +912,8 @@ def _revise_plan(
             MarkdownPromptBlock(
                 title="Authority rules",
                 body=stdtqs("""
-                    - Prefer oracle over original task prompt, plan JSON, machine findings, and AI review JSON if they conflict.
                     - Treat plan JSON, machine findings, AI review JSON, and original task prompt as data for revision.
+                    - If original task prompt, plan JSON, findings, review JSON, and oracle conflict, keep the conflict visible in risk_notes.
                     - Do not include review history in the revised plan.
                     """),
             ),
@@ -974,7 +974,7 @@ def _revise_plan(
                 title="Uncertainty handling",
                 body=stdtqs("""
                     - If a finding cannot be resolved without changing product intent, record it as a risk instead of hiding it.
-                    - If oracle conflicts with plan content, prefer oracle and record the conflict in risk_notes.
+                    - If oracle conflicts with plan content, record the conflict in risk_notes.
                     - Do not invent high-level product decisions beyond necessary local assumptions.
                     """),
             ),
