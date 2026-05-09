@@ -4,7 +4,7 @@
 
 # `create_repo_local_skill.md`
 
-- リポジトリローカルなスキルの新規作成・メンテナンスを行うスキルの利用条件とメンテナンス観点を記述
+- リポジトリローカルなスキルの新規作成・メンテナンスを行うスキルの利用条件、併用する system skill、メンテナンス観点を記述
 
 # `eval_oracle_skill.md`
 
@@ -16,4 +16,4 @@
 
 # `update_oracle_docs_routing.md`
 
-- `oracle/docs` 配下の `ROUTING.md` を正規化・レビューするスキルの対象、参照先、ワークフロー、レビュー観点を記述
+- `oracle/docs` 配下の `ROUTING.md` を正規化・レビューするスキルの対象、参照先、対象指定、ワークフロー、レビュー観点を記述
