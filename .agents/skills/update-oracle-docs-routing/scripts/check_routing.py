@@ -10,6 +10,8 @@ ROUTING_ENTRY_RE = re.compile(r"^# `([^`]+)`\s*$")
 
 
 def find_repo_root() -> Path:
+    """この script の位置から `<tgbt-root>` を探索する。"""
+
     current = Path(__file__).resolve()
     for candidate in (current, *current.parents):
         if (candidate / "AGENTS.md").is_file() and (candidate / "oracle").is_dir():
@@ -18,6 +20,8 @@ def find_repo_root() -> Path:
 
 
 def routing_dirs(routing_root: Path) -> list[Path]:
+    """`ROUTING.md` の存在を確認する対象ディレクトリを列挙する。"""
+
     return sorted(
         [routing_root, *(path for path in routing_root.rglob("*") if path.is_dir())],
         key=lambda path: path.relative_to(routing_root).as_posix(),
@@ -25,6 +29,8 @@ def routing_dirs(routing_root: Path) -> list[Path]:
 
 
 def routing_entries(routing_path: Path) -> set[str]:
+    """`ROUTING.md` の見出しから routing entry 名を抽出する。"""
+
     entries: set[str] = set()
     for line in routing_path.read_text(encoding="utf-8").splitlines():
         match = ROUTING_ENTRY_RE.match(line)
@@ -34,6 +40,8 @@ def routing_entries(routing_path: Path) -> set[str]:
 
 
 def actual_routing_targets(directory: Path) -> set[str]:
+    """ファイルシステム上の routing 対象を取得する。"""
+
     markdown_files = {
         path.name
         for path in directory.glob("*.md")
@@ -44,6 +52,8 @@ def actual_routing_targets(directory: Path) -> set[str]:
 
 
 def main() -> int:
+    """`oracle/docs` 配下の routing entry と実体の差分を検査する。"""
+
     repo_root = find_repo_root()
     routing_root = repo_root / "oracle" / "docs"
     if not routing_root.is_dir():
@@ -51,6 +61,7 @@ def main() -> int:
 
     issues: list[str] = []
 
+    # 各階層の目次と、同階層に存在する routing 対象を機械的に突き合わせる。
     for directory in routing_dirs(routing_root):
         routing_path = directory / ROUTING_FILE
         rel_dir = directory.relative_to(repo_root).as_posix()
