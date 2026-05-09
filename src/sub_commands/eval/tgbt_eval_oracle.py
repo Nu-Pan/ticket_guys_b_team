@@ -80,12 +80,6 @@ def tgbt_eval_oracle_impl() -> None:
                     """),
             ),
             MarkdownPromptBlock(
-                title="Operational parameters",
-                body=stdtqs("""
-                    - schema_version: "1".
-                    """),
-            ),
-            MarkdownPromptBlock(
                 title="Inputs",
                 children=[
                     MarkdownPromptBlock(

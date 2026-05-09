@@ -297,12 +297,6 @@ def _create_plan(instruction: str, plan_id: str) -> _PlanCommandResult:
                 """),
         ),
         MarkdownPromptBlock(
-            title="Operational parameters",
-            body=stdtqs("""
-                - schema_version: "1".
-                """),
-        ),
-        MarkdownPromptBlock(
             title="Inputs",
             children=[
                 MarkdownPromptBlock(
@@ -396,12 +390,6 @@ def _update_plan(
                 - Preserve existing item ids when updating existing items.
                 - Create new ids only for newly added items.
                 - Make assumptions explicit instead of hiding them in procedure text.
-                """),
-        ),
-        MarkdownPromptBlock(
-            title="Operational parameters",
-            body=stdtqs("""
-                - schema_version: "1".
                 """),
         ),
         MarkdownPromptBlock(
@@ -841,12 +829,6 @@ def _run_plan_review_prompt(
                     """),
             ),
             MarkdownPromptBlock(
-                title="Operational parameters",
-                body=stdtqs("""
-                    - schema_version: "1".
-                    """),
-            ),
-            MarkdownPromptBlock(
                 title="Inputs",
                 children=[
                     MarkdownPromptBlock(
@@ -955,12 +937,6 @@ def _revise_plan(
                     - Resolve all major review findings.
                     - Keep useful content that does not conflict with the findings.
                     - Do not include review history in the revised plan.
-                    """),
-            ),
-            MarkdownPromptBlock(
-                title="Operational parameters",
-                body=stdtqs("""
-                    - schema_version: "1".
                     """),
             ),
             MarkdownPromptBlock(
