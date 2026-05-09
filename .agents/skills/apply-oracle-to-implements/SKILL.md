@@ -13,10 +13,11 @@ description: Reflect tgbt oracle changes or specified oracle documents into tgbt
 
 - `<tgbt-root>/oracle/**` は閲覧のみ許可され、編集してはいけない。
 - `<tgbt-root>/README.md`、`<tgbt-root>/AGENTS.md`、`<tgbt-root>/memo/**` は編集してはいけない。`memo/**` は閲覧も禁止。
+- `<tgbt-root>/docs` のような AI 管理ドキュメントを作成してはいけない。
 - `<tgbt-root>` と `<repo-root>` のパス表記を混同してはいけない。判断に関わる場合は `<tgbt-root>/oracle/docs/dev_rule/path_notation_rule.md` を読む。
 - oracle に未記載の仕様は、既存実装と局所文脈から必要最小限だけ判断する。
 - high-level な仕様判断、public interface 変更、依存追加、永続データ形式変更、大規模リファクタが必要なら、人間確認事項として切り出す。
-- テストは追加・更新しない。確認は変更対象に近い `pyright`、import 確認、必要最小限の smoke 確認を優先する。
+- テスト追加を前提にしない。必要な場合だけ `<tgbt-root>/oracle/docs/dev_rule/test_policy.md` に従い、確認は変更対象に近い `pyright`、import 確認、必要最小限の smoke 確認を優先する。
 - 作業中に追加修正してよいのは、発見した致命的な実装問題、または根本問題の解決に必要な連鎖的問題に限る。
 
 ## Oracle Scope
@@ -50,7 +51,8 @@ description: Reflect tgbt oracle changes or specified oracle documents into tgbt
 - 変更対象と読み取り対象が必要最小限か。
 - `<tgbt-root>` と `<repo-root>` を取り違えた対象設定になっていないか。
 - 編集・閲覧制約に反する作業を含んでいないか。
-- テスト追加・更新を含まず、確認方法が変更対象に近い最小限のものになっているか。
+- テスト追加を前提にせず、必要な場合だけ `<tgbt-root>/oracle/docs/dev_rule/test_policy.md` に沿っているか。
+- 確認方法が変更対象に近い最小限のものになっているか。
 - 不確実性、未確認事項、連鎖的に発生しうる問題を明示しているか。
 
 ### 3. Implement narrowly
