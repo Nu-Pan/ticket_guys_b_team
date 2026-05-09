@@ -636,15 +636,14 @@ def _build_knowledge_system_rules(
         body = stdtqs("""
             - Use the tgbt knowledge system when repository investigation is needed.
             - Prefer `tgbt knowledge search "<repository question>"` for repository questions before broad direct file exploration.
-            - The command returns JSON with `answer` and `related_paths`; treat both fields as investigation data.
+            - The command returns JSON in the format `{"answer": "...", "related_paths": ["..."]}`.
+            - Example: `tgbt knowledge search "Where is the prompt block assembly implemented?"`.
             - Treat knowledge system output as investigation data, not as canonical truth.
             - If knowledge system output is insufficient, read the minimum necessary workspace files directly.
             """)
     else:
         body = stdtqs("""
             - Do not use the tgbt knowledge system in this Codex CLI call.
-            - Perform any necessary investigation directly within the workspace and task constraints.
-            - This restriction prevents recursive knowledge-system calls when tgbt itself is using Codex CLI.
             """)
 
     return MarkdownPromptBlock(
