@@ -6,6 +6,7 @@ from util.error import tgbt_error
 
 _TGBT_GITIGNORE_BODY = ".codex/\n"
 _REPO_ROOT_NOTATION = "<repo-root>"
+_TGBT_ROOT_NOTATION = "<tgbt-root>"
 
 
 class TGBTPath:
@@ -41,6 +42,12 @@ class TGBTPath:
                     """,
                     actual={"current": current},
                 )
+
+    @property
+    def tgbt_root(self) -> Path:
+        """`<tgbt-root>`"""
+        # src/state/path.py から tgbt source tree の root を返す。
+        return Path(__file__).resolve().parents[2]
 
     @property
     def tgbt(self) -> Path:
@@ -170,6 +177,20 @@ def repo_notation_path(path: Path) -> str:
     return f"{_REPO_ROOT_NOTATION}/{relative_path}"
 
 
+def path_from_notation(path_text: str) -> Path | None:
+    """`<repo-root>` と `<tgbt-root>` notation を実 path へ展開する."""
+    # 完全一致または path prefix として現れる notation だけを展開対象にする。
+    if path_text == _REPO_ROOT_NOTATION:
+        return TGBT_PATH.repo_root
+    if path_text.startswith(f"{_REPO_ROOT_NOTATION}/"):
+        return TGBT_PATH.repo_root / path_text.removeprefix(f"{_REPO_ROOT_NOTATION}/")
+    if path_text == _TGBT_ROOT_NOTATION:
+        return TGBT_PATH.tgbt_root
+    if path_text.startswith(f"{_TGBT_ROOT_NOTATION}/"):
+        return TGBT_PATH.tgbt_root / path_text.removeprefix(f"{_TGBT_ROOT_NOTATION}/")
+    return None
+
+
 def repo_relative_path_from_notation(path_text: str) -> str:
     """`<repo-root>/...` 表記を内部保存用 repo 相対 path へ戻す."""
     # 既存 state は repo 相対 path を保存しているため、境界で notation だけを剥がす。
@@ -179,3 +200,20 @@ def repo_relative_path_from_notation(path_text: str) -> str:
     if path_text.startswith(prefix):
         return path_text.removeprefix(prefix)
     return path_text
+
+
+def repo_glob_pattern_from_notation(pattern: str) -> str:
+    """notation 付き glob pattern を repo 相対 glob pattern へ正規化する."""
+    # repo 内へ展開できる notation pattern だけを repo 相対表記へ寄せる。
+    expanded_path = path_from_notation(pattern)
+    if expanded_path is None:
+        return pattern
+
+    try:
+        relative_path = expanded_path.relative_to(TGBT_PATH.repo_root).as_posix()
+    except ValueError:
+        return pattern
+
+    if relative_path == ".":
+        return ""
+    return relative_path

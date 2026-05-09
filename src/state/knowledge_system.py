@@ -31,9 +31,10 @@ from schemas.knowledge import (
     KnowledgeSourceConfig,
     KnowledgeSourceFileSelectionResponse,
 )
-from schemas.markdown import MarkdownPromptBlock
+from schemas.markdown import MarkdownPromptBlock, render_fenced_text
 from state.path import (
     TGBT_PATH,
+    repo_glob_pattern_from_notation,
     repo_notation_path,
     repo_relative_path_from_notation,
 )
@@ -43,6 +44,7 @@ from util.text import stdtqs
 _INDEX_JSON_INDENT = 2
 _FRONT_MATTER_DELIMITER = "---"
 _HASH_ALGORITHM = "sha256"
+_MAX_KNOWLEDGE_IMPROVEMENT_ATTEMPTS = 3
 _MAX_KNOWLEDGE_REPAIR_ATTEMPTS = 3
 _MAX_SEARCH_RESEARCH_ATTEMPTS = 5
 _SEARCH_TOP_N = 5
@@ -112,16 +114,29 @@ class KnowledgeSystem:
 
     def improve_knowledge_files(self) -> None:
         """知識ファイル群を正常化した上で、重複削除や短縮を行う."""
-        # 改善前に、既存知識ファイルを機械検査に通る状態へ揃える。
-        self._normalize_knowledge_files()
-        knowledge_files = self._load_all_valid_knowledge_files()
-        if len(knowledge_files) == 0:
-            return
+        # 正規化と品質改善を、改善結果が安定するか上限に達するまで反復する。
+        for _ in range(_MAX_KNOWLEDGE_IMPROVEMENT_ATTEMPTS):
+            self._normalize_knowledge_files()
+            knowledge_files = self._load_all_valid_knowledge_files()
+            if len(knowledge_files) == 0:
+                return
 
-        # 品質改善は全件置換として扱い、AI の出力後に再度機械検査を通す。
-        improved = self._improve_knowledge_files(knowledge_files)
-        self._replace_knowledge_files(improved)
-        self._normalize_knowledge_files()
+            before_snapshot = {
+                knowledge.knowledge_id: knowledge.model_dump(mode="json")
+                for knowledge in knowledge_files
+            }
+
+            # 品質改善は全件置換として扱い、AI の出力後に再度機械検査を通す。
+            improved = self._improve_knowledge_files(knowledge_files)
+            self._replace_knowledge_files(improved)
+            self._normalize_knowledge_files()
+
+            after_snapshot = {
+                knowledge.knowledge_id: knowledge.model_dump(mode="json")
+                for knowledge in self._load_all_valid_knowledge_files()
+            }
+            if after_snapshot == before_snapshot:
+                return
 
     def search(self, question: str) -> KnowledgeSearchResult:
         """repo についての質問に対して、知識ファイルと知識ソースファイルから回答する."""
@@ -300,7 +315,7 @@ class KnowledgeSystem:
                     ),
                     MarkdownPromptBlock(
                         title="Validation failure",
-                        body=validation_message,
+                        body=render_fenced_text(validation_message),
                     ),
                     MarkdownPromptBlock(
                         title="Original knowledge file path",
@@ -378,9 +393,11 @@ class KnowledgeSystem:
                     - Choose only knowledge files likely to help answer the question.
                     - Use only ids from the provided knowledge summaries.
                     """),
-                operational_parameters=f"- max selected ids: {_SEARCH_TOP_N}",
                 input_blocks=[
-                    MarkdownPromptBlock(title="Question", body=question),
+                    MarkdownPromptBlock(
+                        title="Question",
+                        body=render_fenced_text(question),
+                    ),
                     MarkdownPromptBlock(
                         title="Knowledge summaries",
                         body=self._render_knowledge_summaries_for_prompt(
@@ -392,6 +409,7 @@ class KnowledgeSystem:
                 self_check="Confirm every selected id exists in the provided summaries.",
             ),
             output_schema=KnowledgeCandidateSelectionResponse,
+            caller_schema_prompt=f"- max selected ids: {_SEARCH_TOP_N}",
         )
         selected_ids = set(result.knowledge_ids[:_SEARCH_TOP_N])
         return [
@@ -427,7 +445,10 @@ class KnowledgeSystem:
                     - Judge relevance using only the listed candidate knowledge files.
                     """),
                 input_blocks=[
-                    MarkdownPromptBlock(title="Question", body=question),
+                    MarkdownPromptBlock(
+                        title="Question",
+                        body=render_fenced_text(question),
+                    ),
                     MarkdownPromptBlock(
                         title="Candidate knowledge files",
                         body=self._render_knowledge_files_for_prompt(candidates),
@@ -487,10 +508,13 @@ class KnowledgeSystem:
                     - Include every selected source file used as evidence in metadata references.
                     """),
                 input_blocks=[
-                    MarkdownPromptBlock(title="Question", body=question),
+                    MarkdownPromptBlock(
+                        title="Question",
+                        body=render_fenced_text(question),
+                    ),
                     MarkdownPromptBlock(
                         title="Missing information",
-                        body=missing_information,
+                        body=render_fenced_text(missing_information),
                     ),
                     MarkdownPromptBlock(
                         title="Existing relevant knowledge",
@@ -537,7 +561,10 @@ class KnowledgeSystem:
                     - Answer using only the listed relevant knowledge files.
                     """),
                 input_blocks=[
-                    MarkdownPromptBlock(title="Question", body=question),
+                    MarkdownPromptBlock(
+                        title="Question",
+                        body=render_fenced_text(question),
+                    ),
                     MarkdownPromptBlock(
                         title="Relevant knowledge files",
                         body=self._render_knowledge_files_for_prompt(relevant_files),
@@ -571,12 +598,14 @@ class KnowledgeSystem:
                     - Select files that are likely to resolve the missing information.
                     - Use only paths from the provided index.
                     """),
-                operational_parameters=f"- max selected paths: {_RESEARCH_FILE_LIMIT}",
                 input_blocks=[
-                    MarkdownPromptBlock(title="Question", body=question),
+                    MarkdownPromptBlock(
+                        title="Question",
+                        body=render_fenced_text(question),
+                    ),
                     MarkdownPromptBlock(
                         title="Missing information",
-                        body=missing_information,
+                        body=render_fenced_text(missing_information),
                     ),
                     MarkdownPromptBlock(
                         title="Knowledge source file index",
@@ -587,6 +616,7 @@ class KnowledgeSystem:
                 self_check="Confirm every selected path exists in the provided index.",
             ),
             output_schema=KnowledgeSourceFileSelectionResponse,
+            caller_schema_prompt=f"- max selected paths: {_RESEARCH_FILE_LIMIT}",
         )
         available_paths = set(index.entries)
         selected_paths: list[str] = []
@@ -600,6 +630,7 @@ class KnowledgeSystem:
         self,
         instruction: list[MarkdownPromptBlock],
         output_schema: type[T],
+        caller_schema_prompt: str | None = None,
     ) -> T:
         """AgentWrapper を構造化応答つきで呼び出し、型を検査する."""
         # 知識システムの AI 呼び出しは medium read profile と構造化応答で統一する。
@@ -607,6 +638,7 @@ class KnowledgeSystem:
             agent_profile=AgentProfile.MEDIUM_READ,
             instruction=instruction,
             output_schema=output_schema,
+            caller_schema_prompt=caller_schema_prompt,
         )
         if not result.is_ok:
             raise tgbt_error(
@@ -1210,7 +1242,7 @@ def _matches_any_gitignore_pattern(
 def _matches_path_pattern(relative_path: str, pattern: str) -> bool:
     """repo 相対 path に対する glob 風 pattern 判定を行う."""
     # 空 pattern と否定 pattern は、この単体判定では一致なしとして扱う。
-    cleaned_pattern = pattern.strip()
+    cleaned_pattern = repo_glob_pattern_from_notation(pattern.strip())
     if cleaned_pattern == "" or cleaned_pattern.startswith("!"):
         return False
 

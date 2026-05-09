@@ -1,4 +1,3 @@
-#!/usr/bin/env python3
 # std
 import argparse
 import datetime
@@ -11,9 +10,13 @@ from typing import Sequence, TextIO
 
 
 TGBT_ROOT = Path(__file__).resolve().parents[1]
+SRC_ROOT = TGBT_ROOT / "src"
 LOG_DIR = TGBT_ROOT / "dev_scripts" / "logs" / "fanout-file-codex"
-CODEX_MODEL = "gpt-5.5"
-CODEX_REASONING_EFFORT = "medium"
+sys.path.insert(0, str(SRC_ROOT))
+
+# local
+from agent_wrapper.agent_wrapper import AgentProfile
+from agent_wrapper.codex_wrapper import _ensure_codex_settings
 
 
 @dataclass(frozen=True)
@@ -22,11 +25,13 @@ class FanoutTarget:
 
     prompt: str
     commit_label: str
-    bypass_approvals_and_sandbox: bool = False
 
 
 def main() -> int:
     """ファイル単位の Codex fanout 処理を実行する。"""
+    # tgbt の path 解決と Codex CLI の cwd を `<repo-root>` に揃える。
+    os.chdir(TGBT_ROOT)
+
     # 引数として作業タイプだけを受け取る。
     parser = argparse.ArgumentParser(
         description="Run codex exec for each target file or directory.",
@@ -60,21 +65,21 @@ class FanoutRunner:
         log_file: TextIO,
     ) -> None:
         """実行対象サブコマンドと集約ログを保持する。"""
+        # 実行中に必要な subcommand とログ出力先を runner に保持する。
         self.subcommand = subcommand
         self.log_path = log_path
         self.log_file = log_file
 
     def run(self) -> int:
         """サブコマンドに対応する fanout 処理全体を実行する。"""
-        # fanout 開始前に対象一覧と git 状態を確定する。
-        targets = self._build_targets()
+        # fanout 開始前に実行条件と起点ブランチを確定する。
         self._write_line(f"tgbt root: {TGBT_ROOT}")
         self._write_line(f"subcommand: {self.subcommand}")
-        self._write_line(f"target count: {len(targets)}")
 
         try:
             self._ensure_clean_worktree()
             branch_name = self._create_fanout_branch()
+            targets = self._build_targets()
         except FanoutError as error:
             self._write_line(f"ERROR: {error}")
             self._write_line(f"log file: {self.log_path}")
@@ -83,6 +88,7 @@ class FanoutRunner:
         # 個別 Codex 呼び出しは常に clean な git 状態から開始する。
         failures = 0
         self._write_line(f"fanout branch: {branch_name}")
+        self._write_line(f"target count: {len(targets)}")
         for index, target in enumerate(targets, start=1):
             self._write_line("")
             self._write_line(f"target {index}/{len(targets)}: {target.commit_label}")
@@ -102,14 +108,15 @@ class FanoutRunner:
 
     def _build_targets(self) -> list[FanoutTarget]:
         """サブコマンド名を具体的な Codex 呼び出し対象へ展開する。"""
+        # fanout 対象を、サブコマンドごとの最小処理単位へ分解する。
         if self.subcommand == "update-oracle-docs-routing":
             return [
                 FanoutTarget(
                     prompt=(
-                        f"`{path}` だけを対象にスキル "
+                        f"`{_tgbt_notation_path(path)}` だけを対象にスキル "
                         "$update-oracle-docs-routing を実行してください。"
                     ),
-                    commit_label=_relative_label(path),
+                    commit_label=_tgbt_notation_path(path),
                 )
                 for path in _oracle_docs_dirs()
             ]
@@ -118,11 +125,10 @@ class FanoutRunner:
             return [
                 FanoutTarget(
                     prompt=(
-                        f"`{path}` だけを対象にスキル "
+                        f"`{_tgbt_notation_path(path)}` だけを対象にスキル "
                         "$create-repo-local-skill を実行してください。"
                     ),
-                    commit_label=_relative_label(path),
-                    bypass_approvals_and_sandbox=True,
+                    commit_label=_tgbt_notation_path(path),
                 )
                 for path in _repo_local_skill_dirs()
             ]
@@ -131,10 +137,10 @@ class FanoutRunner:
             return [
                 FanoutTarget(
                     prompt=(
-                        f"`{path}` だけを対象にスキル "
+                        f"`{_tgbt_notation_path(path)}` だけを対象にスキル "
                         "$apply-oracle-to-implements を実行してください。"
                     ),
-                    commit_label=_relative_label(path),
+                    commit_label=_tgbt_notation_path(path),
                 )
                 for path in _oracle_docs_markdown_files()
             ]
@@ -147,12 +153,13 @@ class FanoutRunner:
                         FanoutTarget(
                             prompt=(
                                 "スキル $apply-oracle-to-implements を使用し、 "
-                                f"`{source_path}` が `{oracle_path}` の内容と"
+                                f"`{_tgbt_notation_path(source_path)}` が "
+                                f"`{_tgbt_notation_path(oracle_path)}` の内容と"
                                 "整合するかチェックし、必要があれば修正してください。"
                             ),
                             commit_label=(
-                                f"{_relative_label(source_path)} vs "
-                                f"{_relative_label(oracle_path)}"
+                                f"{_tgbt_notation_path(source_path)} vs "
+                                f"{_tgbt_notation_path(oracle_path)}"
                             ),
                         )
                     )
@@ -162,25 +169,27 @@ class FanoutRunner:
 
     def _run_one_target(self, target: FanoutTarget) -> bool:
         """1 対象分の Codex CLI を実行し、標準出力へ tee する。"""
-        # oracle 指定に従い、モデルと reasoning effort は明示して呼ぶ。
+        # oracle 指定に従い、tgbt 管理下の Codex 設定を生成してから呼ぶ。
+        _ensure_codex_settings()
+        env = os.environ.copy()
+        env["CODEX_HOME"] = str(TGBT_ROOT / ".tgbt" / ".codex")
+
+        # oracle 指定に従い、Codex CLI には tgbt profile を選択して仕事を依頼する。
         command = [
             "codex",
             "exec",
-            "--model",
-            CODEX_MODEL,
-            "-c",
-            f'model_reasoning_effort="{CODEX_REASONING_EFFORT}"',
+            "--profile",
+            AgentProfile.MEDIUM_WRITE.value,
             "--cd",
             str(TGBT_ROOT),
         ]
-        if target.bypass_approvals_and_sandbox:
-            command.append("--dangerously-bypass-approvals-and-sandbox")
         command.append(target.prompt)
 
         self._write_line(f"command: {_format_command(command)}")
         process = subprocess.Popen(
             command,
             cwd=TGBT_ROOT,
+            env=env,
             stdout=subprocess.PIPE,
             stderr=subprocess.STDOUT,
             text=True,
@@ -220,6 +229,7 @@ class FanoutRunner:
 
     def _ensure_clean_worktree(self) -> None:
         """fanout 開始時点の git 状態が clean であることを確認する。"""
+        # 未コミット変更がある状態では fanout の対象間分離を保証できない。
         status = _git_stdout(["status", "--porcelain"])
         if status:
             raise FanoutError(
@@ -249,10 +259,12 @@ class FanoutRunner:
 
     def _write_line(self, message: str) -> None:
         """標準出力とログへ 1 行を書き出す。"""
+        # 行単位の呼び出し元向けに改行を付けて共通 writer へ渡す。
         self._write(f"{message}\n")
 
     def _write(self, message: str) -> None:
         """標準出力とログへ同じ内容を書き出す。"""
+        # terminal と永続ログの両方へ同じ message を即時反映する。
         print(message, end="", flush=True)
         self.log_file.write(message)
         self.log_file.flush()
@@ -264,6 +276,7 @@ class FanoutError(Exception):
 
 def _oracle_docs_dirs() -> list[Path]:
     """oracle/docs 配下の全ディレクトリを絶対パスで返す。"""
+    # docs root 自体も ROUTING.md 更新対象なので、子ディレクトリと合わせて返す。
     docs_root = TGBT_ROOT / "oracle" / "docs"
     return sorted(
         [docs_root, *[path for path in docs_root.rglob("*") if path.is_dir()]],
@@ -272,6 +285,7 @@ def _oracle_docs_dirs() -> list[Path]:
 
 def _repo_local_skill_dirs() -> list[Path]:
     """repo-local skill 直下のディレクトリを絶対パスで返す。"""
+    # repo-local skill root がまだ無い場合は fanout 対象なしとして扱う。
     skills_root = TGBT_ROOT / ".agents" / "skills"
     if not skills_root.exists():
         return []
@@ -280,6 +294,7 @@ def _repo_local_skill_dirs() -> list[Path]:
 
 def _oracle_docs_markdown_files() -> list[Path]:
     """ROUTING.md を除いた oracle/docs 配下の Markdown を返す。"""
+    # 各階層の目次である ROUTING.md は oracle 適用対象から除外する。
     docs_root = TGBT_ROOT / "oracle" / "docs"
     return sorted(
         [
@@ -292,6 +307,7 @@ def _oracle_docs_markdown_files() -> list[Path]:
 
 def _tracked_src_python_files() -> list[Path]:
     """git が追跡する src 配下の Python ファイルを返す。"""
+    # git の追跡対象だけを使い、生成物や未追跡ファイルを fanout 対象から外す。
     output = _git_stdout(["ls-files", "-z", "--", "src"])
     relative_paths = [item for item in output.split("\0") if item.endswith(".py")]
     return [TGBT_ROOT / path for path in sorted(relative_paths)]
@@ -299,6 +315,7 @@ def _tracked_src_python_files() -> list[Path]:
 
 def _has_uncommitted_changes() -> bool:
     """git 上の未コミット変更が存在するかを返す。"""
+    # porcelain 出力の有無だけで fanout 中の commit 要否を判定する。
     return bool(_git_stdout(["status", "--porcelain"]))
 
 
@@ -307,6 +324,7 @@ def _run_git(
     check: bool = True,
 ) -> subprocess.CompletedProcess[str]:
     """tgbt root で git コマンドを実行する。"""
+    # subprocess 例外ではなく戻り値を見て、fanout 用のエラーへ変換する。
     completed = subprocess.run(
         ["git", *args],
         cwd=TGBT_ROOT,
@@ -324,27 +342,35 @@ def _run_git(
 
 def _git_stdout(args: Sequence[str]) -> str:
     """git コマンドの標準出力を末尾改行なしで返す。"""
+    # 呼び出し元が git 出力を値として扱いやすいよう末尾空白を落とす。
     return _run_git(args).stdout.strip()
 
 
 def _build_log_file_name(subcommand: str) -> str:
     """サブコマンド名を含むログファイル名を作る。"""
+    # 複数回実行しても衝突しにくいよう timestamp を先頭に置く。
     return f"{_timestamp_slug()}-{subcommand}.log"
 
 
 def _timestamp_slug() -> str:
     """ファイル名とブランチ名で使える UTC タイムスタンプを返す。"""
+    # ローカル timezone の影響を避けるため UTC 固定で slug を作る。
     now = datetime.datetime.now(datetime.UTC)
     return now.strftime("%Y%m%dT%H%M%S%fZ")
 
 
-def _relative_label(path: Path) -> str:
-    """コミットメッセージ向けに tgbt root 相対パスへ変換する。"""
-    return os.fspath(path.relative_to(TGBT_ROOT))
+def _tgbt_notation_path(path: Path) -> str:
+    """`<tgbt-root>/...` 表記へ変換する。"""
+    # oracle のパス表記ルールに従い、ticket_guys_b_team 配下の path として明示する。
+    relative_path = os.fspath(path.relative_to(TGBT_ROOT))
+    if relative_path == ".":
+        return "<tgbt-root>"
+    return f"<tgbt-root>/{relative_path}"
 
 
 def _format_command(command: Sequence[str]) -> str:
     """ログ用にコマンド引数を読みやすく連結する。"""
+    # fanout ログでは shell 実行用ではなく、人間が読む表示として連結する。
     return " ".join(command)
 
 

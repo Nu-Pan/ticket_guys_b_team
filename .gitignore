@@ -2,7 +2,6 @@
 .pytest_cache/
 *.egg-info/
 __pycache__/
-/.tgbt/
 /**/*.Identifier
 *.zip
 /dev_scripts/logs/fanout-file-codex/*.log

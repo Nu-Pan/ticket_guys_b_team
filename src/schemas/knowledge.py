@@ -158,7 +158,7 @@ class KnowledgeCandidateSelectionResponse(StrictKnowledgeModel):
 
     TGBT_OUTPUT_SCHEMA_PROMPT: ClassVar[str] = """\
 Field rules:
-- knowledge_ids: Return at most 5 ids.
+- knowledge_ids: Follow the caller-provided selection limit.
 - Choose only knowledge files likely to help answer the question.
 - Use only ids from the provided candidate list.
 """
@@ -190,7 +190,7 @@ class KnowledgeSourceFileSelectionResponse(StrictKnowledgeModel):
 
     TGBT_OUTPUT_SCHEMA_PROMPT: ClassVar[str] = """\
 Field rules:
-- paths: Return at most 5 paths.
+- paths: Follow the caller-provided selection limit.
 - Use only paths from the provided index.
 - Select files that are likely to resolve the missing information.
 """

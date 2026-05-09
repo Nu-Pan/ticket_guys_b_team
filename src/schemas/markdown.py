@@ -114,7 +114,32 @@ def render_text_blocks(items: Sequence[HasText]) -> str:
     if len(items) == 0:
         return "なし"
 
-    return "\n\n".join(f"```text\n{item.text}\n```" for item in items)
+    return "\n\n".join(render_fenced_text(item.text) for item in items)
+
+
+def render_fenced_text(text: str) -> str:
+    """
+    任意の text を Markdown の text code block として描画する。
+    """
+    # 本文内の backtick run より長い fence を使い、data が prompt 構造を崩さないようにする。
+    fence = "`" * max(3, _longest_backtick_run(text) + 1)
+    return f"{fence}text\n{text}\n{fence}"
+
+
+def _longest_backtick_run(text: str) -> int:
+    """
+    text 内で連続する backtick の最大長を返す。
+    """
+    # Markdown fence 長を決めるため、1 文字ずつ現在の連続長を数える。
+    longest = 0
+    current = 0
+    for character in text:
+        if character == "`":
+            current += 1
+            longest = max(longest, current)
+        else:
+            current = 0
+    return longest
 
 
 def render_document(

@@ -6,7 +6,7 @@ from agent_wrapper.agent_wrapper import AgentProfile
 from agent_wrapper.codex_wrapper import CodexWrapper
 from schemas.markdown import MarkdownPromptBlock
 from schemas.oracle_eval import OracleEvalReport, render_oracle_eval_report
-from state.path import TGBT_PATH
+from state.path import TGBT_PATH, repo_notation_path
 from util.error import tgbt_error
 from util.text import stdtqs
 
@@ -25,6 +25,7 @@ def tgbt_eval_oracle_impl() -> None:
         )
 
     # oracle 評価は repo 実装を変更せず、oracle 内の明示内容だけを根拠にする。
+    oracle_notation_path = repo_notation_path(oracle_path)
     result = CodexWrapper().run(
         agent_profile=AgentProfile.HIGH_READ,
         instruction=[
@@ -54,8 +55,8 @@ def tgbt_eval_oracle_impl() -> None:
             MarkdownPromptBlock(
                 title="Read targets",
                 body=stdtqs(f"""
-                    - Read only files under `{oracle_path}` that are necessary to evaluate oracle.
-                    - Include `{oracle_path / "tests"}` if it exists.
+                    - Read only files under `{oracle_notation_path}` that are necessary to evaluate oracle.
+                    - Include `{oracle_notation_path}/tests` if it exists.
                     - Do not read files outside `<repo-root>/oracle` for this evaluation.
                     """),
             ),
@@ -68,10 +69,8 @@ def tgbt_eval_oracle_impl() -> None:
                     - Evaluate path context mixups such as `<tgbt-root>` and `<repo-root>`.
                     - Evaluate conflicts in AI permission boundaries such as read-only, no-read, and editable areas.
                     - Evaluate conflicts in responsibility boundaries between skills.
-                    - Evaluate opportunities to simplify oracle wording without changing its meaning.
-                    - Evaluate opportunities to optimize oracle document structure without adding missing coverage.
                     - Evaluate obvious typos in referenced file names, directory names, skill names, and command names.
-                    - Evaluate broken Markdown structure that may cause readers to misunderstand the content.
+                    - Evaluate broken Markdown headings, lists, or emphasis that may cause readers to misunderstand the content.
                     - Evaluate typos, omissions, wrong characters, and obviously broken Japanese text.
                     - Do not evaluate missing oracle coverage as a defect.
                     - Do not propose additions for product details that oracle does not already state.
@@ -89,7 +88,7 @@ def tgbt_eval_oracle_impl() -> None:
                 children=[
                     MarkdownPromptBlock(
                         title="Oracle root",
-                        body=f"`{oracle_path}`",
+                        body=f"`{oracle_notation_path}`",
                     ),
                 ],
             ),

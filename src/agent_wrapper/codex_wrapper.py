@@ -323,6 +323,15 @@ def _run_codex_cli(
             encoding="utf-8"
         )
 
+    structured_schema_raw: str | None = None
+    if (
+        structured_schema_file_path is not None
+        and structured_schema_file_path.exists()
+    ):
+        structured_schema_raw = structured_schema_file_path.read_text(
+            encoding="utf-8"
+        )
+
     log_file_path.write_text(
         json.dumps(
             {
@@ -367,6 +376,7 @@ def _run_codex_cli(
                         if structured_schema_file_path is not None
                         else None
                     ),
+                    "schema_file_raw": structured_schema_raw,
                 },
                 "result": {
                     "returncode": completed.returncode,
@@ -583,23 +593,18 @@ def _build_codex_instruction(
     Returns:
         Codex CLI に渡す prompt の構成要素。
     """
-    # oracle の最終順序に従い、固定 prompt を必ず先頭に配置する。
+    # oracle の最終順序に従い、prompt block を固定順で配置する。
     blocks: list[MarkdownPromptBlock] = [
         MarkdownPromptBlock(
             title="Fixed prompt",
             children=_FIXED_PROMPT_CHILDREN,
         ),
         _build_knowledge_system_rules(use_knowledge_system),
+        _build_structure_output_block(
+            output_schema=output_schema,
+            caller_schema_prompt=caller_schema_prompt,
+        ),
     ]
-
-    # Structured Output がある呼び出しだけ、schema 関連 block を差し込む。
-    if output_schema is not None:
-        blocks.append(
-            _build_structured_output_block(
-                output_schema=output_schema,
-                caller_schema_prompt=caller_schema_prompt,
-            )
-        )
 
     blocks.append(
         MarkdownPromptBlock(
@@ -626,15 +631,14 @@ def _build_knowledge_system_rules(
         body = stdtqs("""
             - Use the tgbt knowledge system when repository investigation is needed.
             - Prefer `tgbt knowledge search "<repository question>"` for repository questions before broad direct file exploration.
-            - The command returns JSON with `answer` and `related_paths`; treat both fields as investigation data.
+            - The command returns JSON in the format `{"answer": "...", "related_paths": ["..."]}`.
+            - Example: `tgbt knowledge search "Where is the prompt block assembly implemented?"`.
             - Treat knowledge system output as investigation data, not as canonical truth.
             - If knowledge system output is insufficient, read the minimum necessary workspace files directly.
             """)
     else:
         body = stdtqs("""
             - Do not use the tgbt knowledge system in this Codex CLI call.
-            - Perform any necessary investigation directly within the workspace and task constraints.
-            - This restriction prevents recursive knowledge-system calls when tgbt itself is using Codex CLI.
             """)
 
     return MarkdownPromptBlock(
@@ -643,8 +647,8 @@ def _build_knowledge_system_rules(
     )
 
 
-def _build_structured_output_block(
-    output_schema: type[BaseModel],
+def _build_structure_output_block(
+    output_schema: type[BaseModel] | None,
     caller_schema_prompt: str | None,
 ) -> MarkdownPromptBlock:
     """構造化応答を要求する prompt block を構築する.
@@ -654,13 +658,23 @@ def _build_structured_output_block(
         caller_schema_prompt: 呼び出し元固有の schema 利用規則。
 
     Returns:
-        Structured output block。
+        Structure output block。
     """
+    # 構造化応答が不要な呼び出しでも、oracle の block 順序に従って明示 block を置く。
+    if output_schema is None:
+        return MarkdownPromptBlock(
+            title="Structure output",
+            body=stdtqs("""
+                - Structured Output is not specified for this Codex CLI call.
+                - Return a normal final response that follows `Task prompt` and `Output discipline`.
+                """),
+        )
+
     # 全 schema に共通する構造化応答ルールを親 block 配下へ置く。
     schema_prompt = _get_output_schema_prompt(output_schema)
     children: list[MarkdownPromptBlock] = [
         MarkdownPromptBlock(
-            title="Structured output rules",
+            title="Structure output rules",
             body=stdtqs(f"""
                 - The final response must conform to the {output_schema.__name__} schema.
                 - Do not return Markdown.
@@ -691,7 +705,7 @@ def _build_structured_output_block(
         )
 
     return MarkdownPromptBlock(
-        title="Structured output",
+        title="Structure output",
         children=children,
     )
 
