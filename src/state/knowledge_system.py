@@ -393,7 +393,6 @@ class KnowledgeSystem:
                     - Choose only knowledge files likely to help answer the question.
                     - Use only ids from the provided knowledge summaries.
                     """),
-                operational_parameters=f"- max selected ids: {_SEARCH_TOP_N}",
                 input_blocks=[
                     MarkdownPromptBlock(
                         title="Question",
@@ -410,6 +409,7 @@ class KnowledgeSystem:
                 self_check="Confirm every selected id exists in the provided summaries.",
             ),
             output_schema=KnowledgeCandidateSelectionResponse,
+            caller_schema_prompt=f"- max selected ids: {_SEARCH_TOP_N}",
         )
         selected_ids = set(result.knowledge_ids[:_SEARCH_TOP_N])
         return [
@@ -598,7 +598,6 @@ class KnowledgeSystem:
                     - Select files that are likely to resolve the missing information.
                     - Use only paths from the provided index.
                     """),
-                operational_parameters=f"- max selected paths: {_RESEARCH_FILE_LIMIT}",
                 input_blocks=[
                     MarkdownPromptBlock(
                         title="Question",
@@ -617,6 +616,7 @@ class KnowledgeSystem:
                 self_check="Confirm every selected path exists in the provided index.",
             ),
             output_schema=KnowledgeSourceFileSelectionResponse,
+            caller_schema_prompt=f"- max selected paths: {_RESEARCH_FILE_LIMIT}",
         )
         available_paths = set(index.entries)
         selected_paths: list[str] = []
@@ -630,6 +630,7 @@ class KnowledgeSystem:
         self,
         instruction: list[MarkdownPromptBlock],
         output_schema: type[T],
+        caller_schema_prompt: str | None = None,
     ) -> T:
         """AgentWrapper を構造化応答つきで呼び出し、型を検査する."""
         # 知識システムの AI 呼び出しは medium read profile と構造化応答で統一する。
@@ -637,6 +638,7 @@ class KnowledgeSystem:
             agent_profile=AgentProfile.MEDIUM_READ,
             instruction=instruction,
             output_schema=output_schema,
+            caller_schema_prompt=caller_schema_prompt,
         )
         if not result.is_ok:
             raise tgbt_error(
