@@ -323,6 +323,15 @@ def _run_codex_cli(
             encoding="utf-8"
         )
 
+    structured_schema_raw: str | None = None
+    if (
+        structured_schema_file_path is not None
+        and structured_schema_file_path.exists()
+    ):
+        structured_schema_raw = structured_schema_file_path.read_text(
+            encoding="utf-8"
+        )
+
     log_file_path.write_text(
         json.dumps(
             {
@@ -367,6 +376,7 @@ def _run_codex_cli(
                         if structured_schema_file_path is not None
                         else None
                     ),
+                    "schema_file_raw": structured_schema_raw,
                 },
                 "result": {
                     "returncode": completed.returncode,
