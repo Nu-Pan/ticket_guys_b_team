@@ -13,6 +13,7 @@ description: Reflect tgbt oracle changes or specified oracle documents into tgbt
 
 - `<tgbt-root>/oracle/**` は閲覧のみ許可され、編集してはいけない。
 - `<tgbt-root>/README.md`、`<tgbt-root>/AGENTS.md`、`<tgbt-root>/memo/**` は編集してはいけない。`memo/**` は閲覧も禁止。
+- `<tgbt-root>` と `<repo-root>` のパス表記を混同してはいけない。判断に関わる場合は `<tgbt-root>/oracle/docs/dev_rule/path_notation_rule.md` を読む。
 - oracle に未記載の仕様は、既存実装と局所文脈から必要最小限だけ判断する。
 - high-level な仕様判断、public interface 変更、依存追加、永続データ形式変更、大規模リファクタが必要なら、人間確認事項として切り出す。
 - テストは追加・更新しない。確認は変更対象に近い `pyright`、import 確認、必要最小限の smoke 確認を優先する。
@@ -31,6 +32,7 @@ description: Reflect tgbt oracle changes or specified oracle documents into tgbt
 
 - `<tgbt-root>/AGENTS.md` を確認する。
 - 対象 oracle と、関連する実装ファイル・呼び出し元・既存 state を必要最小限だけ読む。
+- `<tgbt-root>` と `<repo-root>` の解釈が作業結果に影響するなら `<tgbt-root>/oracle/docs/dev_rule/path_notation_rule.md` を読む。
 - Python を編集または検査するなら `<tgbt-root>/oracle/docs/dev_rule/python_coding.md` を読む。
 - 確認方針を決めるなら `<tgbt-root>/oracle/docs/dev_rule/test_policy.md` を読む。
 - oracle、実装、ユーザー指示が衝突する場合は oracle を正本として扱い、衝突内容を隠さず明示する。
@@ -46,6 +48,7 @@ description: Reflect tgbt oracle changes or specified oracle documents into tgbt
 - 人間確認が必要な high-level 判断を実装作業へ混ぜていないか。
 - 既存設計、既存責務、既存 import 構造に沿っているか。
 - 変更対象と読み取り対象が必要最小限か。
+- `<tgbt-root>` と `<repo-root>` を取り違えた対象設定になっていないか。
 - 編集・閲覧制約に反する作業を含んでいないか。
 - テスト追加・更新を含まず、確認方法が変更対象に近い最小限のものになっているか。
 - 不確実性、未確認事項、連鎖的に発生しうる問題を明示しているか。
