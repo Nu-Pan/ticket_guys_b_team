@@ -1,7 +1,5 @@
 """Normalize one <tgbt-root>/oracle/docs/**/ROUTING.md file."""
 
-from __future__ import annotations
-
 import argparse
 import re
 import sys
@@ -14,6 +12,8 @@ TODO_BODY = "- TODO: ルーティング本文を記述する"
 
 
 def find_repo_root() -> Path:
+    """この script の位置から `<tgbt-root>` を探索する。"""
+
     current = Path(__file__).resolve()
     for candidate in (current, *current.parents):
         if (candidate / "AGENTS.md").is_file() and (candidate / "oracle" / "docs").is_dir():
@@ -22,6 +22,8 @@ def find_repo_root() -> Path:
 
 
 def resolve_target(repo_root: Path, raw_target: str) -> Path:
+    """対象ディレクトリを `<tgbt-root>/oracle/docs` 配下として解決する。"""
+
     target = Path(raw_target)
     if not target.is_absolute():
         target = repo_root / target
@@ -36,6 +38,8 @@ def resolve_target(repo_root: Path, raw_target: str) -> Path:
 
 
 def actual_entries(directory: Path) -> list[str]:
+    """指定ディレクトリ直下の routing entry を正規順で取得する。"""
+
     child_dirs = sorted(path.name for path in directory.iterdir() if path.is_dir())
     markdown_files = sorted(
         path.name
@@ -46,6 +50,8 @@ def actual_entries(directory: Path) -> list[str]:
 
 
 def parse_existing_bodies(routing_path: Path) -> dict[str, list[str]]:
+    """既存 `ROUTING.md` から entry ごとの本文を取り出す。"""
+
     if not routing_path.is_file():
         return {}
 
@@ -54,6 +60,8 @@ def parse_existing_bodies(routing_path: Path) -> dict[str, list[str]]:
     current_body: list[str] = []
 
     def flush() -> None:
+        """現在処理中の entry 本文を保存する。"""
+
         nonlocal current_entry, current_body
         if current_entry is not None:
             body = trim_blank_edges(current_body)
@@ -61,6 +69,7 @@ def parse_existing_bodies(routing_path: Path) -> dict[str, list[str]]:
         current_entry = None
         current_body = []
 
+    # 見出し行を境界として、次の見出しまでを本文として保持する。
     for line in routing_path.read_text(encoding="utf-8").splitlines():
         match = ENTRY_RE.match(line)
         if match:
@@ -75,6 +84,8 @@ def parse_existing_bodies(routing_path: Path) -> dict[str, list[str]]:
 
 
 def trim_blank_edges(lines: list[str]) -> list[str]:
+    """本文の前後にある空行だけを取り除く。"""
+
     start = 0
     end = len(lines)
     while start < end and lines[start].strip() == "":
@@ -85,6 +96,8 @@ def trim_blank_edges(lines: list[str]) -> list[str]:
 
 
 def render_routing(entries: list[str], existing_bodies: dict[str, list[str]]) -> str:
+    """entry 一覧と既存本文から `ROUTING.md` 全体を描画する。"""
+
     chunks: list[str] = []
     for entry in entries:
         body = existing_bodies.get(entry, [TODO_BODY])
@@ -95,11 +108,14 @@ def render_routing(entries: list[str], existing_bodies: dict[str, list[str]]) ->
 
 
 def normalize(target_dir: Path) -> tuple[Path, list[str], list[str]]:
+    """指定ディレクトリ直下の `ROUTING.md` を実体に合わせて正規化する。"""
+
     routing_path = target_dir / ROUTING_FILE
     before_entries = set(parse_existing_bodies(routing_path))
     entries = actual_entries(target_dir)
     after_entries = set(entries)
 
+    # 既存 entry の本文は保ち、存在しない entry は落として不足 entry は TODO にする。
     body = render_routing(entries, parse_existing_bodies(routing_path))
     routing_path.write_text(body, encoding="utf-8")
 
@@ -109,6 +125,8 @@ def normalize(target_dir: Path) -> tuple[Path, list[str], list[str]]:
 
 
 def main() -> int:
+    """CLI 引数で指定された directory の `ROUTING.md` を正規化する。"""
+
     parser = argparse.ArgumentParser(
         description="Normalize one <tgbt-root>/oracle/docs/**/ROUTING.md file."
     )

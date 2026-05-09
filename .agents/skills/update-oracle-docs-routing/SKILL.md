@@ -1,18 +1,18 @@
 ---
 name: update-oracle-docs-routing
-description: Normalize and update tgbt oracle/docs ROUTING.md files. Use when asked to create, repair, or review ROUTING.md entries for a specified directory under the tgbt oracle/docs tree.
+description: Normalize, update, or review tgbt oracle/docs ROUTING.md files. Use only when a target directory under the tgbt oracle/docs tree is specified.
 ---
 
 # Update Oracle Docs Routing
 
 ## Overview
 
-`<tgbt-root>/oracle/docs` 配下の指定ディレクトリについて、`ROUTING.md` を機械的に正規化し、その後にルーティング本文を AI が確認・修正する。
+`<tgbt-root>/oracle/docs` 配下の指定ディレクトリについて、直下の `ROUTING.md` を機械的に正規化し、その後にルーティング本文を AI が確認・修正する。
 通常の `<tgbt-root>/oracle/**` は AI 編集禁止だが、`ROUTING.md` は `<tgbt-root>/oracle/docs/dev_rule/oracle_docs_routing_policy.md` により例外的に編集可能とする。
 
 ## Guardrails
 
-- 追加プロンプトで対象ディレクトリが指定されていない場合は何もしない。
+- 対象ディレクトリが指定されていない場合は何もしない。
 - 編集してよいのは、指定ディレクトリ直下の `ROUTING.md` だけ。
 - `<tgbt-root>/oracle/docs` 配下でも、`ROUTING.md` 以外の oracle ファイルは読むだけにする。
 - `<tgbt-root>/README.md`、`<tgbt-root>/AGENTS.md`、`<tgbt-root>/memo/**` は編集しない。`memo/**` は閲覧もしない。
@@ -24,7 +24,7 @@ description: Normalize and update tgbt oracle/docs ROUTING.md files. Use when as
 ### 1. Confirm scope
 
 - `<tgbt-root>/AGENTS.md` を確認する。
-- 指定ディレクトリを `<tgbt-root>/oracle/docs` 配下のディレクトリとして解決する。
+- 指定ディレクトリを `<tgbt-root>/oracle/docs` 配下のディレクトリとして解決する。相対パスは `<tgbt-root>` からの相対パスとして扱う。
 - 対象が `<tgbt-root>/oracle/docs` 配下でない、または存在しないディレクトリなら作業を止めて報告する。
 
 ### 2. Run mechanical normalization
@@ -62,7 +62,7 @@ script は次を機械的に揃える。
 
 ### 4. Validate
 
-最後に、機械的な routing 整合を確認する。
+最後に、`<tgbt-root>/oracle/docs` 配下全体の機械的な routing 整合を確認する。
 
 ```bash
 ./.venv/bin/python .agents/skills/update-oracle-docs-routing/scripts/check_routing.py
