@@ -80,6 +80,10 @@ def tgbt_eval_oracle_impl() -> None:
                     """),
             ),
             MarkdownPromptBlock(
+                title="Operational parameters",
+                body="- No caller-specific operational parameters.",
+            ),
+            MarkdownPromptBlock(
                 title="Inputs",
                 children=[
                     MarkdownPromptBlock(

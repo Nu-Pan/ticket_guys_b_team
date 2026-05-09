@@ -297,6 +297,10 @@ def _create_plan(instruction: str, plan_id: str) -> _PlanCommandResult:
                 """),
         ),
         MarkdownPromptBlock(
+            title="Operational parameters",
+            body="- No caller-specific operational parameters.",
+        ),
+        MarkdownPromptBlock(
             title="Inputs",
             children=[
                 MarkdownPromptBlock(
@@ -391,6 +395,10 @@ def _update_plan(
                 - Create new ids only for newly added items.
                 - Make assumptions explicit instead of hiding them in procedure text.
                 """),
+        ),
+        MarkdownPromptBlock(
+            title="Operational parameters",
+            body="- No caller-specific operational parameters.",
         ),
         MarkdownPromptBlock(
             title="Inputs",
@@ -829,6 +837,10 @@ def _run_plan_review_prompt(
                     """),
             ),
             MarkdownPromptBlock(
+                title="Operational parameters",
+                body="- No caller-specific operational parameters.",
+            ),
+            MarkdownPromptBlock(
                 title="Inputs",
                 children=[
                     MarkdownPromptBlock(
@@ -938,6 +950,10 @@ def _revise_plan(
                     - Keep useful content that does not conflict with the findings.
                     - Do not include review history in the revised plan.
                     """),
+            ),
+            MarkdownPromptBlock(
+                title="Operational parameters",
+                body="- No caller-specific operational parameters.",
             ),
             MarkdownPromptBlock(
                 title="Inputs",
