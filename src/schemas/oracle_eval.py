@@ -79,7 +79,8 @@ class OracleEvalReport(StrictModel):
 Field rules:
 - schema_version: Use "1".
 - contradictions: Record only contradictions found within oracle itself.
-- issues: Record only explicit oracle issues other than contradictions, including simplification opportunities and document structure optimization opportunities.
+- issues: Record only explicit oracle issues other than contradictions.
+  Include typos, wording variations that may be mistaken for separate concepts, path context mixups, permission-boundary conflicts, skill responsibility conflicts, incorrect references, and broken Markdown headings, lists, or emphasis.
 - self_check_notes: Record concise checks performed before finalizing the report.
 
 Scope rules:
