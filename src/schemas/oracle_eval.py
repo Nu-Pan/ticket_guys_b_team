@@ -81,6 +81,7 @@ Field rules:
 - contradictions: Record only contradictions found within oracle itself.
 - issues: Record only explicit oracle issues other than contradictions.
   Include typos, wording variations that may be mistaken for separate concepts, path context mixups, permission-boundary conflicts, skill responsibility conflicts, incorrect references, and broken Markdown headings, lists, or emphasis.
+  Include opportunities to simplify existing oracle text or optimize existing oracle document structure when the improvement does not add product details or change product intent.
 - self_check_notes: Record concise checks performed before finalizing the report.
 
 Scope rules:

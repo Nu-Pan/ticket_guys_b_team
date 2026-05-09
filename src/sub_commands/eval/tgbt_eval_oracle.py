@@ -71,7 +71,9 @@ def tgbt_eval_oracle_impl() -> None:
                     - Evaluate conflicts in responsibility boundaries between skills.
                     - Evaluate obvious typos in referenced file names, directory names, skill names, and command names.
                     - Evaluate broken Markdown headings, lists, or emphasis that may cause readers to misunderstand the content.
-                    - Evaluate typos, omissions, wrong characters, and obviously broken Japanese text.
+                    - Evaluate opportunities to simplify existing oracle text without adding new product details.
+                    - Evaluate opportunities to optimize existing oracle document structure without changing product intent.
+                    - Evaluate typos, missing characters in existing text, wrong characters, and obviously broken Japanese text.
                     - Do not evaluate missing oracle coverage as a defect.
                     - Do not propose additions for product details that oracle does not already state.
                     - Do not evaluate ROUTING.md correctness.
