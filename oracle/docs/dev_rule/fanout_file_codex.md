@@ -38,6 +38,12 @@
 - `fanout_codex_exec.py` 終了時点で...
     - 「全ての成功した作業の結果がコミットされた専用ブランチ」が存在することとする（それをマージするかはユーザーの任意）
 
+# `tgbt` 仕様と `fanout_codex_exec.py` の関係
+
+- `fanout_codex_exec.py` は `tgbt` を開発するための便利スクリプトである
+- よって `fanout_codex_exec.py` の仕様は「`<rgbt-root>/oracle/docs/tgbt_spec` 配下で述べられている `tgbt` の仕様」とは無関係である
+- e.g. `CODEX_HOME=<repo-root>/.tgbt/.codex` とするような操作はしてはいけない（そもそも `fanout_codex_exec.py` の実行パスは `<tgbt-root>` 配下である）
+
 # 使用するモデル
 
 - GPT-5.5
