@@ -104,6 +104,17 @@ _FIXED_PROMPT_CHILDREN: tuple[MarkdownPromptBlock, ...] = (
             """),
     ),
     MarkdownPromptBlock(
+        title="Path notation",
+        body=stdtqs("""
+            - When writing paths under the target repository, use `<repo-root>/...` notation.
+            - When writing paths under the ticket_guys_b_team repository, use `<tgbt-root>/...` notation.
+            - Do not write repository-root-relative paths without either `<repo-root>` or `<tgbt-root>`.
+            - When referring to the Codex home directory, use `CODEX_HOME`.
+            - When referring to paths under the user's home directory, use `HOME`.
+            - Use absolute paths only for paths outside `<repo-root>`, `<tgbt-root>`, `CODEX_HOME`, and `HOME`.
+            """),
+    ),
+    MarkdownPromptBlock(
         title="Scope and autonomy",
         body=stdtqs("""
             - Do only the work requested by the individual task.
