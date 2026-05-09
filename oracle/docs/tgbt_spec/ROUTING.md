@@ -18,6 +18,11 @@
 - `<repo-root>/.tgbt` の扱いについて記述している
 - `.tgbt` の作成タイミング、Codex CLI 用 `CODEX_HOME`、git 管理対象の切り分けを扱う
 
+# `git_rules.md`
+
+- `tgbt` から git 操作をワークフローへ組み込む規則について記述している
+- Codex CLI セッション後の自動コミット、plan ブランチ、未コミット差分の事前チェックを扱う
+
 # `instruction_input.md`
 
 - `tgbt` の各サブコマンドで指示文を受け取る方法について記述している
