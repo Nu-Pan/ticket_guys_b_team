@@ -10,13 +10,7 @@ from typing import Sequence, TextIO
 
 
 TGBT_ROOT = Path(__file__).resolve().parents[1]
-SRC_ROOT = TGBT_ROOT / "src"
 LOG_DIR = TGBT_ROOT / "dev_scripts" / "logs" / "fanout-file-codex"
-sys.path.insert(0, str(SRC_ROOT))
-
-# local
-from agent_wrapper.agent_wrapper import AgentProfile
-from agent_wrapper.codex_wrapper import _ensure_codex_settings
 
 
 @dataclass(frozen=True)
@@ -29,7 +23,7 @@ class FanoutTarget:
 
 def main() -> int:
     """ファイル単位の Codex fanout 処理を実行する。"""
-    # tgbt の path 解決と Codex CLI の cwd を `<repo-root>` に揃える。
+    # 呼び出し元の cwd に依存せず、fanout の処理起点を tgbt root に揃える。
     os.chdir(TGBT_ROOT)
 
     # 引数として作業タイプだけを受け取る。
@@ -169,17 +163,27 @@ class FanoutRunner:
 
     def _run_one_target(self, target: FanoutTarget) -> bool:
         """1 対象分の Codex CLI を実行し、標準出力へ tee する。"""
-        # oracle 指定に従い、tgbt 管理下の Codex 設定を生成してから呼ぶ。
-        _ensure_codex_settings()
+        # fanout は tgbt 本体仕様から独立した開発補助スクリプトとして Codex を呼ぶ。
         env = os.environ.copy()
-        env["CODEX_HOME"] = str(TGBT_ROOT / ".tgbt" / ".codex")
 
-        # oracle 指定に従い、Codex CLI には tgbt profile を選択して仕事を依頼する。
+        # tgbt profile には依存せず、fanout に必要な実行条件を CLI 引数で固定する。
         command = [
             "codex",
             "exec",
-            "--profile",
-            AgentProfile.MEDIUM_WRITE.value,
+            "--model",
+            "gpt-5.5",
+            "-c",
+            'model_reasoning_effort="medium"',
+            "-c",
+            'plan_mode_reasoning_effort="medium"',
+            "-c",
+            'approval_policy="never"',
+            "-c",
+            "sandbox_workspace_write.network_access=true",
+            "--sandbox",
+            "workspace-write",
+            "--ignore-user-config",
+            "--ephemeral",
             "--cd",
             str(TGBT_ROOT),
         ]
