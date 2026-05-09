@@ -104,6 +104,15 @@ _FIXED_PROMPT_CHILDREN: tuple[MarkdownPromptBlock, ...] = (
             """),
     ),
     MarkdownPromptBlock(
+        title="Repo-local skills",
+        body=stdtqs("""
+            - Repo-specific task patterns may be packaged as skills under `<repo-root>/.agents/skills/<skill-name>/SKILL.md`.
+            - If the task names a `$skill-name`, read the matching repo-local `SKILL.md` before acting when it exists and access rules allow it.
+            - Treat repo-local skills as task-specific instructions, while still applying the fixed prompt, oracle authority, and access restrictions.
+            - Do not edit system skills under `CODEX_HOME/skills/.system`; use them only as read-only references or bundled tools when explicitly required by the task.
+            """),
+    ),
+    MarkdownPromptBlock(
         title="Path notation",
         body=stdtqs("""
             - When writing paths under the target repository, use `<repo-root>/...` notation.
