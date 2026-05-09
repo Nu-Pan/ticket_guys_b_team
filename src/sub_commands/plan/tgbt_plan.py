@@ -190,6 +190,7 @@ def _adjust_instruction_heading_levels(instruction: str) -> str:
     """
     人間指示内で許可された見出しを prompt 本文用の深さへ調整する。
     """
+    # fenced code block の内外を追跡し、本文見出しだけを変換対象にする。
     lines: list[str] = []
     in_fenced_code = False
     for line in instruction.splitlines():

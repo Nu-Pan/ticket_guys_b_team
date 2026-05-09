@@ -59,6 +59,7 @@ class FanoutRunner:
         log_file: TextIO,
     ) -> None:
         """実行対象サブコマンドと集約ログを保持する。"""
+        # 実行中に必要な subcommand とログ出力先を runner に保持する。
         self.subcommand = subcommand
         self.log_path = log_path
         self.log_file = log_file
@@ -101,6 +102,7 @@ class FanoutRunner:
 
     def _build_targets(self) -> list[FanoutTarget]:
         """サブコマンド名を具体的な Codex 呼び出し対象へ展開する。"""
+        # fanout 対象を、サブコマンドごとの最小処理単位へ分解する。
         if self.subcommand == "update-oracle-docs-routing":
             return [
                 FanoutTarget(
@@ -220,6 +222,7 @@ class FanoutRunner:
 
     def _ensure_clean_worktree(self) -> None:
         """fanout 開始時点の git 状態が clean であることを確認する。"""
+        # 未コミット変更がある状態では fanout の対象間分離を保証できない。
         status = _git_stdout(["status", "--porcelain"])
         if status:
             raise FanoutError(
@@ -249,10 +252,12 @@ class FanoutRunner:
 
     def _write_line(self, message: str) -> None:
         """標準出力とログへ 1 行を書き出す。"""
+        # 行単位の呼び出し元向けに改行を付けて共通 writer へ渡す。
         self._write(f"{message}\n")
 
     def _write(self, message: str) -> None:
         """標準出力とログへ同じ内容を書き出す。"""
+        # terminal と永続ログの両方へ同じ message を即時反映する。
         print(message, end="", flush=True)
         self.log_file.write(message)
         self.log_file.flush()
@@ -264,6 +269,7 @@ class FanoutError(Exception):
 
 def _oracle_docs_dirs() -> list[Path]:
     """oracle/docs 配下の全ディレクトリを絶対パスで返す。"""
+    # docs root 自体も ROUTING.md 更新対象なので、子ディレクトリと合わせて返す。
     docs_root = TGBT_ROOT / "oracle" / "docs"
     return sorted(
         [docs_root, *[path for path in docs_root.rglob("*") if path.is_dir()]],
@@ -272,6 +278,7 @@ def _oracle_docs_dirs() -> list[Path]:
 
 def _repo_local_skill_dirs() -> list[Path]:
     """repo-local skill 直下のディレクトリを絶対パスで返す。"""
+    # repo-local skill root がまだ無い場合は fanout 対象なしとして扱う。
     skills_root = TGBT_ROOT / ".agents" / "skills"
     if not skills_root.exists():
         return []
@@ -280,6 +287,7 @@ def _repo_local_skill_dirs() -> list[Path]:
 
 def _oracle_docs_markdown_files() -> list[Path]:
     """ROUTING.md を除いた oracle/docs 配下の Markdown を返す。"""
+    # 各階層の目次である ROUTING.md は oracle 適用対象から除外する。
     docs_root = TGBT_ROOT / "oracle" / "docs"
     return sorted(
         [
@@ -292,6 +300,7 @@ def _oracle_docs_markdown_files() -> list[Path]:
 
 def _tracked_src_python_files() -> list[Path]:
     """git が追跡する src 配下の Python ファイルを返す。"""
+    # git の追跡対象だけを使い、生成物や未追跡ファイルを fanout 対象から外す。
     output = _git_stdout(["ls-files", "-z", "--", "src"])
     relative_paths = [item for item in output.split("\0") if item.endswith(".py")]
     return [TGBT_ROOT / path for path in sorted(relative_paths)]
@@ -299,6 +308,7 @@ def _tracked_src_python_files() -> list[Path]:
 
 def _has_uncommitted_changes() -> bool:
     """git 上の未コミット変更が存在するかを返す。"""
+    # porcelain 出力の有無だけで fanout 中の commit 要否を判定する。
     return bool(_git_stdout(["status", "--porcelain"]))
 
 
@@ -307,6 +317,7 @@ def _run_git(
     check: bool = True,
 ) -> subprocess.CompletedProcess[str]:
     """tgbt root で git コマンドを実行する。"""
+    # subprocess 例外ではなく戻り値を見て、fanout 用のエラーへ変換する。
     completed = subprocess.run(
         ["git", *args],
         cwd=TGBT_ROOT,
@@ -324,16 +335,19 @@ def _run_git(
 
 def _git_stdout(args: Sequence[str]) -> str:
     """git コマンドの標準出力を末尾改行なしで返す。"""
+    # 呼び出し元が git 出力を値として扱いやすいよう末尾空白を落とす。
     return _run_git(args).stdout.strip()
 
 
 def _build_log_file_name(subcommand: str) -> str:
     """サブコマンド名を含むログファイル名を作る。"""
+    # 複数回実行しても衝突しにくいよう timestamp を先頭に置く。
     return f"{_timestamp_slug()}-{subcommand}.log"
 
 
 def _timestamp_slug() -> str:
     """ファイル名とブランチ名で使える UTC タイムスタンプを返す。"""
+    # ローカル timezone の影響を避けるため UTC 固定で slug を作る。
     now = datetime.datetime.now(datetime.UTC)
     return now.strftime("%Y%m%dT%H%M%S%fZ")
 
@@ -349,6 +363,7 @@ def _tgbt_notation_path(path: Path) -> str:
 
 def _format_command(command: Sequence[str]) -> str:
     """ログ用にコマンド引数を読みやすく連結する。"""
+    # fanout ログでは shell 実行用ではなく、人間が読む表示として連結する。
     return " ".join(command)
 
 
