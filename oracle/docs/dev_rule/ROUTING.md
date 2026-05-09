@@ -1,7 +1,7 @@
 # `skills`
 
-- `<tgbt-root>/.agents/skills` 配下に実装される「リポジトリローカルなスキル」についての原則・規則を記述している
-- スキル個別の正本仕様断片も記述している
+- `<tgbt-root>/.agents/skills` 配下に実装されるリポジトリローカルなスキルの原則・規則を記述している
+- スキル個別の正本仕様断片、利用条件、レビュー観点を記述している
 
 # `ai_docs.md`
 
@@ -20,7 +20,8 @@
 
 # `oracle.md`
 
-- `<tgbt-root>` 上で Codex CLI を用いて `tgbt` 自体の開発を行う際の `<tgbt-root>/oracle` の取り扱いについて記述
+- Codex CLI を用いて `tgbt` 自体を開発する際の `<tgbt-root>/oracle` の取り扱いを記述している
+- `<tgbt-root>/oracle` と `tgbt` による開発対象の `<repo-root>/oracle` を混同しないための前提を記述している
 
 # `oracle_docs_routing_policy.md`
 
@@ -34,7 +35,7 @@
 
 # `python_coding.md`
 
-- Python コードを編集・確認するときの実装規約を記述
+- Python コードを編集・確認するときの実装規約を記述している
 - 型ヒント、import、docstring、コメント、依存管理、型チェック、関数分割、非公開識別子について記述
 
 # `test_policy.md`
