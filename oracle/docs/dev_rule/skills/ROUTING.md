@@ -16,4 +16,4 @@
 
 # `update_oracle_docs_routing.md`
 
-- `oracle/docs` 配下の `ROUTING.md` を正規化・レビューするスキルの対象、参照先、対象指定、ワークフロー、レビュー観点を記述
+- `oracle/docs` 配下の `ROUTING.md` を正規化・レビューするスキルの概要、参照先、対象指定、機械的チェック・修正、本文レビュー観点を記述
