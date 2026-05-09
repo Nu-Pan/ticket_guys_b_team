@@ -1,4 +1,4 @@
 interface:
-  display_name: "Apply Oracle to Code"
-  short_description: "Sync tgbt code with oracle changes"
-  default_prompt: "Use $apply-oracle-to-implements to sync tgbt implementation with recent oracle changes."
+  display_name: "Apply Oracle to Implementation"
+  short_description: "Reflect oracle into tgbt implementation"
+  default_prompt: "Use $apply-oracle-to-implements to reflect recent or specified tgbt oracle changes into implementation."
