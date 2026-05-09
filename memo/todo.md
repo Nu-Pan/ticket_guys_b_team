@@ -23,10 +23,6 @@
 
 # プロンプトをちゃんと詰めていきたい
 
-## 総合的に言って
-
-- 被依頼側（ワーカー AI）がそのプロンプトだけから読み取れる内容と、依頼側（`tgbt`）の意図とがズレていない事が大事
-
 ## Task Prompt
 
 - あんまり腹落ちしてない
@@ -38,9 +34,9 @@
 
 - Path notation rules と Skill rules は増やしたほうが良いかも
 
+# `tgbt eval oracle`
 
-# `tgbt eval oracle` のチェック
-
+- `oracle/docs/tgbt_spec/sub_commands/eval_oracle.md` がすっからかんなので記述が必要
 - 新しく生えたのでチェックが必要
 
 # fanout の N x M 実行
@@ -52,3 +48,8 @@
 
 - 結構めちゃくちゃっぽいので、間違いなくテコ入れが必要
 - もう金がかかることは割り切って、テストでトークン使うことを許容するしかないかも
+
+## スキーマバリデーション
+
+- レビュー観点がスカスカ
+- `oracle/docs/tgbt_spec/prompting/structured_output.md`
