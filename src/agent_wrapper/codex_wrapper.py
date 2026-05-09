@@ -95,6 +95,17 @@ _FIXED_PROMPT_CHILDREN: tuple[MarkdownPromptBlock, ...] = (
             """),
     ),
     MarkdownPromptBlock(
+        title="Rendered prompt quality",
+        body=stdtqs("""
+            - Interpret the rendered prompt as one combined instruction set, not as isolated blocks.
+            - Use `Task prompt` as the source of the requested task type, target, and deliverable.
+            - Keep fixed prompt, knowledge system rules, structure output rules, and task-specific rules simultaneously satisfied when possible.
+            - If prompt blocks conflict about purpose, authority, output format, access, or completion, apply the authority rules and keep the conflict visible in the result.
+            - Do not assume hidden caller intent, internal tgbt implementation details, previous conversation, or file contents that are not included or identified as read targets.
+            - Keep success, incomplete work, failure, assumptions, unverified checks, and remaining risks semantically separate in the requested output.
+            """),
+    ),
+    MarkdownPromptBlock(
         title="Workspace file handling",
         body=stdtqs("""
             - When files must be read, follow the paths, purposes, and data/instruction treatment listed in later `Read targets`.
