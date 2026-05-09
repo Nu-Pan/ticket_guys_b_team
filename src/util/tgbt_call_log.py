@@ -18,14 +18,19 @@ _RELATED_LOG_PATHS: ContextVar[tuple[Path, ...]] = ContextVar(
     "TGBT_RELATED_LOG_PATHS",
     default=(),
 )
+_RELATED_ELEMENT_IDS: ContextVar[tuple[str, ...]] = ContextVar(
+    "TGBT_RELATED_ELEMENT_IDS",
+    default=(),
+)
 
 
 def reset_related_log_paths() -> None:
     """
     tgbt 呼び出し単位の関連ログパス収集状態を初期化する。
     """
-    # ContextVar 上の関連ログ一覧を空に戻す。
+    # ContextVar 上の関連ログ一覧と関連要素 ID 一覧を空に戻す。
     _RELATED_LOG_PATHS.set(())
+    _RELATED_ELEMENT_IDS.set(())
 
 
 def record_related_log_path(log_file_path: Path) -> None:
@@ -36,6 +41,16 @@ def record_related_log_path(log_file_path: Path) -> None:
     current_paths = _RELATED_LOG_PATHS.get()
     if log_file_path not in current_paths:
         _RELATED_LOG_PATHS.set((*current_paths, log_file_path))
+
+
+def record_related_element_id(element_id: str) -> None:
+    """
+    現在の tgbt 呼び出しに関連する要素 ID を記録する。
+    """
+    # 同一呼び出し内で同じ ID が複数回積まれても、出力は一意に保つ。
+    current_ids = _RELATED_ELEMENT_IDS.get()
+    if element_id not in current_ids:
+        _RELATED_ELEMENT_IDS.set((*current_ids, element_id))
 
 
 def get_exit_code(exc_obj: BaseException) -> int:
@@ -110,6 +125,7 @@ def write_tgbt_call_log(
                         "log_file_paths": [
                             str(path) for path in get_related_log_paths()
                         ],
+                        "element_ids": get_related_element_ids(),
                     },
                     "timestamp": {
                         "epoch_ns": time.time_ns(),
@@ -133,3 +149,11 @@ def get_related_log_paths() -> list[Path]:
     """
     # ContextVar 内部の tuple を呼び出し元で扱いやすい list に変換する。
     return list(_RELATED_LOG_PATHS.get())
+
+
+def get_related_element_ids() -> list[str]:
+    """
+    現在の tgbt 呼び出しに関連する要素 ID 一覧を返す。
+    """
+    # ContextVar 内部の tuple を呼び出し元で扱いやすい list に変換する。
+    return list(_RELATED_ELEMENT_IDS.get())

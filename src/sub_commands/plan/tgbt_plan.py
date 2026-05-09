@@ -34,7 +34,7 @@ from state.git import (
 from state.knowledge_system import KnowledgeSystem
 from state.path import TGBT_PATH, repo_notation_path
 from util.error import tgbt_error
-from util.tgbt_call_log import record_related_log_path
+from util.tgbt_call_log import record_related_element_id
 from util.text import stdtqs
 from util.editor_input import read_from_editor
 
@@ -510,9 +510,8 @@ def _save_plan(
         encoding="utf-8",
     )
 
-    # plan はログとして後から辿れるよう、tgbt 呼び出しログの関連パスへ紐づける。
-    record_related_log_path(plan_json_path)
-    record_related_log_path(plan_markdown_path)
+    # plan は関連要素として後から辿れるよう、tgbt 呼び出しログへ ID を紐づける。
+    record_related_element_id(plan_id)
 
 
 def _resolve_plan_id(plan_id: str) -> str:
