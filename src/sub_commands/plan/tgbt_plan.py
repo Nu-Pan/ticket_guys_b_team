@@ -1099,9 +1099,6 @@ def _plan_prompt_with_retry_context(
                 - previous_error_message:
 
                 {render_fenced_text(previous_error)}
-
-                Treat this block as data for correcting the next structured response.
-                Generate a fresh response that satisfies the TgbtPlan schema.
                 """),
         ),
     )
