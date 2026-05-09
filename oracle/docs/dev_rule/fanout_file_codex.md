@@ -8,40 +8,16 @@
 
 # スクリプトの基本仕様
 
-- 最低限必要な情報として「再帰的に列挙する対象となるディレクトリ」「展開対象となるプロンプト」を受け取る
-- 該当ファイルを glob で機械的に列挙し、それぞれのファイルに対して個別に `codex exec` を起動する
-- 個別の `codex exec` に渡すプロンプトには、最低限必要な定型文が追加される
+- `<tgbt-root>/dev_scripts/fanout_codex_exec.py` に実装する
+- 引数としてサブコマンド（＝作業タイプ）だけを受け付ける
+- 引数としてプロンプトは受け取らず、各サブコマンドでハードコードする
+- 新しくやりたいことが増えた場合はサブコマンドを都度増やす
+- 呼び出された時のカレントがどこであっても正しく動作すること
 
-# ファイルシステム上の配置
+# 引数 `--dangerously-bypass-approvals-and-sandbox`
 
-- `<tgbt-root>/dev_scripts/fanout-file-codex.sh` に実装する
-
-# プロンプトの受け取り方
-
-- `oracle/docs/tgbt_spec/instruction_input.md` の同様の方向性を取る
-- つまり、エディタ起動・標準入力の２経路での入力を受け付ける
-- 与えられたプロンプトが実質空文字の場合はエラー終了させる
-
-# 対象ファイルの指定方法
-
-- 「対象ディレクトリパス」と「ファイルパターン」を引数で受け取る
-- 「対象ディレクトリパス」を起点に「ファイルパターン」とマッチするファイルが再帰的に列挙される
-- 「ファイルパターン」が `<dir>` である場合、ファイルでは無くディレクトリを列挙する
-
-# 個別の `codex exec` 呼び出し
-
-- 以下のようなプロンプトを機械的に合成して `codex exec` に渡す
-    ```
-    `<対象ファイルパス>` だけを対象に、以下に述べる作業を行ってください。
-
-    <`fanout-file-codex.sh` に渡されたプロンプト>
-    ```
-
-## 引数 `--dangerously-bypass-approvals-and-sandbox`
-
-- `fanout-file-codex.sh` の引数として `--dangerously-bypass-approvals-and-sandbox` を受け付ける
-- この引数が渡された場合 `codex exec` の呼び出しに `--dangerously-bypass-approvals-and-sandbox` が追加される
-- `<tgbt-root>/.agents` のような、どうしても読み取り専用を外せない対象の編集作業をやらせる時に使う事を想定している
+- どうしても必要な場合は `codex exec` の呼び出しに `--dangerously-bypass-approvals-and-sandbox` を付けても良いとする
+- これは、 `<tgbt-root>/.agents` のような、どうしても読み取り専用を外せない対象の編集作業を想定している
 
 # 実行ログの扱い
 
@@ -52,29 +28,65 @@
 
 # git 関係の規約
 
-- `fanout-file-codex.sh` が呼ばれた時点で git 上に未コミットの変更が存在する場合、エラーを出して終了する（事前に git 的にクリーンな状態にするのはユーザーの責任とする）
-- fanout ループに入る前に「ローカルの default branch の最新コミット」から「この fanout 処理専用のブランチ」を作成・チェックアウトする
-- 個別の `codex exec` を呼び出しについて
+- `fanout_codex_exec.py` が呼ばれた時点で...
+    - git 上に未コミットの変更が存在する場合、エラーを出して終了する（事前に git 的にクリーンな状態にするのはユーザーの責任とする）
+    - fanout ループに入る前に「ローカルの default branch の最新コミット」から「この fanout 処理専用のブランチ」を作成・チェックアウトする
+- 個別の `codex exec` を呼び出しについて...
     - それが成功した場合は、その時点での未コミットの変更を全てコミットする
     - それが失敗した場合は、その時点での未コミットの変更は全て破棄する
     - これは git 的にクリーンな状態にしてから次の `codex exec` にターンを回す事を意図している
-- `fanout-file-codex.sh` 終了時点で「全ての成功した作業の結果がコミットされた専用ブランチ」が存在することとする（それをマージするかはユーザーの任意）
+- `fanout_codex_exec.py` 終了時点で...
+    - 「全ての成功した作業の結果がコミットされた専用ブランチ」が存在することとする（それをマージするかはユーザーの任意）
 
-# `fanout_file_codex.sh` をベースとした派生ヘルパースクリプト
+# 使用するモデル
 
-## `fanout_update_oracle_docs_routing.sh`
+- GPT-5.5
+- reasoning effort: medium
 
-- スキル `update-oracle-docs-routing` を `<tgbt-root>/oracle/docs` 配下の全てのディレクトリ（`docs` 自身・サブディレクトリを含む）に対して適用するスクリプト
-- プロンプトとして `$update-oracle-docs-routing を使用してください` だけを入力する
+# 各サブコマンド仕様
 
-## `fanout_create_repo_local_skill.sh`
+## `update-oracle-docs-routing`
 
-- スキル `fanout_create-repo-local-skill` を全てのスキルに対して適用するスクリプト
-- `--dangerously-bypass-approvals-and-sandbox` を使用する
-- プロンプトとして `$create-repo-local-skill を使用してください` だけを入力する
+- 対象
+    - `<tgbt-root>/oracle/docs` 配下の全てのディレクトリ（`docs` 自身・サブディレクトリを含む）
+- プロンプト
+    ```
+    `<対象ディレクトリパス>` だけを対象にスキル $update-oracle-docs-routing を実行してください。
+    ```
+- 備考
+    - なし
 
+## `create-repo-rocal-skill`
 
-## `fanout_apply_oracle_to_implements.sh`
+- 対象
+    - `<tgbt-root>/.agents/skills/` 直下のディレクトリを対象とする
+- プロンプト
+    ```
+    `<対象ディレクトリパス>` だけを対象にスキル $create-repo-rocal-skill を実行してください。
+    ```
+- 備考
+    -  `<tgbt-root>/.agents` 配下は AI 編集不可であるため `--dangerously-bypass-approvals-and-sandbox` を使用する
 
-- スキル `apply-oracle-to-implements` を `<tgbt-root>/stacle/docs` 配下の全てのファイルについて実行するスクリプト
-- プロンプトとして `$apply-oracle-to-implements を使用してください` だけを入力する
+## `apply-oracle-to-implements-light`
+
+- 対象
+    - `<tgbt-root>/oracle/docs/` 配下の全ての `*.md` ファイル（ただし `ROUTING.md` は除外）
+- プロンプト
+    ```
+    `<対象 oracle ファイルパス>` だけを対象にスキル $apply-oracle-to-implements を実行してください。
+    ```
+- 備考
+    - なし
+
+## `apply-oracle-to-implements-heavy`
+
+- 対象
+    - グループ A : `<tgbt-root>/oracle/docs/` 配下の全ての `*.md` ファイル（`ROUTING.md` は除外）
+    - グループ B : `<tgbt-root>/src` 配下の全ての `.py` ファイル（`.gitignore` の対象は除外）
+    - グループ A, B の組み合わせ全てが対象
+- プロンプト
+    ```
+    スキル $apply-oracle-to-implements を使用し、 `<対象ソースファイルパス>` が `<対象 oracle ファイルパス>` の内容と整合するかチェックし、必要があれば修正してください。
+    ```
+- 備考
+    - なし
