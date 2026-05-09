@@ -105,10 +105,10 @@ class FanoutRunner:
             return [
                 FanoutTarget(
                     prompt=(
-                        f"`{path}` だけを対象にスキル "
+                        f"`{_tgbt_notation_path(path)}` だけを対象にスキル "
                         "$update-oracle-docs-routing を実行してください。"
                     ),
-                    commit_label=_relative_label(path),
+                    commit_label=_tgbt_notation_path(path),
                 )
                 for path in _oracle_docs_dirs()
             ]
@@ -117,10 +117,10 @@ class FanoutRunner:
             return [
                 FanoutTarget(
                     prompt=(
-                        f"`{path}` だけを対象にスキル "
+                        f"`{_tgbt_notation_path(path)}` だけを対象にスキル "
                         "$create-repo-local-skill を実行してください。"
                     ),
-                    commit_label=_relative_label(path),
+                    commit_label=_tgbt_notation_path(path),
                     bypass_approvals_and_sandbox=True,
                 )
                 for path in _repo_local_skill_dirs()
@@ -130,10 +130,10 @@ class FanoutRunner:
             return [
                 FanoutTarget(
                     prompt=(
-                        f"`{path}` だけを対象にスキル "
+                        f"`{_tgbt_notation_path(path)}` だけを対象にスキル "
                         "$apply-oracle-to-implements を実行してください。"
                     ),
-                    commit_label=_relative_label(path),
+                    commit_label=_tgbt_notation_path(path),
                 )
                 for path in _oracle_docs_markdown_files()
             ]
@@ -146,12 +146,13 @@ class FanoutRunner:
                         FanoutTarget(
                             prompt=(
                                 "スキル $apply-oracle-to-implements を使用し、 "
-                                f"`{source_path}` が `{oracle_path}` の内容と"
+                                f"`{_tgbt_notation_path(source_path)}` が "
+                                f"`{_tgbt_notation_path(oracle_path)}` の内容と"
                                 "整合するかチェックし、必要があれば修正してください。"
                             ),
                             commit_label=(
-                                f"{_relative_label(source_path)} vs "
-                                f"{_relative_label(oracle_path)}"
+                                f"{_tgbt_notation_path(source_path)} vs "
+                                f"{_tgbt_notation_path(oracle_path)}"
                             ),
                         )
                     )
@@ -337,9 +338,13 @@ def _timestamp_slug() -> str:
     return now.strftime("%Y%m%dT%H%M%S%fZ")
 
 
-def _relative_label(path: Path) -> str:
-    """コミットメッセージ向けに tgbt root 相対パスへ変換する。"""
-    return os.fspath(path.relative_to(TGBT_ROOT))
+def _tgbt_notation_path(path: Path) -> str:
+    """`<tgbt-root>/...` 表記へ変換する。"""
+    # oracle のパス表記ルールに従い、ticket_guys_b_team 配下の path として明示する。
+    relative_path = os.fspath(path.relative_to(TGBT_ROOT))
+    if relative_path == ".":
+        return "<tgbt-root>"
+    return f"<tgbt-root>/{relative_path}"
 
 
 def _format_command(command: Sequence[str]) -> str:
