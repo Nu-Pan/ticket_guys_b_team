@@ -28,6 +28,11 @@
 - 「`tgbt` を使って任意のリポジトリ `<repo-root>` 上で開発作業を行う」際の `<repo-root>/oracle` について記述している
 - `<repo-root>/oracle` の基本方針、狙い、`tgbt` コマンドとの連携、`oracle/tests` を扱う
 
+# `path_notation_rule.md`
+
+- `tgbt` のソースコード上で `<repo-root>` と `<tgbt-root>` をパス文字列として扱う規則について記述している
+- これらの表記を実際の操作対象リポジトリや `tgbt` リポジトリの絶対パスへ展開すること、表記を浸透させる意図を扱う
+
 # `plan_spec.md`
 
 - `tgbt plan ...` サブコマンドによるプランニング処理の正本仕様を記述している
