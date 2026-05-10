@@ -73,7 +73,7 @@
 - 備考
     -  `<tgbt-root>/.agents` 配下は AI 編集不可であるため `--dangerously-bypass-approvals-and-sandbox` を使用する
 
-## `apply-oracle-to-implements-light`
+## `apply-oracle-to-implements`
 
 - 対象
     - `<tgbt-root>/oracle/docs/` 配下の全ての `*.md` ファイル（ただし `ROUTING.md` は除外）
@@ -84,15 +84,14 @@
 - 備考
     - なし
 
-## `apply-oracle-to-implements-heavy`
+## `apply-oracle-to-prompts`
 
 - 対象
-    - グループ A : `<tgbt-root>/oracle/docs/` 配下の全ての `*.md` ファイル（`ROUTING.md` は除外）
-    - グループ B : `<tgbt-root>/src` 配下の全ての `.py` ファイル（`.gitignore` の対象は除外）
-    - グループ A, B の組み合わせ全てが対象
+    - `<tgbt-root>/src` 配下の全ての `*.py` ファイル（ただし `.gitignore` の対象は無視）の `CodexWrapper.run` 呼び出し箇所
 - プロンプト
     ```
-    スキル $apply-oracle-to-implements を使用し、 `<対象ソースファイルパス>` が `<対象 oracle ファイルパス>` の内容と整合するかチェックし、必要があれば修正してください。
+    $apply-oracle-to-implements を使用してください。
+    `<対象ソースファイルパス>:<対象行番号>` の `CodexWrapper.run` に入力されるプロンプトが `<tgbt-root>/oracle/docs/tgbt_spec/prompting/overall_prompt_rule.md` およびその関連ファイルで記述される正本仕様と整合するかチェックし、必要に応じて修正してください。
     ```
 - 備考
     - なし
