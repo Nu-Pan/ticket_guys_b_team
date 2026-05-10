@@ -24,10 +24,17 @@ from schemas.plan import (
     TgbtPlan,
     render_plan_markdown,
 )
+from state.git import (
+    assert_git_worktree_clean,
+    auto_commit_uncommitted_changes,
+    commit_human_managed_changes_for_plan_update,
+    prepare_existing_plan_branch,
+    prepare_new_plan_branch,
+)
 from state.knowledge_system import KnowledgeSystem
 from state.path import TGBT_PATH, repo_notation_path
 from util.error import tgbt_error
-from util.tgbt_call_log import record_related_log_path
+from util.tgbt_call_log import record_related_element_id
 from util.text import stdtqs
 from util.editor_input import read_from_editor
 
@@ -88,11 +95,23 @@ def tgbt_plan_impl(
         typer.echo("tgbt plan was cancelled because instruction is empty.")
         raise typer.Exit(code=0)
 
-    # 作成・更新処理を呼び出す
+    # 作成・更新処理を呼び出す。
     if plan_id is None:
-        result = _create_plan(instruction)
+        new_plan_id = _new_plan_id()
+        prepare_new_plan_branch(new_plan_id)
+        result = _create_plan(instruction, new_plan_id)
     else:
-        result = _update_plan(instruction, plan_id)
+        resolved_plan_id = _resolve_plan_id(plan_id)
+        prepare_existing_plan_branch(resolved_plan_id)
+        commit_human_managed_changes_for_plan_update()
+        assert_git_worktree_clean(
+            summary="git の未コミット差分が残っているため plan を更新できません",
+            next_message="oracle/oraclememo 以外の差分を commit するか破棄してから再実行してください。",
+        )
+        result = _update_plan(instruction, resolved_plan_id)
+
+    # tgbt plan が生成・更新した状態を、次の AI 作業の手がかりとして git 履歴へ保存する。
+    auto_commit_uncommitted_changes(f"tgbt plan: {result.plan_id}")
 
     # tgbt plan の結果として、人間閲覧用 Markdown と保存先レポートを標準出力へ表示する。
     typer.echo(_render_plan_command_report(result))
@@ -229,16 +248,13 @@ def _is_instruction_empty(instruction: str) -> bool:
     return normalized_instruction in ("# 作業指示", "### 作業指示")
 
 
-def _create_plan(instruction: str) -> _PlanCommandResult:
+def _create_plan(instruction: str, plan_id: str) -> _PlanCommandResult:
     """
     instruction に従って plan を新しく作成する。
     作成したプランの ID を返す。
     """
     # 新規ワークフロー開始時に、蓄積済み知識ファイルの品質を整える。
     KnowledgeSystem().improve_knowledge_files()
-
-    # 新規 plan id は tgbt 側で生成し、AI には決めさせない。
-    plan_id = _new_plan_id()
 
     # AI に渡す指示文は Markdown 見出しブロックとして構築する。
     prompt_blocks = [
@@ -282,9 +298,7 @@ def _create_plan(instruction: str) -> _PlanCommandResult:
         ),
         MarkdownPromptBlock(
             title="Operational parameters",
-            body=stdtqs("""
-                - schema_version: "1".
-                """),
+            body="- No caller-specific operational parameters.",
         ),
         MarkdownPromptBlock(
             title="Inputs",
@@ -333,7 +347,6 @@ def _update_plan(
     instruction に従って既存 plan を修正する。
     """
     # 既存プランをロード
-    plan_id = _resolve_plan_id(plan_id)
     existing_plan = _load_plan(plan_id)
     existing_plan_json = json.dumps(
         existing_plan.model_dump(mode="json"),
@@ -385,9 +398,7 @@ def _update_plan(
         ),
         MarkdownPromptBlock(
             title="Operational parameters",
-            body=stdtqs("""
-                - schema_version: "1".
-                """),
+            body="- No caller-specific operational parameters.",
         ),
         MarkdownPromptBlock(
             title="Inputs",
@@ -495,9 +506,8 @@ def _save_plan(
         encoding="utf-8",
     )
 
-    # plan はログとして後から辿れるよう、tgbt 呼び出しログの関連パスへ紐づける。
-    record_related_log_path(plan_json_path)
-    record_related_log_path(plan_markdown_path)
+    # plan は関連要素として後から辿れるよう、tgbt 呼び出しログへ ID を紐づける。
+    record_related_element_id(plan_id)
 
 
 def _resolve_plan_id(plan_id: str) -> str:
@@ -828,9 +838,7 @@ def _run_plan_review_prompt(
             ),
             MarkdownPromptBlock(
                 title="Operational parameters",
-                body=stdtqs("""
-                    - schema_version: "1".
-                    """),
+                body="- No caller-specific operational parameters.",
             ),
             MarkdownPromptBlock(
                 title="Inputs",
@@ -945,9 +953,7 @@ def _revise_plan(
             ),
             MarkdownPromptBlock(
                 title="Operational parameters",
-                body=stdtqs("""
-                    - schema_version: "1".
-                    """),
+                body="- No caller-specific operational parameters.",
             ),
             MarkdownPromptBlock(
                 title="Inputs",

@@ -120,7 +120,8 @@ class FanoutRunner:
                 FanoutTarget(
                     prompt=(
                         f"`{_tgbt_notation_path(path)}` だけを対象にスキル "
-                        "$create-repo-local-skill を実行してください。"
+                        "$create-repo-local-skill と $skill-creator を"
+                        "併用して実行してください。"
                     ),
                     commit_label=_tgbt_notation_path(path),
                 )
@@ -176,17 +177,24 @@ class FanoutRunner:
             'model_reasoning_effort="medium"',
             "-c",
             'plan_mode_reasoning_effort="medium"',
-            "-c",
-            'approval_policy="never"',
-            "-c",
-            "sandbox_workspace_write.network_access=true",
-            "--sandbox",
-            "workspace-write",
             "--ignore-user-config",
             "--ephemeral",
             "--cd",
             str(TGBT_ROOT),
         ]
+        if self.subcommand == "create-repo-local-skill":
+            command.append("--dangerously-bypass-approvals-and-sandbox")
+        else:
+            command.extend(
+                [
+                    "-c",
+                    'approval_policy="never"',
+                    "-c",
+                    "sandbox_workspace_write.network_access=true",
+                    "--sandbox",
+                    "workspace-write",
+                ],
+            )
         command.append(target.prompt)
 
         self._write_line(f"command: {_format_command(command)}")

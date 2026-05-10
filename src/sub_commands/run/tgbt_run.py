@@ -1,8 +1,7 @@
-# local
 from util.error import tgbt_error
 
 
-def tgbt_run_impl() -> None:
+def tgbt_run_impl(plan_id: str) -> None:
     """
     `tgbt run` の実装。
     """
