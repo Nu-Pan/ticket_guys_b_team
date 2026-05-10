@@ -6,3 +6,4 @@ __pycache__/
 *.zip
 /dev_scripts/logs/fanout-file-codex/*.log
 /.tgbt/
+/.cmot/
