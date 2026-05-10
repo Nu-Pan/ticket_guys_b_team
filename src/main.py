@@ -9,7 +9,7 @@ from uuid import uuid4
 import typer
 
 # local
-from sub_commands.eval.tgbt_eval_oracle import tgbt_eval_oracle_impl
+from sub_commands.eval.tgbt_eval_oracles import tgbt_eval_oracles_impl
 from sub_commands.knowledge.tgbt_knowledge import tgbt_knowledge_search_impl
 from sub_commands.plan.tgbt_plan import tgbt_plan_impl
 from sub_commands.run.tgbt_run import tgbt_run_impl
@@ -58,11 +58,11 @@ def knowledge_search(
     tgbt_knowledge_search_impl(question)
 
 
-@_eval_app.command("oracle")
-def eval_oracle() -> None:
-    """oracle の矛盾・誤記・権限境界などの問題点を評価する。"""
+@_eval_app.command("oracles")
+def eval_oracles() -> None:
+    """oracles の矛盾・誤記・権限境界などの問題点を評価する。"""
     # 実装を呼び出し
-    tgbt_eval_oracle_impl()
+    tgbt_eval_oracles_impl()
 
 
 @_app.command("plan")

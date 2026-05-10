@@ -1,0 +1,4 @@
+interface:
+  display_name: "Apply Oracles to Implementation"
+  short_description: "Reflect oracles into tgbt implementation"
+  default_prompt: "Use $apply-oracles-to-implements to reflect recent or specified tgbt oracles changes into implementation."

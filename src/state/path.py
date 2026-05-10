@@ -170,7 +170,7 @@ TGBT_PATH = TGBTPath()
 
 def repo_notation_path(path: Path) -> str:
     """repo root 配下の path を `<repo-root>/...` 表記に変換する."""
-    # oracle のパス表記ルールに従い、repo 相対表記には必ず `<repo-root>` を付ける。
+    # oracles のパス表記ルールに従い、repo 相対表記には必ず `<repo-root>` を付ける。
     relative_path = path.relative_to(TGBT_PATH.repo_root).as_posix()
     if relative_path == ".":
         return _REPO_ROOT_NOTATION

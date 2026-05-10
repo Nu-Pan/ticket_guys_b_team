@@ -28,7 +28,7 @@
 - あと、事前にユーザーが Codex CLI を直接起動してログイン状態にする必要があるけど、その案内も必要だろう
 - Codex CLI の設定が正しいかどうかはスキーマと照合する必要がある（存在しないキーを指定した時に、それがエラーにならない）
 
-# oracle もソースファイルも適度に分けたほうが良い
+# oracles もソースファイルも適度に分けたほうが良い
 
 - fanout でやるようになったので、適度なサイズに分けた方が良い
 
@@ -51,9 +51,9 @@
     - 例えば GUI 開発にはそういうスキルを追加する必要があるはずなので、スキル自体は許容せざるを得ないはず
     - 恐らく、リポジトリ固有の事情ならスキルへ、ソフトウェア開発の一般的な事情なら tgbt プロンプトブロックへ、っていう感じ
 
-# `tgbt eval oracle`
+# `tgbt eval oracles`
 
-- `oracle/docs/tgbt_spec/sub_commands/eval_oracle.md` がすっからかんなので記述が必要
+- `oracles/docs/tgbt_spec/sub_commands/eval_oracles.md` がすっからかんなので記述が必要
 - 新しく生えたのでチェックが必要
 
 # 用語関係を仕様に組み込む
@@ -66,21 +66,21 @@
 - ログはデカすぎるのでトラックすべきじゃない
 - plan も要るかどうかあやしい
 
-# `tgbt plan apply-oracle` が必要説
+# `tgbt plan apply-oracles` が必要説
 
-- tgbt 自体の開発をしている感じでは、 oracle を更新して、あとはよしなにするスタイルは結構悪くない
+- tgbt 自体の開発をしている感じでは、 oracles を更新して、あとはよしなにするスタイルは結構悪くない
 - であれば、「よしなに」をサブコマンドとして定型化するのが良さそう
-- 今から何をするのかをレビューしないといけないのは間違いない（oracle 不備の事前修正したいし）ので `tgbt plan` のサブコマンドが良いだろう
+- 今から何をするのかをレビューしないといけないのは間違いない（oracles 不備の事前修正したいし）ので `tgbt plan` のサブコマンドが良いだろう
 - 任意作業用に `tgbt plan` は残しても良い
 - あるいはコマンド体系を整理して、こんな感じでも良いかも
     - `tgbt plan new` (プロンプト入力あり)
     - `tgbt plan update --plan-id <plan id>` (プロンプト入力あり)
-    - `tgbt plan new apply-oracle` (プロンプト入力なし)
-    - `tgbt plan update apply-oracle --plan-id <plan id>` (プロンプト入力なし)
+    - `tgbt plan new apply-oracles` (プロンプト入力なし)
+    - `tgbt plan update apply-oracles --plan-id <plan id>` (プロンプト入力なし)
 
-# oracle 全体をチェック・レポートする fanout が欲しい
+# oracles 全体をチェック・レポートする fanout が欲しい
 
-- $eval-oracle を１ファイルずつ適用して、要約した結果をつなげてファイルに書き出してくれる、みたいなの
+- $eval-oracles を１ファイルずつ適用して、要約した結果をつなげてファイルに書き出してくれる、みたいなの
 - これは tgbt 自体の開発にも、 tgbt の仕様にも欲しい
 
 # tgbt の目次情報つながってないかも
@@ -94,7 +94,3 @@
 - outman_trigger (otrig) を作る
 - otrig をつかって tgbt を開発する
 - Codex CLI の不便な所を解消する・定型作業をサポートする…程度の軽量なやつ
-
-# oracle を複数形にリネーム
-
-- oracle --> oracles

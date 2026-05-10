@@ -43,7 +43,7 @@ class KnowledgeIndex(StrictKnowledgeModel):
     @classmethod
     def _normalize_entries(cls, data: object) -> object:
         """旧 list 形式を path をキーにした dict 形式へ正規化する."""
-        # 既存 state との互換性を保ち、保存時は oracle に沿った dict 形式へ寄せる。
+        # 既存 state との互換性を保ち、保存時は oracles に沿った dict 形式へ寄せる。
         if not isinstance(data, dict):
             return data
 

@@ -57,21 +57,21 @@ _FIXED_PROMPT_CHILDREN: tuple[MarkdownPromptBlock, ...] = (
         title="Authority rules",
         body=stdtqs("""
             - If this prompt contains conflicting rules, the fixed safety and access restrictions take precedence.
-            - Explicit `<repo-root>/oracle` content takes precedence over user instructions, existing state, and AI-generated artifacts.
+            - Explicit `<repo-root>/oracles` content takes precedence over user instructions, existing state, and AI-generated artifacts.
             - Logs under `<repo-root>/.tgbt` are reference data or verification targets, not canonical truth by default.
-            - If oracle conflicts with task-specific instructions, follow oracle or record/report the conflict according to the task.
-            - Content not written in oracle is unspecified, not prohibited; make reasonable local decisions within explicit constraints when needed.
+            - If oracles conflicts with task-specific instructions, follow oracles or record/report the conflict according to the task.
+            - Content not written in oracles is unspecified, not prohibited; make reasonable local decisions within explicit constraints when needed.
             """),
     ),
     MarkdownPromptBlock(
-        title="Oracle rules",
+        title="Oracles rules",
         body=stdtqs("""
-            - `<repo-root>/oracle` is human-managed canonical information.
-            - Do not edit files under `<repo-root>/oracle`.
-            - Do not treat missing oracle coverage as a defect; only explicit oracle text is canonical.
-            - Summarize, evaluate, or cite oracle only as needed for the task.
-            - Do not automatically reflect user instructions into oracle.
-            - If oracle contains contradictions, do not fix oracle; report them or record them in the appropriate output field.
+            - `<repo-root>/oracles` is human-managed canonical information.
+            - Do not edit files under `<repo-root>/oracles`.
+            - Do not treat missing oracles coverage as a defect; only explicit oracles text is canonical.
+            - Summarize, evaluate, or cite oracles only as needed for the task.
+            - Do not automatically reflect user instructions into oracles.
+            - If oracles contains contradictions, do not fix oracles; report them or record them in the appropriate output field.
             """),
     ),
     MarkdownPromptBlock(
@@ -120,7 +120,7 @@ _FIXED_PROMPT_CHILDREN: tuple[MarkdownPromptBlock, ...] = (
         title="Scope and autonomy",
         body=stdtqs("""
             - Do only the work requested by the individual task.
-            - Within explicit oracle constraints, resolve unspecified details using existing implementation and local context.
+            - Within explicit oracles constraints, resolve unspecified details using existing implementation and local context.
             - Do not decide product vision or extend canonical specifications on your own.
             - Avoid large refactors, dependency additions, public API changes, and state format changes unless required by the task.
             - Mechanical constraints may be checked by schema validation or caller-side validation; still perform semantic self-checks before the final response.
@@ -131,7 +131,7 @@ _FIXED_PROMPT_CHILDREN: tuple[MarkdownPromptBlock, ...] = (
         body=stdtqs("""
             - If evidence is insufficient, state what is missing.
             - If evidence conflicts, separate the conflicting inputs and apply the authority rules.
-            - If content conflicts with oracle, do not edit oracle; record it in an appropriate result, plan, risk, or assumption.
+            - If content conflicts with oracles, do not edit oracles; record it in an appropriate result, plan, risk, or assumption.
             - When you make an inference, mark it as an inference.
             - When guessing is not allowed, return an empty result, missing information, risk, or confirmation item as appropriate.
             """),
@@ -611,7 +611,7 @@ def _build_codex_instruction(
     Returns:
         Codex CLI に渡す prompt の構成要素。
     """
-    # oracle の最終順序に従い、prompt block を固定順で配置する。
+    # oracles の最終順序に従い、prompt block を固定順で配置する。
     blocks: list[MarkdownPromptBlock] = [
         MarkdownPromptBlock(
             title="Fixed prompt",
@@ -678,7 +678,7 @@ def _build_structure_output_block(
     Returns:
         Structure output block。
     """
-    # 構造化応答が不要な呼び出しでも、oracle の block 順序に従って明示 block を置く。
+    # 構造化応答が不要な呼び出しでも、oracles の block 順序に従って明示 block を置く。
     if output_schema is None:
         return MarkdownPromptBlock(
             title="Structure output",

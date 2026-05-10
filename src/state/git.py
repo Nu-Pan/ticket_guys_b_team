@@ -7,7 +7,7 @@ from state.path import TGBT_PATH
 from util.error import tgbt_error
 
 _PLAN_BRANCH_PREFIX = "tgbt-plan"
-_HUMAN_MANAGED_PATHS = ("oracle", "oraclememo")
+_HUMAN_MANAGED_PATHS = ("oracles", "oraclesmemo")
 
 
 def plan_branch_name(plan_id: str) -> str:
@@ -47,7 +47,7 @@ def prepare_existing_plan_branch(plan_id: str) -> None:
 
 def commit_human_managed_changes_for_plan_update() -> None:
     """plan 更新前に人間管理ファイルの差分だけを自動 commit する."""
-    # plan 更新では oracle/oraclememo の人間管理差分だけを先に保存する。
+    # plan 更新では oracles/oraclesmemo の人間管理差分だけを先に保存する。
     changed_paths = _changed_paths_for_pathspecs(_HUMAN_MANAGED_PATHS)
     if len(changed_paths) == 0:
         return

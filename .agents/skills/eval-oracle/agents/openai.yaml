@@ -1,4 +1,0 @@
-interface:
-  display_name: "Eval Oracle"
-  short_description: "tgbt oracle の矛盾・typo・権限境界を評価"
-  default_prompt: "Use $eval-oracle to evaluate existing tgbt oracle text for contradictions, typos, path context mixups, and permission-boundary conflicts without editing it."

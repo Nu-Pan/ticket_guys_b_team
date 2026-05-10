@@ -34,10 +34,10 @@ def main() -> int:
     parser.add_argument(
         "subcommand",
         choices=[
-            "update-oracle-docs-routing",
+            "update-oracles-docs-routing",
             "create-repo-local-skill",
-            "apply-oracle-to-implements",
-            "apply-oracle-to-prompts",
+            "apply-oracles-to-implements",
+            "apply-oracles-to-prompts",
         ],
     )
     args = parser.parse_args()
@@ -104,16 +104,16 @@ class FanoutRunner:
     def _build_targets(self) -> list[FanoutTarget]:
         """サブコマンド名を具体的な Codex 呼び出し対象へ展開する。"""
         # fanout 対象を、サブコマンドごとの最小処理単位へ分解する。
-        if self.subcommand == "update-oracle-docs-routing":
+        if self.subcommand == "update-oracles-docs-routing":
             return [
                 FanoutTarget(
                     prompt=(
                         f"`{_tgbt_notation_path(path)}` だけを対象にスキル "
-                        "$update-oracle-docs-routing を実行してください。"
+                        "$update-oracles-docs-routing を実行してください。"
                     ),
                     commit_label=_tgbt_notation_path(path),
                 )
-                for path in _oracle_docs_dirs()
+                for path in _oracles_docs_dirs()
             ]
 
         if self.subcommand == "create-repo-local-skill":
@@ -128,26 +128,26 @@ class FanoutRunner:
                 for path in _repo_local_skill_dirs()
             ]
 
-        if self.subcommand == "apply-oracle-to-implements":
+        if self.subcommand == "apply-oracles-to-implements":
             return [
                 FanoutTarget(
                     prompt=(
                         f"`{_tgbt_notation_path(path)}` だけを対象にスキル "
-                        "$apply-oracle-to-implements を実行してください。"
+                        "$apply-oracles-to-implements を実行してください。"
                     ),
                     commit_label=_tgbt_notation_path(path),
                 )
-                for path in _oracle_docs_markdown_files()
+                for path in _oracles_docs_markdown_files()
             ]
 
-        if self.subcommand == "apply-oracle-to-prompts":
+        if self.subcommand == "apply-oracles-to-prompts":
             return [
                 FanoutTarget(
                     prompt=(
-                        "$apply-oracle-to-implements を使用してください。\n"
+                        "$apply-oracles-to-implements を使用してください。\n"
                         f"`{_tgbt_notation_path(call.path)}:{call.line_number}` の "
                         "`CodexWrapper.run` に入力されるプロンプトが "
-                        "<tgbt-root>/oracle/docs/tgbt_spec/prompting/"
+                        "<tgbt-root>/oracles/docs/tgbt_spec/prompting/"
                         "overall_prompt_rule.md およびその関連ファイルで"
                         "記述される正本仕様と整合するかチェックし、"
                         "必要に応じて修正してください。"
@@ -293,10 +293,10 @@ class CodexWrapperRunCall:
     line_number: int
 
 
-def _oracle_docs_dirs() -> list[Path]:
-    """oracle/docs 配下の全ディレクトリを絶対パスで返す。"""
+def _oracles_docs_dirs() -> list[Path]:
+    """oracles/docs 配下の全ディレクトリを絶対パスで返す。"""
     # docs root 自体も ROUTING.md 更新対象なので、子ディレクトリと合わせて返す。
-    docs_root = TGBT_ROOT / "oracle" / "docs"
+    docs_root = TGBT_ROOT / "oracles" / "docs"
     return sorted(
         [docs_root, *[path for path in docs_root.rglob("*") if path.is_dir()]],
     )
@@ -311,10 +311,10 @@ def _repo_local_skill_dirs() -> list[Path]:
     return sorted([path for path in skills_root.iterdir() if path.is_dir()])
 
 
-def _oracle_docs_markdown_files() -> list[Path]:
-    """ROUTING.md を除いた oracle/docs 配下の Markdown を返す。"""
-    # 各階層の目次である ROUTING.md は oracle 適用対象から除外する。
-    docs_root = TGBT_ROOT / "oracle" / "docs"
+def _oracles_docs_markdown_files() -> list[Path]:
+    """ROUTING.md を除いた oracles/docs 配下の Markdown を返す。"""
+    # 各階層の目次である ROUTING.md は oracles 適用対象から除外する。
+    docs_root = TGBT_ROOT / "oracles" / "docs"
     return sorted(
         [
             path
@@ -407,7 +407,7 @@ def _timestamp_slug() -> str:
 
 def _tgbt_notation_path(path: Path) -> str:
     """`<tgbt-root>/...` 表記へ変換する。"""
-    # oracle のパス表記ルールに従い、ticket_guys_b_team 配下の path として明示する。
+    # oracles のパス表記ルールに従い、ticket_guys_b_team 配下の path として明示する。
     relative_path = os.fspath(path.relative_to(TGBT_ROOT))
     if relative_path == ".":
         return "<tgbt-root>"

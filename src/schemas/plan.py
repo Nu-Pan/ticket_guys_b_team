@@ -120,9 +120,9 @@ Field rules:
 - schema_version: Use "1".
 - original_instructions: Preserve the user's original instruction text without paraphrasing.
 - completion_criteria: Write concrete observable conditions for completion.
-- risk_notes: Record ambiguity, missing information, likely execution risk, or oracle conflicts.
+- risk_notes: Record ambiguity, missing information, likely execution risk, or oracles conflicts.
 - planned_procedures: Write ordered, atomic pre-execution work procedures.
-- assumptions: Record assumptions made to fill gaps not specified by the user or oracle.
+- assumptions: Record assumptions made to fill gaps not specified by the user or oracles.
 - self_check_notes: Record concise checks performed before finalizing the plan.
 
 ID rules:
