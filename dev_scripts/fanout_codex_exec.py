@@ -1,5 +1,6 @@
 # std
 import argparse
+import ast
 import datetime
 import os
 import subprocess
@@ -35,8 +36,8 @@ def main() -> int:
         choices=[
             "update-oracle-docs-routing",
             "create-repo-local-skill",
-            "apply-oracle-to-implements-light",
-            "apply-oracle-to-implements-heavy",
+            "apply-oracle-to-implements",
+            "apply-oracle-to-prompts",
         ],
     )
     args = parser.parse_args()
@@ -120,15 +121,14 @@ class FanoutRunner:
                 FanoutTarget(
                     prompt=(
                         f"`{_tgbt_notation_path(path)}` だけを対象にスキル "
-                        "$create-repo-local-skill と $skill-creator を"
-                        "併用して実行してください。"
+                        "$create-repo-local-skill を実行してください。"
                     ),
                     commit_label=_tgbt_notation_path(path),
                 )
                 for path in _repo_local_skill_dirs()
             ]
 
-        if self.subcommand == "apply-oracle-to-implements-light":
+        if self.subcommand == "apply-oracle-to-implements":
             return [
                 FanoutTarget(
                     prompt=(
@@ -140,25 +140,24 @@ class FanoutRunner:
                 for path in _oracle_docs_markdown_files()
             ]
 
-        if self.subcommand == "apply-oracle-to-implements-heavy":
-            targets: list[FanoutTarget] = []
-            for oracle_path in _oracle_docs_markdown_files():
-                for source_path in _tracked_src_python_files():
-                    targets.append(
-                        FanoutTarget(
-                            prompt=(
-                                "スキル $apply-oracle-to-implements を使用し、 "
-                                f"`{_tgbt_notation_path(source_path)}` が "
-                                f"`{_tgbt_notation_path(oracle_path)}` の内容と"
-                                "整合するかチェックし、必要があれば修正してください。"
-                            ),
-                            commit_label=(
-                                f"{_tgbt_notation_path(source_path)} vs "
-                                f"{_tgbt_notation_path(oracle_path)}"
-                            ),
-                        )
-                    )
-            return targets
+        if self.subcommand == "apply-oracle-to-prompts":
+            return [
+                FanoutTarget(
+                    prompt=(
+                        "$apply-oracle-to-implements を使用してください。\n"
+                        f"`{_tgbt_notation_path(call.path)}:{call.line_number}` の "
+                        "`CodexWrapper.run` に入力されるプロンプトが "
+                        "<tgbt-root>/oracle/docs/tgbt_spec/prompting/"
+                        "overall_prompt_rule.md およびその関連ファイルで"
+                        "記述される正本仕様と整合するかチェックし、"
+                        "必要に応じて修正してください。"
+                    ),
+                    commit_label=(
+                        f"{_tgbt_notation_path(call.path)}:{call.line_number}"
+                    ),
+                )
+                for call in _codex_wrapper_run_calls()
+            ]
 
         raise FanoutError(f"unknown subcommand: {self.subcommand}")
 
@@ -286,6 +285,14 @@ class FanoutError(Exception):
     """fanout 実行を継続できないエラー。"""
 
 
+@dataclass(frozen=True)
+class CodexWrapperRunCall:
+    """src 配下の CodexWrapper.run 呼び出し位置。"""
+
+    path: Path
+    line_number: int
+
+
 def _oracle_docs_dirs() -> list[Path]:
     """oracle/docs 配下の全ディレクトリを絶対パスで返す。"""
     # docs root 自体も ROUTING.md 更新対象なので、子ディレクトリと合わせて返す。
@@ -317,12 +324,39 @@ def _oracle_docs_markdown_files() -> list[Path]:
     )
 
 
-def _tracked_src_python_files() -> list[Path]:
-    """git が追跡する src 配下の Python ファイルを返す。"""
-    # git の追跡対象だけを使い、生成物や未追跡ファイルを fanout 対象から外す。
-    output = _git_stdout(["ls-files", "-z", "--", "src"])
+def _git_unignored_src_python_files() -> list[Path]:
+    """gitignore 対象を除いた src 配下の Python ファイルを返す。"""
+    # git による ignore 判定を使い、生成物や無視対象を fanout 対象から外す。
+    output = _git_stdout(
+        ["ls-files", "-z", "--cached", "--others", "--exclude-standard", "--", "src"],
+    )
     relative_paths = [item for item in output.split("\0") if item.endswith(".py")]
     return [TGBT_ROOT / path for path in sorted(relative_paths)]
+
+
+def _codex_wrapper_run_calls() -> list[CodexWrapperRunCall]:
+    """src 配下の CodexWrapper().run 呼び出し位置を返す。"""
+    # AST の call 形状で判定し、コメントや文字列中の一致を対象から外す。
+    calls: list[CodexWrapperRunCall] = []
+    for path in _git_unignored_src_python_files():
+        tree = ast.parse(path.read_text(encoding="utf-8"), filename=os.fspath(path))
+        for node in ast.walk(tree):
+            if isinstance(node, ast.Call) and _is_codex_wrapper_run_call(node):
+                calls.append(CodexWrapperRunCall(path=path, line_number=node.lineno))
+    return sorted(calls, key=lambda call: (os.fspath(call.path), call.line_number))
+
+
+def _is_codex_wrapper_run_call(node: ast.Call) -> bool:
+    """AST ノードが CodexWrapper().run(...) 呼び出しかを判定する。"""
+    # 現行コードの直接呼び出し形だけを対象にし、別 wrapper の run と混同しない。
+    function = node.func
+    if not isinstance(function, ast.Attribute) or function.attr != "run":
+        return False
+    receiver = function.value
+    if not isinstance(receiver, ast.Call):
+        return False
+    constructor = receiver.func
+    return isinstance(constructor, ast.Name) and constructor.id == "CodexWrapper"
 
 
 def _has_uncommitted_changes() -> bool:
